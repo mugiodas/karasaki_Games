@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>第5回 Next Generationシングルス大会 タイムテーブル検索</title>
+<style>
+:root{
+  --bg:#f4f5f7; --card:#ffffff; --text:#1c1e21; --sub:#6b7280;
+  --accent:#2563eb; --accent2:#7c3aed; --line:#e5e7eb; --chip:#eef0f3;
+  --girl:#e11d5e; --boy:#0891b2; --pending:#d97706; --unsched:#9ca3af;
+  --shadow:0 1px 3px rgba(0,0,0,.06),0 1px 2px rgba(0,0,0,.04);
+  --star:#f59e0b;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#111318; --card:#1b1e25; --text:#eef0f3; --sub:#9aa1ac;
+    --accent:#5b9dff; --accent2:#a78bfa; --line:#2a2e37; --chip:#242832;
+    --shadow:0 1px 3px rgba(0,0,0,.4);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#111318; --card:#1b1e25; --text:#eef0f3; --sub:#9aa1ac;
+  --accent:#5b9dff; --accent2:#a78bfa; --line:#2a2e37; --chip:#242832;
+  --shadow:0 1px 3px rgba(0,0,0,.4);
+}
+*{-webkit-tap-highlight-color:transparent; box-sizing:border-box;}
+html{scroll-padding-top:env(safe-area-inset-top,0px); height:100%;}
+body{
+  margin:0; background:var(--bg); color:var(--text); height:100%;
+  font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:900px;margin:0 auto;padding:0 12px 40px;}
+header{
+  position:sticky; top:0; z-index:30;
+  padding:calc(10px + env(safe-area-inset-top,0px)) 12px 10px;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  color:#fff; box-shadow:var(--shadow);
+}
+header h1{margin:0 0 2px; font-size:14.5px; font-weight:700; letter-spacing:.01em;}
+header .date{font-size:11px; opacity:.9; margin-bottom:10px;}
+.searchbar{
+  display:flex; align-items:center; gap:8px;
+  background:rgba(255,255,255,.18); border:1px solid rgba(255,255,255,.35);
+  border-radius:12px; padding:9px 12px;
+}
+.searchbar input{flex:1; border:none; background:transparent; outline:none; color:#fff; font-size:16px;}
+.searchbar input::placeholder{color:rgba(255,255,255,.75);}
+.clearBtn{border:none; background:rgba(255,255,255,.3); color:#fff; border-radius:50%; width:20px;height:20px; font-size:13px; line-height:1; cursor:pointer; display:none; align-items:center;justify-content:center; flex-shrink:0;}
+.clearBtn.show{display:flex;}
+.tabbar{display:flex; gap:6px; margin-top:10px;}
+.tabbtn{flex:1; text-align:center; padding:7px 0; border-radius:10px; background:rgba(255,255,255,.15); color:#fff; font-size:12.5px; font-weight:700; cursor:pointer; border:1px solid rgba(255,255,255,.25);}
+.tabbtn.active{background:#fff; color:var(--accent);}
+
+.filters{display:flex; gap:6px; overflow-x:auto; padding:10px 12px 4px; margin:0 -12px; -webkit-overflow-scrolling:touch; scrollbar-width:none;}
+.filters::-webkit-scrollbar{display:none;}
+.chip{flex-shrink:0; padding:6px 12px; border-radius:999px; background:var(--chip); color:var(--text); font-size:12.5px; font-weight:600; border:1px solid var(--line); cursor:pointer; white-space:nowrap; user-select:none;}
+.chip.active{background:var(--accent); color:#fff; border-color:var(--accent);}
+.chip.star.active{background:var(--star); border-color:var(--star);}
+
+.summary{display:flex; justify-content:space-between; align-items:center; font-size:12px; color:var(--sub); padding:10px 2px 6px; flex-wrap:wrap; gap:6px;}
+.summary b{color:var(--accent); font-size:14px;}
+.sortBtn{background:none;border:none;color:var(--accent);font-size:12px;font-weight:600;cursor:pointer;padding:4px 6px;}
+
+.statsBox{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:10px 12px; margin:4px 0 10px; font-size:12px; box-shadow:var(--shadow);}
+.statsBox .stitle{font-weight:700; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;}
+.statsBox .stitle span.tgl{color:var(--accent); font-weight:600; cursor:pointer;}
+.rankrow{display:flex; justify-content:space-between; padding:3px 0; border-bottom:1px dashed var(--line);}
+.rankrow:last-child{border-bottom:none;}
+.rankrow b{color:var(--accent2);}
+
+#list{display:flex; flex-direction:column; gap:8px;}
+.card{background:var(--card); border-radius:14px; padding:10px 12px; box-shadow:var(--shadow); border:1px solid var(--line); scroll-margin-top:190px; position:relative;}
+.card.now{border-color:var(--accent); box-shadow:0 0 0 2px var(--accent);}
+.card .meta{display:flex; align-items:center; gap:6px; margin-bottom:6px; flex-wrap:wrap;}
+.meta .time{font-weight:800; font-size:14px; color:var(--accent);}
+.meta .nowtag{font-size:10px; font-weight:800; color:#fff; background:var(--accent); padding:1px 6px; border-radius:5px;}
+.meta .court{font-size:11px; color:var(--sub); background:var(--chip); padding:2px 7px; border-radius:6px;}
+.meta .code{font-size:10.5px; color:var(--sub); font-family:ui-monospace,monospace;}
+.meta .div{margin-left:auto; font-size:10px; font-weight:700; padding:2px 7px; border-radius:6px; color:#fff;}
+.div-g{background:var(--girl);} .div-b{background:var(--boy);} .div-x{background:#6b7280;}
+.vs{display:flex; align-items:stretch; gap:8px;}
+.player{flex:1; padding:6px 8px; border-radius:9px; background:var(--bg); min-width:0; cursor:pointer;}
+.player .namerow{display:flex; align-items:center; gap:5px;}
+.player .name{font-size:15px; font-weight:700; word-break:break-word;}
+.player .name mark{background:#fde68a; color:#111; border-radius:3px; padding:0 1px;}
+.player .star{font-size:13px; color:var(--line); flex-shrink:0;}
+.player.fav .star{color:var(--star);}
+.player.pending .name{color:var(--pending); font-weight:600; font-size:12.5px;}
+.player.unsched .name{color:var(--unsched); font-style:italic; font-weight:500;}
+.player .team{font-size:11.5px; color:var(--sub); margin-top:2px; word-break:break-word;}
+.player .team mark{background:#fde68a; color:#111; border-radius:3px; padding:0 1px;}
+.vsmark{align-self:center; font-size:10px; color:var(--sub); font-weight:700; flex-shrink:0;}
+.empty{text-align:center; color:var(--sub); padding:60px 20px; font-size:14px; line-height:1.7;}
+
+/* grid table view */
+.gridwrap{overflow:auto; -webkit-overflow-scrolling:touch; border:1px solid var(--line); border-radius:12px; background:var(--card); box-shadow:var(--shadow); max-height:70vh;}
+table.grid{border-collapse:separate; border-spacing:0; font-size:10.5px; width:max-content;}
+table.grid th, table.grid td{border-right:1px solid var(--line); border-bottom:1px solid var(--line); padding:4px 5px; vertical-align:top;}
+table.grid thead th{position:sticky; top:0; background:var(--chip); z-index:5; text-align:center; font-size:11px; padding:6px 5px; color:var(--sub);}
+table.grid tbody th{position:sticky; left:0; background:var(--chip); z-index:4; font-weight:800; color:var(--accent); text-align:center; min-width:48px;}
+table.grid td{min-width:88px; max-width:110px;}
+table.grid td .code{font-size:9px; color:var(--sub); font-family:ui-monospace,monospace; display:block; margin-bottom:2px;}
+table.grid td .nm{display:block; line-height:1.3;}
+table.grid td .nm.pending{color:var(--pending);}
+table.grid td .nm.unsched{color:var(--unsched); font-style:italic;}
+table.grid td .nm mark{background:#fde68a;color:#111;border-radius:2px;}
+table.grid td.dim{opacity:.25;}
+table.grid td.hit{background:#fef3c7;}
+table.grid td.teamhit{background:#dbeafe; outline:2px solid var(--accent); outline-offset:-2px;}
+table.grid td .nm.teamplayer{font-weight:800; color:var(--accent); text-decoration:underline;}
+.gridHint{font-size:11px; color:var(--sub); text-align:center; padding:6px 0 2px;}
+.teamSelectRow{display:flex; align-items:center; gap:8px; padding:2px 2px 10px;}
+.teamSelectRow label{font-size:12px; color:var(--sub); flex-shrink:0; font-weight:600;}
+.teamSelectRow select{
+  flex:1; padding:8px 10px; border-radius:10px; border:1px solid var(--line);
+  background:var(--card); color:var(--text); font-size:13px;
+}
+.teamSelectRow .teamClear{flex-shrink:0; font-size:12px; color:var(--accent); font-weight:700; cursor:pointer; padding:4px 6px; display:none;}
+.teamSelectRow .teamClear.show{display:inline-block;}
+
+.legend{font-size:11px; color:var(--sub); background:var(--card); border:1px solid var(--line); border-radius:12px; padding:10px 12px; margin:14px 0 4px; line-height:1.8;}
+.legend b{color:var(--text);}
+.review{font-size:11.5px; color:var(--sub); background:var(--card); border:1px dashed #d97706; border-radius:12px; padding:10px 12px; margin:10px 0; line-height:1.75;}
+.review b{color:var(--pending);}
+.review ul{margin:4px 0 0; padding-left:18px;}
+footer{text-align:center; font-size:10.5px; color:var(--sub); padding:16px 0 0;}
+.hidden{display:none !important;}
+</style>
+</head>
+<body>
+<header>
+  <h1>🎾 第5回 Next Generation シングルス大会</h1>
+  <div class="date">令和8年10月4日（土）・全15コート</div>
+  <div class="searchbar">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input id="q" type="text" placeholder="選手名・チーム名・コードで検索" autocomplete="off">
+    <button class="clearBtn" id="clearBtn">✕</button>
+  </div>
+  <div class="tabbar">
+    <div class="tabbtn active" data-tab="list">📋 リスト表示</div>
+    <div class="tabbtn" data-tab="grid">🗂 全体表（コート×時刻）</div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="filters" id="divFilters"></div>
+  <div class="summary">
+    <span><b id="hitcount">0</b> 件ヒット / 全<span id="totalcount">0</span>件</span>
+    <button class="sortBtn" id="sortBtn">⏱ 時刻順</button>
+  </div>
+
+  <div class="statsBox" id="statsBox">
+    <div class="stitle">🏆 チーム別 出場数ランキング <span class="tgl" id="statsToggle">表示 ▼</span></div>
+    <div id="rankList" class="hidden"></div>
+  </div>
+
+  <div id="listView">
+    <div id="list"></div>
+  </div>
+
+  <div id="gridView" class="hidden">
+    <div class="teamSelectRow">
+      <label for="teamSelect">🏫 チームで選択</label>
+      <select id="teamSelect"><option value="">チームを選択してハイライト...</option></select>
+      <span class="teamClear" id="teamClear">解除✕</span>
+    </div>
+    <div class="gridHint">👉 横にスクロールしてコート1〜15を確認・検索語は黄色、選択チームは青でハイライトされます</div>
+    <div class="gridwrap"><div id="gridTableHolder"></div></div>
+  </div>
+
+  <div class="legend">
+    <div><b>区分コードの見方（推定）</b>：G＝女子 / B＝男子、高＝高学年、4＝4年生、A/B＝ブロック、X＝敗者復活・順位決定戦。※この分類名は原本に明記された正式名称ではなく、コード表記からの推定です。</div>
+    <div style="margin-top:4px;"><b>色分け</b>：<span style="color:var(--pending);font-weight:700;">オレンジ文字</span>＝前の試合の勝者が入る予定（対戦者未確定）／<span style="color:var(--unsched);font-style:italic;">グレー斜体</span>＝組み合わせ未定。</div>
+    <div style="margin-top:4px;"><b>使い方</b>：検索欄に選手名・チーム名・コードを入力して絞り込み。名前をタップすると★お気に入り登録（この端末のみ保存）。「★お気に入り」チップでお気に入り選手の試合だけ表示できます。</div>
+  </div>
+
+  <div class="review">
+    <b>⚠ このデータの既知の限界（正直な自己レビュー）</b>
+    <ul>
+      <li>15:38以降の多くのコートは、トーナメントの勝ち上がりで対戦者が決まるため、原本にも選手名が印字されておらず「対戦者未定」としています。誤植で抜けているわけではありませんが、区別はできません。</li>
+      <li>16:50の行で原本に「Ｂ４Ｂ：Ｇ－２」が2回連続して記載されており、原本の誤植/転記重複の可能性がありますが、修正せずそのまま表示しています。</li>
+      <li>「G高A」等の区分名（女子高学年など）は原本に定義がなく、コードから私が推測したものです。正式な区分名は主催者にご確認ください。</li>
+      <li>コート番号は表内の左から右への並び順をそのままコート1〜15として採番しており、実際の会場のコート番号表示と一致するかは未検証です。</li>
+      <li>「宮﨑」「﨑谷」など異体字（﨑/崎など）は原本表記のまま統一していないため、検索時に表記ゆれでヒットしないことがあります。</li>
+      <li>時刻は開始予定時刻であり、荒天順延・進行の前後には対応していません（静的データです）。</li>
+      <li>全330件超の手入力transcriptionのため、まれな読み取りミスの可能性はゼロではありません。重要な確認には必ず原本PDFも参照してください。</li>
+    </ul>
+  </div>
+
+  <footer>データは提供されたタイムテーブルPDFに基づき生成。お気に入りはこの端末のブラウザにのみ保存されます。</footer>
+</div>
+
+<script>
+const ALL = [{"time": "09:20", "court": 1, "code": "G高A-A-1", "p1": "山岡佳子", "t1": "里きっず", "p2": "原田なな子", "t2": "蒲生", "s1": "confirmed", "s2": "confirmed"}, {"time": "09:20", "court": 2, "code": "G高A-B-1", "p1": "脇坂真白", "t1": "ＭＢＪ", "p2": "新垣蘭花", "t2": "のとがわ", "s1": "confirmed", "s2": "confirmed"}, {"time": "09:20", "court": 3, "code": "G高A-C-1", "p1": "奥村桃音", "t1": "ＦＡＮＡＴＩＣ", "p2": "臼井結菜", "t2": "北里", "s1": "confirmed", "s2": "confirmed"}, {"time": "09:20", "court": 4, "code": "G高A-D-1", "p1": "巳波亜純", "t1": "エミー", "p2": "杉江真琴", "t2": "ＳＥＰＴ", "s1": "confirmed", "s2": "confirmed"}, {"time": "09:20", "court": 5, "code": "G高A-E-1", "p1": "米澤凪紗", "t1": "北里", "p2": "河合奏音", "t2": "まろんず", "s1": "confirmed", "s2": "confirmed"}, {"time": "09:20", "court": 6, "code": "G高A-F-1", "p1": "高畑藍", "t1": "ＳＥＰＴ", "p2": "釆野鈴奈", "t2": "のとがわ", "s1": "confirmed", "s2": "confirmed"}, {"time": "09:20", "court": 7, "code": "G高A-G-1", "p1": "野瀬夏葉", "t1": "瀬田東", "p2": "籠谷律花", "t2": "坂本", "s1": "confirmed", "s2": "confirmed"}, {"time": "09:20", "court": 8, "code": "G高A-H-1", "p1": "前田和羽", "t1": "ウイング", "p2": "中本優衣", "t2": "ベイシック", "s1": "confirmed", "s2": "confirmed"}, {"time": "09:20", "court": 9, "code": "G高A-I-1", "p1": "溝口愛莉", "t1": "仰木の里", "p2": "篠澤心春", "t2": "瀬田北", "s1": "confirmed", "s2": "confirmed"}, {"time": "09:20", "court": 10, "code": "G高A-J-1", "p1": "吉村美春", "t1": "のとがわ", "p2": "城尾実乃里", "t2": "仰木の里", "s1": "confirmed", "s2": "confirmed"}, {"time": "09:20", "court": 11, "code": "G高A-K-1", "p1": "鷹取鈴", "t1": "エミー", "p2": "河村楓", "t2": "北里", "s1": "confirmed", "s2": "confirmed"}, {"time": "09:20", "court": 12, "code": "G高A-L-1", "p1": "渡辺すず", "t1": "のとがわ", "p2": "内川新菜", "t2": "ミナクサ", "s1": "confirmed", "s2": "confirmed"}, {"time": "09:20", "court": 13, "code": "B4A-A-1", "p1": "篠澤真絆", "t1": "瀬田北", "p2": "米沢幸挨", "t2": "ＭＢＪ", "s1": "confirmed", "s2": "confirmed"}, {"time": "09:20", "court": 14, "code": "B4A-B-1", "p1": "橋本恭介", "t1": "仰木の里", "p2": "宮﨑煌人", "t2": "ミナクサ", "s1": "confirmed", "s2": "confirmed"}, {"time": "09:20", "court": 15, "code": "B4A-C-1", "p1": "笠原朝陽", "t1": "北里", "p2": "奥田頼音", "t2": "ベイシック", "s1": "confirmed", "s2": "confirmed"}, {"time": "09:38", "court": 1, "code": "G高B-A-1", "p1": "堀井そよ", "t1": "蒲生", "p2": "飯田絢心", "t2": "ベイシック", "s1": "confirmed", "s2": "confirmed"}, {"time": "09:38", "court": 2, "code": "G高B-B-1", "p1": "徳田歩乃佳", "t1": "ベイシック", "p2": "磯村絢音", "t2": "エミー", "s1": "confirmed", "s2": "confirmed"}, {"time": "09:38", "court": 3, "code": "G高B-C-1", "p1": "盛田悠月", "t1": "まろんず", "p2": "小林澪", "t2": "ベイシック", "s1": "confirmed", "s2": "confirmed"}, {"time": "09:38", "court": 4, "code": "G高B-D-1", "p1": "脇坂穂実", "t1": "ＭＢＪ", "p2": "井ノ口千華", "t2": "ＳＥＰＴ", "s1": "confirmed", "s2": "confirmed"}, {"time": "09:38", "court": 5, "code": "G高B-E-1", "p1": "安川美想", "t1": "エミー", "p2": "赤松優衣", "t2": "のとがわ", "s1": "confirmed", "s2": "confirmed"}, {"time": "09:38", "court": 6, "code": "G高B-F-1", "p1": "小澤希亜", "t1": "蒲生", "p2": "殿村小町", "t2": "のとがわ", "s1": "confirmed", "s2": "confirmed"}, {"time": "09:38", "court": 7, "code": "G高B-G-1", "p1": "牧野葵", "t1": "ＳＥＰＴ", "p2": "藤川明歩", "t2": "ＭＢＪ", "s1": "confirmed", "s2": "confirmed"}, {"time": "09:38", "court": 8, "code": "G高B-H-1", "p1": "金子汐", "t1": "瀬田北", "p2": "松井秋穂", "t2": "まろんず", "s1": "confirmed", "s2": "confirmed"}, {"time": "09:38", "court": 9, "code": "G高B-I-1", "p1": "橋田望", "t1": "ＳＥＰＴ", "p2": "井口裕莉", "t2": "のとがわ", "s1": "confirmed", "s2": "confirmed"}, {"time": "09:38", "court": 10, "code": "G高B-J-1", "p1": "梅田心向", "t1": "里きっず", "p2": "北夏音", "t2": "ウイング", "s1": "confirmed", "s2": "confirmed"}, {"time": "09:38", "court": 11, "code": "G4A-A-1", "p1": "山本杏波", "t1": "瀬田北", "p2": "三雲遥乃", "t2": "北里", "s1": "confirmed", "s2": "confirmed"}, {"time": "09:38", "court": 12, "code": "G4A-B-1", "p1": "中塚咲希", "t1": "真野", "p2": "内川鈴菜", "t2": "ミナクサ", "s1": "confirmed", "s2": "confirmed"}, {"time": "09:38", "court": 13, "code": "B4A-D-1", "p1": "藤田悠暉", "t1": "ＭＢＪ", "p2": "保田蒼太", "t2": "仰木の里", "s1": "confirmed", "s2": "confirmed"}, {"time": "09:38", "court": 14, "code": "B4B-A-1", "p1": "進藤海沙", "t1": "仰木の里", "p2": "川田悠翔", "t2": "まろんず", "s1": "confirmed", "s2": "confirmed"}, {"time": "09:38", "court": 15, "code": "B4B-B-1", "p1": "惠美翔湊", "t1": "ベイシック", "p2": "西村律希", "t2": "瀬田北", "s1": "confirmed", "s2": "confirmed"}, {"time": "09:56", "court": 1, "code": "G4A-C-1", "p1": "前田涼羽", "t1": "ウイング", "p2": "山下璃花", "t2": "瀬田北", "s1": "confirmed", "s2": "confirmed"}, {"time": "09:56", "court": 2, "code": "G4A-D-1", "p1": "徳永音", "t1": "のとがわ", "p2": "古谷莉歩", "t2": "唐崎", "s1": "confirmed", "s2": "confirmed"}, {"time": "09:56", "court": 3, "code": "G4A-E-1", "p1": "三嶋乃々栞", "t1": "北里", "p2": "奥野聖", "t2": "ウイング", "s1": "confirmed", "s2": "confirmed"}, {"time": "09:56", "court": 4, "code": "G4A-F-1", "p1": "河村知咲", "t1": "のとがわ", "p2": "西川椛", "t2": "唐崎", "s1": "confirmed", "s2": "confirmed"}, {"time": "09:56", "court": 5, "code": "G4A-G-1", "p1": "小林亜香梨", "t1": "瀬田北", "p2": "林栞里", "t2": "エミー", "s1": "confirmed", "s2": "confirmed"}, {"time": "09:56", "court": 6, "code": "G4B-A-1", "p1": "山田歩実", "t1": "ＳＥＰＴ", "p2": "香西春瑠", "t2": "唐崎", "s1": "confirmed", "s2": "confirmed"}, {"time": "09:56", "court": 7, "code": "G4B-B-1", "p1": "宇野文乃", "t1": "ミナクサ", "p2": "黒田涼那", "t2": "瀬田東", "s1": "confirmed", "s2": "confirmed"}, {"time": "09:56", "court": 8, "code": "G4B-C-1", "p1": "伊賀上華", "t1": "唐崎", "p2": "智原颯季", "t2": "ＳＥＰＴ", "s1": "confirmed", "s2": "confirmed"}, {"time": "09:56", "court": 9, "code": "G4B-D-1", "p1": "小林怜", "t1": "ベイシック", "p2": "竹中結音", "t2": "瀬田北", "s1": "confirmed", "s2": "confirmed"}, {"time": "09:56", "court": 10, "code": "G4B-E-1", "p1": "西田真凛", "t1": "唐崎", "p2": "工藤朱々那", "t2": "ベイシック", "s1": "confirmed", "s2": "confirmed"}, {"time": "09:56", "court": 11, "code": "G4B-F-1", "p1": "玉川碧衣", "t1": "瀬田北", "p2": "芦田呼春", "t2": "瀬田東", "s1": "confirmed", "s2": "confirmed"}, {"time": "09:56", "court": 12, "code": "G4B-G-1", "p1": "寺田玲花", "t1": "ＳＥＰＴ", "p2": "正野愛茉", "t2": "瀬田北", "s1": "confirmed", "s2": "confirmed"}, {"time": "09:56", "court": 13, "code": "B4B-C-1", "p1": "林佑", "t1": "ＦＡＮＡＴＩＣ", "p2": "大江千煌", "t2": "瀬田東", "s1": "confirmed", "s2": "confirmed"}, {"time": "09:56", "court": 14, "code": "B4B-D-1", "p1": "曽根湊", "t1": "仰木の里", "p2": "王聖博", "t2": "ベイシック", "s1": "confirmed", "s2": "confirmed"}, {"time": "09:56", "court": 15, "code": "B4B-E-1", "p1": "前野斗槙", "t1": "蒲生", "p2": "保田奏太", "t2": "仰木の里", "s1": "confirmed", "s2": "confirmed"}, {"time": "10:14", "court": 1, "code": "G4B-H-1", "p1": "久冨優奈", "t1": "ラナーアップ", "p2": "西陽愛", "t2": "真野", "s1": "confirmed", "s2": "confirmed"}, {"time": "10:14", "court": 2, "code": "G4B-I-1", "p1": "西田理乃", "t1": "ベイシック", "p2": "井上佳怜", "t2": "エミー", "s1": "confirmed", "s2": "confirmed"}, {"time": "10:14", "court": 3, "code": "B高A-A-1", "p1": "田中瑛", "t1": "ＳＥＰＴ", "p2": "渡邉稜", "t2": "瀬田北", "s1": "confirmed", "s2": "confirmed"}, {"time": "10:14", "court": 4, "code": "B高A-B-1", "p1": "大倉直", "t1": "瀬田北", "p2": "吉田圭佑", "t2": "北里", "s1": "confirmed", "s2": "confirmed"}, {"time": "10:14", "court": 5, "code": "B高A-C-1", "p1": "有本颯樹", "t1": "瀬田北", "p2": "石本祥梧", "t2": "坂本", "s1": "confirmed", "s2": "confirmed"}, {"time": "10:14", "court": 6, "code": "B高A-D-1", "p1": "小林鈴空", "t1": "唐崎", "p2": "田中藤真", "t2": "瀬田北", "s1": "confirmed", "s2": "confirmed"}, {"time": "10:14", "court": 7, "code": "B高A-E-1", "p1": "中塚俊希", "t1": "真野", "p2": "馬場慶斗", "t2": "ＳＥＰＴ", "s1": "confirmed", "s2": "confirmed"}, {"time": "10:14", "court": 8, "code": "B高B-A-1", "p1": "瀬津光騎", "t1": "真野", "p2": "上松蒼介", "t2": "瀬田北", "s1": "confirmed", "s2": "confirmed"}, {"time": "10:14", "court": 9, "code": "B高B-B-1", "p1": "大江宏輝", "t1": "瀬田東", "p2": "梶野暖", "t2": "ＳＥＰＴ", "s1": "confirmed", "s2": "confirmed"}, {"time": "10:14", "court": 10, "code": "B高B-C-1", "p1": "湯淺惇平", "t1": "のとがわ", "p2": "川口晴睦", "t2": "真野", "s1": "confirmed", "s2": "confirmed"}, {"time": "10:14", "court": 11, "code": "B高B-D-1", "p1": "奥田篤人", "t1": "まろんず", "p2": "木下麗翔", "t2": "唐崎", "s1": "confirmed", "s2": "confirmed"}, {"time": "10:14", "court": 12, "code": "B高B-E-1", "p1": "久冨翔真", "t1": "ラナーアップ", "p2": "岡田淳太", "t2": "仰木の里", "s1": "confirmed", "s2": "confirmed"}, {"time": "10:14", "court": 13, "code": "B4B-F-1", "p1": "廣瀨漣", "t1": "瀬田北", "p2": "西田陽真", "t2": "ベイシック", "s1": "confirmed", "s2": "confirmed"}, {"time": "10:14", "court": 14, "code": "B4B-G-1", "p1": "岡本賢", "t1": "仰木の里", "p2": "小菅丈虎", "t2": "ベイシック", "s1": "confirmed", "s2": "confirmed"}, {"time": "10:14", "court": 15, "code": "B4A-A-2", "p1": "森田大翔", "t1": "仰木の里", "p2": "西村楓真", "t2": "ミナクサ", "s1": "confirmed", "s2": "confirmed"}, {"time": "10:32", "court": 1, "code": "B高B-F-1", "p1": "西村佳悟", "t1": "瀬田北", "p2": "山下煌葵", "t2": "まろんず", "s1": "confirmed", "s2": "confirmed"}, {"time": "10:32", "court": 2, "code": "G高A-A-2", "p1": "森元柚稀", "t1": "エミー", "p2": "奥野まりあ", "t2": "北里", "s1": "confirmed", "s2": "confirmed"}, {"time": "10:32", "court": 3, "code": "G高A-B-2", "p1": "田口葵唯", "t1": "エミー", "p2": "野々垣沙環", "t2": "唐崎", "s1": "confirmed", "s2": "confirmed"}, {"time": "10:32", "court": 4, "code": "G高A-C-2", "p1": "植田望愛", "t1": "エミー", "p2": "田部詩織", "t2": "ベイシック", "s1": "confirmed", "s2": "confirmed"}, {"time": "10:32", "court": 5, "code": "G高A-D-2", "p1": "齋藤光希", "t1": "ＭＢＪ", "p2": "市橋瑠花", "t2": "のとがわ", "s1": "confirmed", "s2": "confirmed"}, {"time": "10:32", "court": 6, "code": "G高A-E-2", "p1": "八田釉子", "t1": "仰木の里", "p2": "西村奈那", "t2": "エミー", "s1": "confirmed", "s2": "confirmed"}, {"time": "10:32", "court": 7, "code": "G高A-F-2", "p1": "竹村杏琉", "t1": "まろんず", "p2": "三河葵", "t2": "里きっず", "s1": "confirmed", "s2": "confirmed"}, {"time": "10:32", "court": 8, "code": "G高A-G-2", "p1": "大田詩織", "t1": "北里", "p2": "上田侑来", "t2": "エミー", "s1": "confirmed", "s2": "confirmed"}, {"time": "10:32", "court": 9, "code": "G高A-H-2", "p1": "平岡ゆり愛", "t1": "のとがわ", "p2": "猪阪奈実香", "t2": "エミー", "s1": "confirmed", "s2": "confirmed"}, {"time": "10:32", "court": 10, "code": "G高A-I-2", "p1": "渡辺水葵", "t1": "ＭＢＪ", "p2": "毛利実玖", "t2": "ぐるぐるパンチ", "s1": "confirmed", "s2": "confirmed"}, {"time": "10:32", "court": 11, "code": "G高A-J-2", "p1": "城尾実乃里", "t1": "仰木の里", "p2": "伊藤百香", "t2": "里きっず", "s1": "confirmed", "s2": "confirmed"}, {"time": "10:32", "court": 12, "code": "G高A-K-2", "p1": "河村楓", "t1": "北里", "p2": "二ツ谷恵麻", "t2": "ＭＢＪ", "s1": "confirmed", "s2": "confirmed"}, {"time": "10:32", "court": 13, "code": "B4A-B-2", "p1": "島田琉空", "t1": "唐崎", "p2": "井上大登", "t2": "ＭＢＪ", "s1": "confirmed", "s2": "confirmed"}, {"time": "10:32", "court": 14, "code": "B4A-C-2", "p1": "原田慎之介", "t1": "蒲生", "p2": "田中達稀", "t2": "瀬田北", "s1": "confirmed", "s2": "confirmed"}, {"time": "10:32", "court": 15, "code": "B4A-D-2", "p1": "保田蒼太", "t1": "仰木の里", "p2": "山田莉久翔", "t2": "ＳＥＰＴ", "s1": "confirmed", "s2": "confirmed"}, {"time": "10:50", "court": 1, "code": "G高A-L-2", "p1": "内川新菜", "t1": "ミナクサ", "p2": "奥村桜音", "t2": "ＦＡＮＡＴＩＣ", "s1": "confirmed", "s2": "confirmed"}, {"time": "10:50", "court": 2, "code": "G高B-A-2", "p1": "安居優杏", "t1": "のとがわ", "p2": "西元琴音", "t2": "エミー", "s1": "confirmed", "s2": "confirmed"}, {"time": "10:50", "court": 3, "code": "G高B-B-2", "p1": "井ノ口葵", "t1": "のとがわ", "p2": "森下葵", "t2": "ＳＥＰＴ", "s1": "confirmed", "s2": "confirmed"}, {"time": "10:50", "court": 4, "code": "G高B-C-2", "p1": "﨑谷美帆", "t1": "のとがわ", "p2": "岸上暖杏", "t2": "唐崎", "s1": "confirmed", "s2": "confirmed"}, {"time": "10:50", "court": 5, "code": "G高B-D-2", "p1": "谷帆乃香", "t1": "蒲生", "p2": "伊賀上藍", "t2": "唐崎", "s1": "confirmed", "s2": "confirmed"}, {"time": "10:50", "court": 6, "code": "G高B-E-2", "p1": "松田奏来", "t1": "瀬田北", "p2": "児玉柚菜", "t2": "ベイシック", "s1": "confirmed", "s2": "confirmed"}, {"time": "10:50", "court": 7, "code": "G高B-F-2", "p1": "高木星来", "t1": "エミー", "p2": "山﨑志緒里", "t2": "ＳＥＰＴ", "s1": "confirmed", "s2": "confirmed"}, {"time": "10:50", "court": 8, "code": "G高B-G-2", "p1": "松尾心春", "t1": "真野", "p2": "小笹奈津子", "t2": "蒲生", "s1": "confirmed", "s2": "confirmed"}, {"time": "10:50", "court": 9, "code": "G高B-H-2", "p1": "長谷川愛那", "t1": "ぐるぐるパンチ", "p2": "佃瑛万莉", "t2": "ミナクサ", "s1": "confirmed", "s2": "confirmed"}, {"time": "10:50", "court": 10, "code": "G高B-I-2", "p1": "中川果歩", "t1": "仰木の里", "p2": "小島菜々", "t2": "エミー", "s1": "confirmed", "s2": "confirmed"}, {"time": "10:50", "court": 11, "code": "G高B-J-2", "p1": "北夏音", "t1": "ウイング", "p2": "山本伊純", "t2": "瀬田北", "s1": "confirmed", "s2": "confirmed"}, {"time": "10:50", "court": 12, "code": "G4A-A-2", "p1": "中井琴菜", "t1": "のとがわ", "p2": "堀真佑花", "t2": "仰木の里", "s1": "confirmed", "s2": "confirmed"}, {"time": "10:50", "court": 13, "code": "B4B-A-2", "p1": "安井渉", "t1": "ベイシック", "p2": "折原和馬", "t2": "里きっず", "s1": "confirmed", "s2": "confirmed"}, {"time": "10:50", "court": 14, "code": "B4B-B-2", "p1": "瀬津成騎", "t1": "真野", "p2": "藤田朔久", "t2": "仰木の里", "s1": "confirmed", "s2": "confirmed"}, {"time": "10:50", "court": 15, "code": "B4B-C-2", "p1": "竹端郷", "t1": "仰木の里", "p2": "岸上楓向", "t2": "唐崎", "s1": "confirmed", "s2": "confirmed"}, {"time": "11:08", "court": 1, "code": "G4A-B-2", "p1": "杉江咲希", "t1": "ＳＥＰＴ", "p2": "春田菜花", "t2": "唐崎", "s1": "confirmed", "s2": "confirmed"}, {"time": "11:08", "court": 2, "code": "G4A-C-2", "p1": "小寺澪", "t1": "エミー", "p2": "岸部しゅり", "t2": "北里", "s1": "confirmed", "s2": "confirmed"}, {"time": "11:08", "court": 3, "code": "G4A-D-2", "p1": "梅原栞", "t1": "仰木の里", "p2": "久保田凛", "t2": "エミー", "s1": "confirmed", "s2": "confirmed"}, {"time": "11:08", "court": 4, "code": "G4A-E-2", "p1": "木村藍子", "t1": "ＦＡＮＡＴＩＣ", "p2": "片岡ひま", "t2": "ベイシック", "s1": "confirmed", "s2": "confirmed"}, {"time": "11:08", "court": 5, "code": "G4A-F-2", "p1": "西川椛", "t1": "唐崎", "p2": "坂本眞帆", "t2": "仰木の里", "s1": "confirmed", "s2": "confirmed"}, {"time": "11:08", "court": 6, "code": "G4A-G-2", "p1": "林栞里", "t1": "エミー", "p2": "小西葵", "t2": "里きっず", "s1": "confirmed", "s2": "confirmed"}, {"time": "11:08", "court": 7, "code": "G4B-A-2", "p1": "内川聖菜", "t1": "ミナクサ", "p2": "松田湊緒", "t2": "瀬田北", "s1": "confirmed", "s2": "confirmed"}, {"time": "11:08", "court": 8, "code": "G4B-B-2", "p1": "惠美心陽", "t1": "ベイシック", "p2": "葛野花", "t2": "ぐるぐるパンチ", "s1": "confirmed", "s2": "confirmed"}, {"time": "11:08", "court": 9, "code": "G4B-C-2", "p1": "樺澤妃菜", "t1": "のとがわ", "p2": "片岡ねね", "t2": "ベイシック", "s1": "confirmed", "s2": "confirmed"}, {"time": "11:08", "court": 10, "code": "G4B-D-2", "p1": "前野結菜", "t1": "蒲生", "p2": "田中芙実", "t2": "ぐるぐるパンチ", "s1": "confirmed", "s2": "confirmed"}, {"time": "11:08", "court": 11, "code": "G4B-E-2", "p1": "寺田琴音", "t1": "瀬田東", "p2": "中川穂香", "t2": "のとがわ", "s1": "confirmed", "s2": "confirmed"}, {"time": "11:08", "court": 12, "code": "G4B-F-2", "p1": "田中希々叶", "t1": "蒲生", "p2": "森元楓夏", "t2": "エミー", "s1": "confirmed", "s2": "confirmed"}, {"time": "11:08", "court": 13, "code": "B4B-D-2", "p1": "山岡大成", "t1": "ＭＢＪ", "p2": "中原理太", "t2": "坂本", "s1": "confirmed", "s2": "confirmed"}, {"time": "11:08", "court": 14, "code": "B4B-E-2", "p1": "宮﨑匠人", "t1": "ミナクサ", "p2": "大倉知", "t2": "瀬田北", "s1": "confirmed", "s2": "confirmed"}, {"time": "11:08", "court": 15, "code": "B4B-F-2", "p1": "西田陽真", "t1": "ベイシック", "p2": "佐野凛空斗", "t2": "里きっず", "s1": "confirmed", "s2": "confirmed"}, {"time": "11:26", "court": 1, "code": "G4B-G-2", "p1": "正野愛茉", "t1": "瀬田北", "p2": "島田虹奈", "t2": "唐崎", "s1": "confirmed", "s2": "confirmed"}, {"time": "11:26", "court": 2, "code": "G4B-H-2", "p1": "西陽愛", "t1": "真野", "p2": "灰野楓七", "t2": "瀬田東", "s1": "confirmed", "s2": "confirmed"}, {"time": "11:26", "court": 3, "code": "G4B-I-2", "p1": "井上佳怜", "t1": "エミー", "p2": "今井美緒", "t2": "ＦＡＮＡＴＩＣ", "s1": "confirmed", "s2": "confirmed"}, {"time": "11:26", "court": 4, "code": "B高A-A-2", "p1": "深田圭", "t1": "瀬田北", "p2": "笠原陽人", "t2": "北里", "s1": "confirmed", "s2": "confirmed"}, {"time": "11:26", "court": 5, "code": "B高A-B-2", "p1": "松ヶ枝晃貴", "t1": "ＳＥＰＴ", "p2": "小林亮介", "t2": "瀬田北", "s1": "confirmed", "s2": "confirmed"}, {"time": "11:26", "court": 6, "code": "B高A-C-2", "p1": "米澤太晴", "t1": "北里", "p2": "真下結也", "t2": "瀬田北", "s1": "confirmed", "s2": "confirmed"}, {"time": "11:26", "court": 7, "code": "B高A-D-2", "p1": "田中藤真", "t1": "瀬田北", "p2": "小川統大", "t2": "瀬田東", "s1": "confirmed", "s2": "confirmed"}, {"time": "11:26", "court": 8, "code": "B高A-E-2", "p1": "馬場慶斗", "t1": "ＳＥＰＴ", "p2": "前田理仁", "t2": "瀬田北", "s1": "confirmed", "s2": "confirmed"}, {"time": "11:26", "court": 9, "code": "B高B-A-2", "p1": "広瀬愛絆", "t1": "ベイシック", "p2": "金城立", "t2": "ＳＥＰＴ", "s1": "confirmed", "s2": "confirmed"}, {"time": "11:26", "court": 10, "code": "B高B-B-2", "p1": "佐々木海睿", "t1": "ベイシック", "p2": "香西信ノ輔", "t2": "唐崎", "s1": "confirmed", "s2": "confirmed"}, {"time": "11:26", "court": 11, "code": "B高B-C-2", "p1": "拾井陽向", "t1": "唐崎", "p2": "山岡幸太郎", "t2": "ＭＢＪ", "s1": "confirmed", "s2": "confirmed"}, {"time": "11:26", "court": 12, "code": "B高B-D-2", "p1": "飯田輪太朗", "t1": "蒲生", "p2": "田村蒼空", "t2": "ウイング", "s1": "confirmed", "s2": "confirmed"}, {"time": "11:26", "court": 13, "code": "B4B-G-2", "p1": "小菅丈虎", "t1": "ベイシック", "p2": "北川迅", "t2": "まろんず", "s1": "confirmed", "s2": "confirmed"}, {"time": "11:26", "court": 14, "code": "B4A-A-3", "p1": "篠澤真絆", "t1": "瀬田北", "p2": "西村楓真", "t2": "ミナクサ", "s1": "confirmed", "s2": "confirmed"}, {"time": "11:26", "court": 15, "code": "B4A-B-3", "p1": "橋本恭介", "t1": "仰木の里", "p2": "井上大登", "t2": "ＭＢＪ", "s1": "confirmed", "s2": "confirmed"}, {"time": "11:44", "court": 1, "code": "B高B-E-2", "p1": "椚座颯太", "t1": "坂本", "p2": "小菅朝陽", "t2": "ベイシック", "s1": "confirmed", "s2": "confirmed"}, {"time": "11:44", "court": 2, "code": "B高B-F-2", "p1": "山下煌葵", "t1": "まろんず", "p2": "山﨑颯仁", "t2": "ベイシック", "s1": "confirmed", "s2": "confirmed"}, {"time": "11:44", "court": 3, "code": "G高A-A-3", "p1": "山岡佳子", "t1": "里きっず", "p2": "奥野まりあ", "t2": "北里", "s1": "confirmed", "s2": "confirmed"}, {"time": "11:44", "court": 4, "code": "G高A-B-3", "p1": "脇坂真白", "t1": "ＭＢＪ", "p2": "野々垣沙環", "t2": "唐崎", "s1": "confirmed", "s2": "confirmed"}, {"time": "11:44", "court": 5, "code": "G高A-C-3", "p1": "奥村桃音", "t1": "ＦＡＮＡＴＩＣ", "p2": "田部詩織", "t2": "ベイシック", "s1": "confirmed", "s2": "confirmed"}, {"time": "11:44", "court": 6, "code": "G高A-D-3", "p1": "巳波亜純", "t1": "エミー", "p2": "市橋瑠花", "t2": "のとがわ", "s1": "confirmed", "s2": "confirmed"}, {"time": "11:44", "court": 7, "code": "G高A-E-3", "p1": "米澤凪紗", "t1": "北里", "p2": "西村奈那", "t2": "エミー", "s1": "confirmed", "s2": "confirmed"}, {"time": "11:44", "court": 8, "code": "G高A-F-3", "p1": "高畑藍", "t1": "ＳＥＰＴ", "p2": "三河葵", "t2": "里きっず", "s1": "confirmed", "s2": "confirmed"}, {"time": "11:44", "court": 9, "code": "G高A-G-3", "p1": "野瀬夏葉", "t1": "瀬田東", "p2": "上田侑来", "t2": "エミー", "s1": "confirmed", "s2": "confirmed"}, {"time": "11:44", "court": 10, "code": "G高A-H-3", "p1": "前田和羽", "t1": "ウイング", "p2": "猪阪奈実香", "t2": "エミー", "s1": "confirmed", "s2": "confirmed"}, {"time": "11:44", "court": 11, "code": "G高A-I-3", "p1": "溝口愛莉", "t1": "仰木の里", "p2": "毛利実玖", "t2": "ぐるぐるパンチ", "s1": "confirmed", "s2": "confirmed"}, {"time": "11:44", "court": 12, "code": "G高A-J-3", "p1": "吉村美春", "t1": "のとがわ", "p2": "伊藤百香", "t2": "里きっず", "s1": "confirmed", "s2": "confirmed"}, {"time": "11:44", "court": 13, "code": "B4A-C-3", "p1": "笠原朝陽", "t1": "北里", "p2": "田中達稀", "t2": "瀬田北", "s1": "confirmed", "s2": "confirmed"}, {"time": "11:44", "court": 14, "code": "B4A-D-3", "p1": "藤田悠暉", "t1": "ＭＢＪ", "p2": "山田莉久翔", "t2": "ＳＥＰＴ", "s1": "confirmed", "s2": "confirmed"}, {"time": "11:44", "court": 15, "code": "B4B-A-3", "p1": "進藤海沙", "t1": "仰木の里", "p2": "折原和馬", "t2": "里きっず", "s1": "confirmed", "s2": "confirmed"}, {"time": "12:02", "court": 1, "code": "G高A-K-3", "p1": "鷹取鈴", "t1": "エミー", "p2": "二ツ谷恵麻", "t2": "ＭＢＪ", "s1": "confirmed", "s2": "confirmed"}, {"time": "12:02", "court": 2, "code": "G高A-L-3", "p1": "渡辺すず", "t1": "のとがわ", "p2": "奥村桜音", "t2": "ＦＡＮＡＴＩＣ", "s1": "confirmed", "s2": "confirmed"}, {"time": "12:02", "court": 3, "code": "G高B-A-3", "p1": "堀井そよ", "t1": "蒲生", "p2": "西元琴音", "t2": "エミー", "s1": "confirmed", "s2": "confirmed"}, {"time": "12:02", "court": 4, "code": "G高B-B-3", "p1": "徳田歩乃佳", "t1": "ベイシック", "p2": "森下葵", "t2": "ＳＥＰＴ", "s1": "confirmed", "s2": "confirmed"}, {"time": "12:02", "court": 5, "code": "G高B-C-3", "p1": "盛田悠月", "t1": "まろんず", "p2": "岸上暖杏", "t2": "唐崎", "s1": "confirmed", "s2": "confirmed"}, {"time": "12:02", "court": 6, "code": "G高B-D-3", "p1": "脇坂穂実", "t1": "ＭＢＪ", "p2": "伊賀上藍", "t2": "唐崎", "s1": "confirmed", "s2": "confirmed"}, {"time": "12:02", "court": 7, "code": "G高B-E-3", "p1": "安川美想", "t1": "エミー", "p2": "児玉柚菜", "t2": "ベイシック", "s1": "confirmed", "s2": "confirmed"}, {"time": "12:02", "court": 8, "code": "G高B-F-3", "p1": "小澤希亜", "t1": "蒲生", "p2": "山﨑志緒里", "t2": "ＳＥＰＴ", "s1": "confirmed", "s2": "confirmed"}, {"time": "12:02", "court": 9, "code": "G高B-G-3", "p1": "牧野葵", "t1": "ＳＥＰＴ", "p2": "小笹奈津子", "t2": "蒲生", "s1": "confirmed", "s2": "confirmed"}, {"time": "12:02", "court": 10, "code": "G高B-H-3", "p1": "金子汐", "t1": "瀬田北", "p2": "佃瑛万莉", "t2": "ミナクサ", "s1": "confirmed", "s2": "confirmed"}, {"time": "12:02", "court": 11, "code": "G高B-I-3", "p1": "橋田望", "t1": "ＳＥＰＴ", "p2": "小島菜々", "t2": "エミー", "s1": "confirmed", "s2": "confirmed"}, {"time": "12:02", "court": 12, "code": "G高B-J-3", "p1": "梅田心向", "t1": "里きっず", "p2": "山本伊純", "t2": "瀬田北", "s1": "confirmed", "s2": "confirmed"}, {"time": "12:02", "court": 13, "code": "B4B-B-3", "p1": "惠美翔湊", "t1": "ベイシック", "p2": "藤田朔久", "t2": "仰木の里", "s1": "confirmed", "s2": "confirmed"}, {"time": "12:02", "court": 14, "code": "B4B-C-3", "p1": "林佑", "t1": "ＦＡＮＡＴＩＣ", "p2": "岸上楓向", "t2": "唐崎", "s1": "confirmed", "s2": "confirmed"}, {"time": "12:02", "court": 15, "code": "B4B-D-3", "p1": "曽根湊", "t1": "仰木の里", "p2": "中原理太", "t2": "坂本", "s1": "confirmed", "s2": "confirmed"}, {"time": "12:20", "court": 1, "code": "G4A-A-3", "p1": "山本杏波", "t1": "瀬田北", "p2": "堀真佑花", "t2": "仰木の里", "s1": "confirmed", "s2": "confirmed"}, {"time": "12:20", "court": 2, "code": "G4A-B-3", "p1": "中塚咲希", "t1": "真野", "p2": "春田菜花", "t2": "唐崎", "s1": "confirmed", "s2": "confirmed"}, {"time": "12:20", "court": 3, "code": "G4A-C-3", "p1": "前田涼羽", "t1": "ウイング", "p2": "岸部しゅり", "t2": "北里", "s1": "confirmed", "s2": "confirmed"}, {"time": "12:20", "court": 4, "code": "G4A-D-3", "p1": "徳永音", "t1": "のとがわ", "p2": "久保田凛", "t2": "エミー", "s1": "confirmed", "s2": "confirmed"}, {"time": "12:20", "court": 5, "code": "G4A-E-3", "p1": "三嶋乃々栞", "t1": "北里", "p2": "片岡ひま", "t2": "ベイシック", "s1": "confirmed", "s2": "confirmed"}, {"time": "12:20", "court": 6, "code": "G4A-F-3", "p1": "河村知咲", "t1": "のとがわ", "p2": "坂本眞帆", "t2": "仰木の里", "s1": "confirmed", "s2": "confirmed"}, {"time": "12:20", "court": 7, "code": "G4A-G-3", "p1": "小林亜香梨", "t1": "瀬田北", "p2": "小西葵", "t2": "里きっず", "s1": "confirmed", "s2": "confirmed"}, {"time": "12:20", "court": 8, "code": "G4B-A-3", "p1": "山田歩実", "t1": "ＳＥＰＴ", "p2": "松田湊緒", "t2": "瀬田北", "s1": "confirmed", "s2": "confirmed"}, {"time": "12:20", "court": 9, "code": "G4B-B-3", "p1": "宇野文乃", "t1": "ミナクサ", "p2": "葛野花", "t2": "ぐるぐるパンチ", "s1": "confirmed", "s2": "confirmed"}, {"time": "12:20", "court": 10, "code": "G4B-C-3", "p1": "伊賀上華", "t1": "唐崎", "p2": "片岡ねね", "t2": "ベイシック", "s1": "confirmed", "s2": "confirmed"}, {"time": "12:20", "court": 11, "code": "G4B-D-3", "p1": "小林怜", "t1": "ベイシック", "p2": "田中芙実", "t2": "ぐるぐるパンチ", "s1": "confirmed", "s2": "confirmed"}, {"time": "12:20", "court": 12, "code": "G4B-E-3", "p1": "西田真凛", "t1": "唐崎", "p2": "中川穂香", "t2": "のとがわ", "s1": "confirmed", "s2": "confirmed"}, {"time": "12:20", "court": 13, "code": "B4B-E-3", "p1": "前野斗槙", "t1": "蒲生", "p2": "大倉知", "t2": "瀬田北", "s1": "confirmed", "s2": "confirmed"}, {"time": "12:20", "court": 14, "code": "B4B-F-3", "p1": "廣瀨漣", "t1": "瀬田北", "p2": "佐野凛空斗", "t2": "里きっず", "s1": "confirmed", "s2": "confirmed"}, {"time": "12:20", "court": 15, "code": "B4B-G-3", "p1": "岡本賢", "t1": "仰木の里", "p2": "北川迅", "t2": "まろんず", "s1": "confirmed", "s2": "confirmed"}, {"time": "12:38", "court": 1, "code": "G4B-F-3", "p1": "玉川碧衣", "t1": "瀬田北", "p2": "森元楓夏", "t2": "エミー", "s1": "confirmed", "s2": "confirmed"}, {"time": "12:38", "court": 2, "code": "G4B-G-3", "p1": "寺田玲花", "t1": "ＳＥＰＴ", "p2": "島田虹奈", "t2": "唐崎", "s1": "confirmed", "s2": "confirmed"}, {"time": "12:38", "court": 3, "code": "G4B-H-3", "p1": "久冨優奈", "t1": "ラナーアップ", "p2": "灰野楓七", "t2": "瀬田東", "s1": "confirmed", "s2": "confirmed"}, {"time": "12:38", "court": 4, "code": "G4B-I-3", "p1": "西田理乃", "t1": "ベイシック", "p2": "今井美緒", "t2": "ＦＡＮＡＴＩＣ", "s1": "confirmed", "s2": "confirmed"}, {"time": "12:38", "court": 5, "code": "B高A-A-3", "p1": "田中瑛", "t1": "ＳＥＰＴ", "p2": "笠原陽人", "t2": "北里", "s1": "confirmed", "s2": "confirmed"}, {"time": "12:38", "court": 6, "code": "B高A-B-3", "p1": "大倉直", "t1": "瀬田北", "p2": "小林亮介", "t2": "瀬田北", "s1": "confirmed", "s2": "confirmed"}, {"time": "12:38", "court": 7, "code": "B高A-C-3", "p1": "有本颯樹", "t1": "瀬田北", "p2": "真下結也", "t2": "瀬田北", "s1": "confirmed", "s2": "confirmed"}, {"time": "12:38", "court": 8, "code": "B高A-D-3", "p1": "小林鈴空", "t1": "唐崎", "p2": "小川統大", "t2": "瀬田東", "s1": "confirmed", "s2": "confirmed"}, {"time": "12:38", "court": 9, "code": "B高A-E-3", "p1": "中塚俊希", "t1": "真野", "p2": "前田理仁", "t2": "瀬田北", "s1": "confirmed", "s2": "confirmed"}, {"time": "12:38", "court": 10, "code": "B高B-A-3", "p1": "瀬津光騎", "t1": "真野", "p2": "金城立", "t2": "ＳＥＰＴ", "s1": "confirmed", "s2": "confirmed"}, {"time": "12:38", "court": 11, "code": "B高B-B-3", "p1": "大江宏輝", "t1": "瀬田東", "p2": "香西信ノ輔", "t2": "唐崎", "s1": "confirmed", "s2": "confirmed"}, {"time": "12:38", "court": 12, "code": "B高B-C-3", "p1": "湯淺惇平", "t1": "のとがわ", "p2": "山岡幸太郎", "t2": "ＭＢＪ", "s1": "confirmed", "s2": "confirmed"}, {"time": "12:38", "court": 13, "code": "B4A-A-4", "p1": "森田大翔", "t1": "仰木の里", "p2": "米沢幸挨", "t2": "ＭＢＪ", "s1": "confirmed", "s2": "confirmed"}, {"time": "12:38", "court": 14, "code": "B4A-B-4", "p1": "島田琉空", "t1": "唐崎", "p2": "宮﨑煌人", "t2": "ミナクサ", "s1": "confirmed", "s2": "confirmed"}, {"time": "12:38", "court": 15, "code": "B4A-C-4", "p1": "原田慎之介", "t1": "蒲生", "p2": "奥田頼音", "t2": "ベイシック", "s1": "confirmed", "s2": "confirmed"}, {"time": "12:56", "court": 1, "code": "B高B-D-3", "p1": "奥田篤人", "t1": "まろんず", "p2": "田村蒼空", "t2": "ウイング", "s1": "confirmed", "s2": "confirmed"}, {"time": "12:56", "court": 2, "code": "B高B-E-3", "p1": "久冨翔真", "t1": "ラナーアップ", "p2": "小菅朝陽", "t2": "ベイシック", "s1": "confirmed", "s2": "confirmed"}, {"time": "12:56", "court": 3, "code": "B高B-F-3", "p1": "西村佳悟", "t1": "瀬田北", "p2": "山﨑颯仁", "t2": "ベイシック", "s1": "confirmed", "s2": "confirmed"}, {"time": "12:56", "court": 4, "code": "G高A-A-4", "p1": "森元柚稀", "t1": "エミー", "p2": "原田なな子", "t2": "蒲生", "s1": "confirmed", "s2": "confirmed"}, {"time": "12:56", "court": 5, "code": "G高A-B-4", "p1": "田口葵唯", "t1": "エミー", "p2": "新垣蘭花", "t2": "のとがわ", "s1": "confirmed", "s2": "confirmed"}, {"time": "12:56", "court": 6, "code": "G高A-C-4", "p1": "植田望愛", "t1": "エミー", "p2": "臼井結菜", "t2": "北里", "s1": "confirmed", "s2": "confirmed"}, {"time": "12:56", "court": 7, "code": "G高A-D-4", "p1": "齋藤光希", "t1": "ＭＢＪ", "p2": "杉江真琴", "t2": "ＳＥＰＴ", "s1": "confirmed", "s2": "confirmed"}, {"time": "12:56", "court": 8, "code": "G高A-E-4", "p1": "八田釉子", "t1": "仰木の里", "p2": "河合奏音", "t2": "まろんず", "s1": "confirmed", "s2": "confirmed"}, {"time": "12:56", "court": 9, "code": "G高A-F-4", "p1": "竹村杏琉", "t1": "まろんず", "p2": "釆野鈴奈", "t2": "のとがわ", "s1": "confirmed", "s2": "confirmed"}, {"time": "12:56", "court": 10, "code": "G高A-G-4", "p1": "大田詩織", "t1": "北里", "p2": "籠谷律花", "t2": "坂本", "s1": "confirmed", "s2": "confirmed"}, {"time": "12:56", "court": 11, "code": "G高A-H-4", "p1": "平岡ゆり愛", "t1": "のとがわ", "p2": "中本優衣", "t2": "ベイシック", "s1": "confirmed", "s2": "confirmed"}, {"time": "12:56", "court": 12, "code": "G高A-I-4", "p1": "渡辺水葵", "t1": "ＭＢＪ", "p2": "篠澤心春", "t2": "瀬田北", "s1": "confirmed", "s2": "confirmed"}, {"time": "12:56", "court": 13, "code": "B4B-A-4", "p1": "安井渉", "t1": "ベイシック", "p2": "川田悠翔", "t2": "まろんず", "s1": "confirmed", "s2": "confirmed"}, {"time": "12:56", "court": 14, "code": "B4B-B-4", "p1": "瀬津成騎", "t1": "真野", "p2": "西村律希", "t2": "瀬田北", "s1": "confirmed", "s2": "confirmed"}, {"time": "12:56", "court": 15, "code": "B4B-C-4", "p1": "竹端郷", "t1": "仰木の里", "p2": "大江千煌", "t2": "瀬田東", "s1": "confirmed", "s2": "confirmed"}, {"time": "13:14", "court": 1, "code": "G高B-A-4", "p1": "安居優杏", "t1": "のとがわ", "p2": "飯田絢心", "t2": "ベイシック", "s1": "confirmed", "s2": "confirmed"}, {"time": "13:14", "court": 2, "code": "G高B-B-4", "p1": "井ノ口葵", "t1": "のとがわ", "p2": "磯村絢音", "t2": "エミー", "s1": "confirmed", "s2": "confirmed"}, {"time": "13:14", "court": 3, "code": "G高B-C-4", "p1": "﨑谷美帆", "t1": "のとがわ", "p2": "小林澪", "t2": "ベイシック", "s1": "confirmed", "s2": "confirmed"}, {"time": "13:14", "court": 4, "code": "G高B-D-4", "p1": "谷帆乃香", "t1": "蒲生", "p2": "井ノ口千華", "t2": "ＳＥＰＴ", "s1": "confirmed", "s2": "confirmed"}, {"time": "13:14", "court": 5, "code": "G高B-E-4", "p1": "松田奏来", "t1": "瀬田北", "p2": "赤松優衣", "t2": "のとがわ", "s1": "confirmed", "s2": "confirmed"}, {"time": "13:14", "court": 6, "code": "G高B-F-4", "p1": "高木星来", "t1": "エミー", "p2": "殿村小町", "t2": "のとがわ", "s1": "confirmed", "s2": "confirmed"}, {"time": "13:14", "court": 7, "code": "G高B-G-4", "p1": "松尾心春", "t1": "真野", "p2": "藤川明歩", "t2": "ＭＢＪ", "s1": "confirmed", "s2": "confirmed"}, {"time": "13:14", "court": 8, "code": "G高B-H-4", "p1": "長谷川愛那", "t1": "ぐるぐるパンチ", "p2": "松井秋穂", "t2": "まろんず", "s1": "confirmed", "s2": "confirmed"}, {"time": "13:14", "court": 9, "code": "G高B-I-4", "p1": "中川果歩", "t1": "仰木の里", "p2": "井口裕莉", "t2": "のとがわ", "s1": "confirmed", "s2": "confirmed"}, {"time": "13:14", "court": 10, "code": "G4A-A-4", "p1": "中井琴菜", "t1": "のとがわ", "p2": "三雲遥乃", "t2": "北里", "s1": "confirmed", "s2": "confirmed"}, {"time": "13:14", "court": 11, "code": "G4A-B-4", "p1": "杉江咲希", "t1": "ＳＥＰＴ", "p2": "内川鈴菜", "t2": "ミナクサ", "s1": "confirmed", "s2": "confirmed"}, {"time": "13:14", "court": 12, "code": "G4A-C-4", "p1": "小寺澪", "t1": "エミー", "p2": "山下璃花", "t2": "瀬田北", "s1": "confirmed", "s2": "confirmed"}, {"time": "13:14", "court": 13, "code": "B4B-D-4", "p1": "山岡大成", "t1": "ＭＢＪ", "p2": "王聖博", "t2": "ベイシック", "s1": "confirmed", "s2": "confirmed"}, {"time": "13:14", "court": 14, "code": "B4B-E-4", "p1": "宮﨑匠人", "t1": "ミナクサ", "p2": "保田奏太", "t2": "仰木の里", "s1": "confirmed", "s2": "confirmed"}, {"time": "13:14", "court": 15, "code": "B4A-A-5", "p1": "西村楓真", "t1": "ミナクサ", "p2": "米沢幸挨", "t2": "ＭＢＪ", "s1": "confirmed", "s2": "confirmed"}, {"time": "13:32", "court": 1, "code": "G4A-D-4", "p1": "梅原栞", "t1": "仰木の里", "p2": "古谷莉歩", "t2": "唐崎", "s1": "confirmed", "s2": "confirmed"}, {"time": "13:32", "court": 2, "code": "G4A-E-4", "p1": "木村藍子", "t1": "ＦＡＮＡＴＩＣ", "p2": "奥野聖", "t2": "ウイング", "s1": "confirmed", "s2": "confirmed"}, {"time": "13:32", "court": 3, "code": "G4B-A-4", "p1": "内川聖菜", "t1": "ミナクサ", "p2": "香西春瑠", "t2": "唐崎", "s1": "confirmed", "s2": "confirmed"}, {"time": "13:32", "court": 4, "code": "G4B-B-4", "p1": "惠美心陽", "t1": "ベイシック", "p2": "黒田涼那", "t2": "瀬田東", "s1": "confirmed", "s2": "confirmed"}, {"time": "13:32", "court": 5, "code": "G4B-C-4", "p1": "樺澤妃菜", "t1": "のとがわ", "p2": "智原颯季", "t2": "ＳＥＰＴ", "s1": "confirmed", "s2": "confirmed"}, {"time": "13:32", "court": 6, "code": "G4B-D-4", "p1": "前野結菜", "t1": "蒲生", "p2": "竹中結音", "t2": "瀬田北", "s1": "confirmed", "s2": "confirmed"}, {"time": "13:32", "court": 7, "code": "G4B-E-4", "p1": "寺田琴音", "t1": "瀬田東", "p2": "工藤朱々那", "t2": "ベイシック", "s1": "confirmed", "s2": "confirmed"}, {"time": "13:32", "court": 8, "code": "G4B-F-4", "p1": "田中希々叶", "t1": "蒲生", "p2": "芦田呼春", "t2": "瀬田東", "s1": "confirmed", "s2": "confirmed"}, {"time": "13:32", "court": 9, "code": "B高A-A-4", "p1": "深田圭", "t1": "瀬田北", "p2": "渡邉稜", "t2": "瀬田北", "s1": "confirmed", "s2": "confirmed"}, {"time": "13:32", "court": 10, "code": "B高A-B-4", "p1": "松ヶ枝晃貴", "t1": "ＳＥＰＴ", "p2": "吉田圭佑", "t2": "北里", "s1": "confirmed", "s2": "confirmed"}, {"time": "13:32", "court": 11, "code": "B高A-C-4", "p1": "米澤太晴", "t1": "北里", "p2": "石本祥梧", "t2": "坂本", "s1": "confirmed", "s2": "confirmed"}, {"time": "13:32", "court": 12, "code": "B高B-A-4", "p1": "広瀬愛絆", "t1": "ベイシック", "p2": "上松蒼介", "t2": "瀬田北", "s1": "confirmed", "s2": "confirmed"}, {"time": "13:32", "court": 13, "code": "B4A-B-5", "p1": "井上大登", "t1": "ＭＢＪ", "p2": "宮﨑煌人", "t2": "ミナクサ", "s1": "confirmed", "s2": "confirmed"}, {"time": "13:32", "court": 14, "code": "B4A-C-5", "p1": "田中達稀", "t1": "瀬田北", "p2": "奥田頼音", "t2": "ベイシック", "s1": "confirmed", "s2": "confirmed"}, {"time": "13:32", "court": 15, "code": "B4B-A-5", "p1": "折原和馬", "t1": "里きっず", "p2": "川田悠翔", "t2": "まろんず", "s1": "confirmed", "s2": "confirmed"}, {"time": "13:50", "court": 1, "code": "B高B-B-4", "p1": "佐々木海睿", "t1": "ベイシック", "p2": "梶野暖", "t2": "ＳＥＰＴ", "s1": "confirmed", "s2": "confirmed"}, {"time": "13:50", "court": 2, "code": "B高B-C-4", "p1": "拾井陽向", "t1": "唐崎", "p2": "川口晴睦", "t2": "真野", "s1": "confirmed", "s2": "confirmed"}, {"time": "13:50", "court": 3, "code": "B高B-D-4", "p1": "飯田輪太朗", "t1": "蒲生", "p2": "木下麗翔", "t2": "唐崎", "s1": "confirmed", "s2": "confirmed"}, {"time": "13:50", "court": 4, "code": "B高B-E-4", "p1": "椚座颯太", "t1": "坂本", "p2": "岡田淳太", "t2": "仰木の里", "s1": "confirmed", "s2": "confirmed"}, {"time": "13:50", "court": 5, "code": "G高A-A-5", "p1": "奥野まりあ", "t1": "北里", "p2": "原田なな子", "t2": "蒲生", "s1": "confirmed", "s2": "confirmed"}, {"time": "13:50", "court": 6, "code": "G高A-B-5", "p1": "野々垣沙環", "t1": "唐崎", "p2": "新垣蘭花", "t2": "のとがわ", "s1": "confirmed", "s2": "confirmed"}, {"time": "13:50", "court": 7, "code": "G高A-C-5", "p1": "田部詩織", "t1": "ベイシック", "p2": "臼井結菜", "t2": "北里", "s1": "confirmed", "s2": "confirmed"}, {"time": "13:50", "court": 8, "code": "G高A-D-5", "p1": "市橋瑠花", "t1": "のとがわ", "p2": "杉江真琴", "t2": "ＳＥＰＴ", "s1": "confirmed", "s2": "confirmed"}, {"time": "13:50", "court": 9, "code": "G高A-E-5", "p1": "西村奈那", "t1": "エミー", "p2": "河合奏音", "t2": "まろんず", "s1": "confirmed", "s2": "confirmed"}, {"time": "13:50", "court": 10, "code": "G高A-F-5", "p1": "三河葵", "t1": "里きっず", "p2": "釆野鈴奈", "t2": "のとがわ", "s1": "confirmed", "s2": "confirmed"}, {"time": "13:50", "court": 11, "code": "G高A-G-5", "p1": "上田侑来", "t1": "エミー", "p2": "籠谷律花", "t2": "坂本", "s1": "confirmed", "s2": "confirmed"}, {"time": "13:50", "court": 12, "code": "G高A-H-5", "p1": "猪阪奈実香", "t1": "エミー", "p2": "中本優衣", "t2": "ベイシック", "s1": "confirmed", "s2": "confirmed"}, {"time": "13:50", "court": 13, "code": "B4B-B-5", "p1": "藤田朔久", "t1": "仰木の里", "p2": "西村律希", "t2": "瀬田北", "s1": "confirmed", "s2": "confirmed"}, {"time": "13:50", "court": 14, "code": "B4B-C-5", "p1": "岸上楓向", "t1": "唐崎", "p2": "大江千煌", "t2": "瀬田東", "s1": "confirmed", "s2": "confirmed"}, {"time": "13:50", "court": 15, "code": "B4B-D-5", "p1": "中原理太", "t1": "坂本", "p2": "王聖博", "t2": "ベイシック", "s1": "confirmed", "s2": "confirmed"}, {"time": "14:08", "court": 1, "code": "G高A-I-5", "p1": "毛利実玖", "t1": "ぐるぐるパンチ", "p2": "篠澤心春", "t2": "瀬田北", "s1": "confirmed", "s2": "confirmed"}, {"time": "14:08", "court": 2, "code": "G高B-A-5", "p1": "西元琴音", "t1": "エミー", "p2": "飯田絢心", "t2": "ベイシック", "s1": "confirmed", "s2": "confirmed"}, {"time": "14:08", "court": 3, "code": "G高B-B-5", "p1": "森下葵", "t1": "ＳＥＰＴ", "p2": "磯村絢音", "t2": "エミー", "s1": "confirmed", "s2": "confirmed"}, {"time": "14:08", "court": 4, "code": "G高B-C-5", "p1": "岸上暖杏", "t1": "唐崎", "p2": "小林澪", "t2": "ベイシック", "s1": "confirmed", "s2": "confirmed"}, {"time": "14:08", "court": 5, "code": "G高B-D-5", "p1": "伊賀上藍", "t1": "唐崎", "p2": "井ノ口千華", "t2": "ＳＥＰＴ", "s1": "confirmed", "s2": "confirmed"}, {"time": "14:08", "court": 6, "code": "G高B-E-5", "p1": "児玉柚菜", "t1": "ベイシック", "p2": "赤松優衣", "t2": "のとがわ", "s1": "confirmed", "s2": "confirmed"}, {"time": "14:08", "court": 7, "code": "G高B-F-5", "p1": "山﨑志緒里", "t1": "ＳＥＰＴ", "p2": "殿村小町", "t2": "のとがわ", "s1": "confirmed", "s2": "confirmed"}, {"time": "14:08", "court": 8, "code": "G高B-G-5", "p1": "小笹奈津子", "t1": "蒲生", "p2": "藤川明歩", "t2": "ＭＢＪ", "s1": "confirmed", "s2": "confirmed"}, {"time": "14:08", "court": 9, "code": "G高B-H-5", "p1": "佃瑛万莉", "t1": "ミナクサ", "p2": "松井秋穂", "t2": "まろんず", "s1": "confirmed", "s2": "confirmed"}, {"time": "14:08", "court": 10, "code": "G高B-I-5", "p1": "小島菜々", "t1": "エミー", "p2": "井口裕莉", "t2": "のとがわ", "s1": "confirmed", "s2": "confirmed"}, {"time": "14:08", "court": 11, "code": "G4A-A-5", "p1": "堀真佑花", "t1": "仰木の里", "p2": "三雲遥乃", "t2": "北里", "s1": "confirmed", "s2": "confirmed"}, {"time": "14:08", "court": 12, "code": "G4A-B-5", "p1": "春田菜花", "t1": "唐崎", "p2": "内川鈴菜", "t2": "ミナクサ", "s1": "confirmed", "s2": "confirmed"}, {"time": "14:08", "court": 13, "code": "B4B-E-5", "p1": "大倉知", "t1": "瀬田北", "p2": "保田奏太", "t2": "仰木の里", "s1": "confirmed", "s2": "confirmed"}, {"time": "14:08", "court": 14, "code": "B4A-A-6", "p1": "篠澤真絆", "t1": "瀬田北", "p2": "森田大翔", "t2": "仰木の里", "s1": "confirmed", "s2": "confirmed"}, {"time": "14:08", "court": 15, "code": "B4A-B-6", "p1": "橋本恭介", "t1": "仰木の里", "p2": "島田琉空", "t2": "唐崎", "s1": "confirmed", "s2": "confirmed"}, {"time": "14:26", "court": 1, "code": "G4A-C-5", "p1": "岸部しゅり", "t1": "北里", "p2": "山下璃花", "t2": "瀬田北", "s1": "confirmed", "s2": "confirmed"}, {"time": "14:26", "court": 2, "code": "G4A-D-5", "p1": "久保田凛", "t1": "エミー", "p2": "古谷莉歩", "t2": "唐崎", "s1": "confirmed", "s2": "confirmed"}, {"time": "14:26", "court": 3, "code": "G4A-E-5", "p1": "片岡ひま", "t1": "ベイシック", "p2": "奥野聖", "t2": "ウイング", "s1": "confirmed", "s2": "confirmed"}, {"time": "14:26", "court": 4, "code": "G4B-A-5", "p1": "松田湊緒", "t1": "瀬田北", "p2": "香西春瑠", "t2": "唐崎", "s1": "confirmed", "s2": "confirmed"}, {"time": "14:26", "court": 5, "code": "G4B-B-5", "p1": "葛野花", "t1": "ぐるぐるパンチ", "p2": "黒田涼那", "t2": "瀬田東", "s1": "confirmed", "s2": "confirmed"}, {"time": "14:26", "court": 6, "code": "G4B-C-5", "p1": "片岡ねね", "t1": "ベイシック", "p2": "智原颯季", "t2": "ＳＥＰＴ", "s1": "confirmed", "s2": "confirmed"}, {"time": "14:26", "court": 7, "code": "G4B-D-5", "p1": "田中芙実", "t1": "ぐるぐるパンチ", "p2": "竹中結音", "t2": "瀬田北", "s1": "confirmed", "s2": "confirmed"}, {"time": "14:26", "court": 8, "code": "G4B-E-5", "p1": "中川穂香", "t1": "のとがわ", "p2": "工藤朱々那", "t2": "ベイシック", "s1": "confirmed", "s2": "confirmed"}, {"time": "14:26", "court": 9, "code": "G4B-F-5", "p1": "森元楓夏", "t1": "エミー", "p2": "芦田呼春", "t2": "瀬田東", "s1": "confirmed", "s2": "confirmed"}, {"time": "14:26", "court": 10, "code": "B高A-A-5", "p1": "笠原陽人", "t1": "北里", "p2": "渡邉稜", "t2": "瀬田北", "s1": "confirmed", "s2": "confirmed"}, {"time": "14:26", "court": 11, "code": "B高A-B-5", "p1": "小林亮介", "t1": "瀬田北", "p2": "吉田圭佑", "t2": "北里", "s1": "confirmed", "s2": "confirmed"}, {"time": "14:26", "court": 12, "code": "B高A-C-5", "p1": "真下結也", "t1": "瀬田北", "p2": "石本祥梧", "t2": "坂本", "s1": "confirmed", "s2": "confirmed"}, {"time": "14:26", "court": 13, "code": "B4A-C-6", "p1": "笠原朝陽", "t1": "北里", "p2": "原田慎之介", "t2": "蒲生", "s1": "confirmed", "s2": "confirmed"}, {"time": "14:26", "court": 14, "code": "B4B-A-6", "p1": "進藤海沙", "t1": "仰木の里", "p2": "安井渉", "t2": "ベイシック", "s1": "confirmed", "s2": "confirmed"}, {"time": "14:26", "court": 15, "code": "B4B-B-6", "p1": "惠美翔湊", "t1": "ベイシック", "p2": "瀬津成騎", "t2": "真野", "s1": "confirmed", "s2": "confirmed"}, {"time": "14:44", "court": 1, "code": "B高B-A-5", "p1": "金城立", "t1": "ＳＥＰＴ", "p2": "上松蒼介", "t2": "瀬田北", "s1": "confirmed", "s2": "confirmed"}, {"time": "14:44", "court": 2, "code": "B高B-B-5", "p1": "香西信ノ輔", "t1": "唐崎", "p2": "梶野暖", "t2": "ＳＥＰＴ", "s1": "confirmed", "s2": "confirmed"}, {"time": "14:44", "court": 3, "code": "B高B-C-5", "p1": "山岡幸太郎", "t1": "ＭＢＪ", "p2": "川口晴睦", "t2": "真野", "s1": "confirmed", "s2": "confirmed"}, {"time": "14:44", "court": 4, "code": "B高B-D-5", "p1": "田村蒼空", "t1": "ウイング", "p2": "木下麗翔", "t2": "唐崎", "s1": "confirmed", "s2": "confirmed"}, {"time": "14:44", "court": 5, "code": "B高B-E-5", "p1": "小菅朝陽", "t1": "ベイシック", "p2": "岡田淳太", "t2": "仰木の里", "s1": "confirmed", "s2": "confirmed"}, {"time": "14:44", "court": 6, "code": "G高A-A-6", "p1": "山岡佳子", "t1": "里きっず", "p2": "森元柚稀", "t2": "エミー", "s1": "confirmed", "s2": "confirmed"}, {"time": "14:44", "court": 7, "code": "G高A-B-6", "p1": "脇坂真白", "t1": "ＭＢＪ", "p2": "田口葵唯", "t2": "エミー", "s1": "confirmed", "s2": "confirmed"}, {"time": "14:44", "court": 8, "code": "G高A-C-6", "p1": "奥村桃音", "t1": "ＦＡＮＡＴＩＣ", "p2": "植田望愛", "t2": "エミー", "s1": "confirmed", "s2": "confirmed"}, {"time": "14:44", "court": 9, "code": "G高A-D-6", "p1": "巳波亜純", "t1": "エミー", "p2": "齋藤光希", "t2": "ＭＢＪ", "s1": "confirmed", "s2": "confirmed"}, {"time": "14:44", "court": 10, "code": "G高A-E-6", "p1": "米澤凪紗", "t1": "北里", "p2": "八田釉子", "t2": "仰木の里", "s1": "confirmed", "s2": "confirmed"}, {"time": "14:44", "court": 11, "code": "G高A-F-6", "p1": "高畑藍", "t1": "ＳＥＰＴ", "p2": "竹村杏琉", "t2": "まろんず", "s1": "confirmed", "s2": "confirmed"}, {"time": "14:44", "court": 12, "code": "G高A-G-6", "p1": "野瀬夏葉", "t1": "瀬田東", "p2": "大田詩織", "t2": "北里", "s1": "confirmed", "s2": "confirmed"}, {"time": "14:44", "court": 13, "code": "B4B-C-6", "p1": "林佑", "t1": "ＦＡＮＡＴＩＣ", "p2": "竹端郷", "t2": "仰木の里", "s1": "confirmed", "s2": "confirmed"}, {"time": "14:44", "court": 14, "code": "B4B-D-6", "p1": "曽根湊", "t1": "仰木の里", "p2": "山岡大成", "t2": "ＭＢＪ", "s1": "confirmed", "s2": "confirmed"}, {"time": "14:44", "court": 15, "code": "B4B-E-6", "p1": "前野斗槙", "t1": "蒲生", "p2": "宮﨑匠人", "t2": "ミナクサ", "s1": "confirmed", "s2": "confirmed"}, {"time": "15:02", "court": 1, "code": "G高A-H-6", "p1": "前田和羽", "t1": "ウイング", "p2": "平岡ゆり愛", "t2": "のとがわ", "s1": "confirmed", "s2": "confirmed"}, {"time": "15:02", "court": 2, "code": "G高A-I-6", "p1": "溝口愛莉", "t1": "仰木の里", "p2": "渡辺水葵", "t2": "ＭＢＪ", "s1": "confirmed", "s2": "confirmed"}, {"time": "15:02", "court": 3, "code": "G高B-A-6", "p1": "堀井そよ", "t1": "蒲生", "p2": "安居優杏", "t2": "のとがわ", "s1": "confirmed", "s2": "confirmed"}, {"time": "15:02", "court": 4, "code": "G高B-B-6", "p1": "徳田歩乃佳", "t1": "ベイシック", "p2": "井ノ口葵", "t2": "のとがわ", "s1": "confirmed", "s2": "confirmed"}, {"time": "15:02", "court": 5, "code": "G高B-C-6", "p1": "盛田悠月", "t1": "まろんず", "p2": "﨑谷美帆", "t2": "のとがわ", "s1": "confirmed", "s2": "confirmed"}, {"time": "15:02", "court": 6, "code": "G高B-D-6", "p1": "脇坂穂実", "t1": "ＭＢＪ", "p2": "谷帆乃香", "t2": "蒲生", "s1": "confirmed", "s2": "confirmed"}, {"time": "15:02", "court": 7, "code": "G高B-E-6", "p1": "安川美想", "t1": "エミー", "p2": "松田奏来", "t2": "瀬田北", "s1": "confirmed", "s2": "confirmed"}, {"time": "15:02", "court": 8, "code": "G高B-F-6", "p1": "小澤希亜", "t1": "蒲生", "p2": "高木星来", "t2": "エミー", "s1": "confirmed", "s2": "confirmed"}, {"time": "15:02", "court": 9, "code": "G高B-G-6", "p1": "牧野葵", "t1": "ＳＥＰＴ", "p2": "松尾心春", "t2": "真野", "s1": "confirmed", "s2": "confirmed"}, {"time": "15:02", "court": 10, "code": "G高B-H-6", "p1": "金子汐", "t1": "瀬田北", "p2": "長谷川愛那", "t2": "ぐるぐるパンチ", "s1": "confirmed", "s2": "confirmed"}, {"time": "15:02", "court": 11, "code": "G高B-I-6", "p1": "橋田望", "t1": "ＳＥＰＴ", "p2": "中川果歩", "t2": "仰木の里", "s1": "confirmed", "s2": "confirmed"}, {"time": "15:02", "court": 12, "code": "G4A-A-6", "p1": "山本杏波", "t1": "瀬田北", "p2": "中井琴菜", "t2": "のとがわ", "s1": "confirmed", "s2": "confirmed"}, {"time": "15:02", "court": 13, "code": "X高A-1", "p1": "Ｂ高Ａ：Ｄ－２", "t1": "", "p2": "Ｇ高Ａ：Ｊ－２", "t2": "", "s1": "pending", "s2": "pending"}, {"time": "15:02", "court": 14, "code": "X高A-2", "p1": "Ｂ高Ａ：Ｅ－２", "t1": "", "p2": "Ｇ高Ａ：Ｋ－２", "t2": "", "s1": "pending", "s2": "pending"}, {"time": "15:02", "court": 15, "code": "X高A-3", "p1": "Ｂ高Ａ：Ｄ－３", "t1": "", "p2": "Ｇ高Ａ：Ｊ－３", "t2": "", "s1": "pending", "s2": "pending"}, {"time": "15:20", "court": 1, "code": "G4A-B-6", "p1": "中塚咲希", "t1": "真野", "p2": "杉江咲希", "t2": "ＳＥＰＴ", "s1": "confirmed", "s2": "confirmed"}, {"time": "15:20", "court": 2, "code": "G4A-C-6", "p1": "前田涼羽", "t1": "ウイング", "p2": "小寺澪", "t2": "エミー", "s1": "confirmed", "s2": "confirmed"}, {"time": "15:20", "court": 3, "code": "G4A-D-6", "p1": "徳永音", "t1": "のとがわ", "p2": "梅原栞", "t2": "仰木の里", "s1": "confirmed", "s2": "confirmed"}, {"time": "15:20", "court": 4, "code": "G4A-E-6", "p1": "三嶋乃々栞", "t1": "北里", "p2": "木村藍子", "t2": "ＦＡＮＡＴＩＣ", "s1": "confirmed", "s2": "confirmed"}, {"time": "15:20", "court": 5, "code": "G4B-A-6", "p1": "山田歩実", "t1": "ＳＥＰＴ", "p2": "内川聖菜", "t2": "ミナクサ", "s1": "confirmed", "s2": "confirmed"}, {"time": "15:20", "court": 6, "code": "G4B-B-6", "p1": "宇野文乃", "t1": "ミナクサ", "p2": "惠美心陽", "t2": "ベイシック", "s1": "confirmed", "s2": "confirmed"}, {"time": "15:20", "court": 7, "code": "G4B-C-6", "p1": "伊賀上華", "t1": "唐崎", "p2": "樺澤妃菜", "t2": "のとがわ", "s1": "confirmed", "s2": "confirmed"}, {"time": "15:20", "court": 8, "code": "G4B-D-6", "p1": "小林怜", "t1": "ベイシック", "p2": "前野結菜", "t2": "蒲生", "s1": "confirmed", "s2": "confirmed"}, {"time": "15:20", "court": 9, "code": "G4B-E-6", "p1": "西田真凛", "t1": "唐崎", "p2": "寺田琴音", "t2": "瀬田東", "s1": "confirmed", "s2": "confirmed"}, {"time": "15:20", "court": 10, "code": "G4B-F-6", "p1": "玉川碧衣", "t1": "瀬田北", "p2": "田中希々叶", "t2": "蒲生", "s1": "confirmed", "s2": "confirmed"}, {"time": "15:20", "court": 11, "code": "B高A-A-6", "p1": "田中瑛", "t1": "ＳＥＰＴ", "p2": "深田圭", "t2": "瀬田北", "s1": "confirmed", "s2": "confirmed"}, {"time": "15:20", "court": 12, "code": "B高A-B-6", "p1": "大倉直", "t1": "瀬田北", "p2": "松ヶ枝晃貴", "t2": "ＳＥＰＴ", "s1": "confirmed", "s2": "confirmed"}, {"time": "15:20", "court": 13, "code": "X高A-4", "p1": "Ｂ高Ａ：Ｅ－３", "t1": "", "p2": "Ｇ高Ａ：Ｌ－３", "t2": "", "s1": "pending", "s2": "pending"}, {"time": "15:20", "court": 14, "code": "X高A-5", "p1": "Ｇ高Ａ：Ｋ－３", "t1": "", "p2": "Ｇ高Ａ：Ｌ－２", "t2": "", "s1": "pending", "s2": "pending"}, {"time": "15:20", "court": 15, "code": "B4A-1", "p1": "", "t1": "", "p2": "", "t2": "", "s1": "unscheduled", "s2": "unscheduled"}, {"time": "15:38", "court": 1, "code": "B高A-C-6", "p1": "有本颯樹", "t1": "瀬田北", "p2": "米澤太晴", "t2": "北里", "s1": "confirmed", "s2": "confirmed"}, {"time": "15:38", "court": 2, "code": "B高B-A-6", "p1": "瀬津光騎", "t1": "真野", "p2": "広瀬愛絆", "t2": "ベイシック", "s1": "confirmed", "s2": "confirmed"}, {"time": "15:38", "court": 3, "code": "B高B-B-6", "p1": "大江宏輝", "t1": "瀬田東", "p2": "佐々木海睿", "t2": "ベイシック", "s1": "confirmed", "s2": "confirmed"}, {"time": "15:38", "court": 4, "code": "B高B-C-6", "p1": "湯淺惇平", "t1": "のとがわ", "p2": "拾井陽向", "t2": "唐崎", "s1": "confirmed", "s2": "confirmed"}, {"time": "15:38", "court": 5, "code": "B高B-D-6", "p1": "奥田篤人", "t1": "まろんず", "p2": "飯田輪太朗", "t2": "蒲生", "s1": "confirmed", "s2": "confirmed"}, {"time": "15:38", "court": 6, "code": "B高B-E-6", "p1": "久冨翔真", "t1": "ラナーアップ", "p2": "椚座颯太", "t2": "坂本", "s1": "confirmed", "s2": "confirmed"}, {"time": "15:38", "court": 7, "code": "G高A-1", "p1": "", "t1": "", "p2": "", "t2": "", "s1": "unscheduled", "s2": "unscheduled"}, {"time": "15:38", "court": 8, "code": "G高A-2", "p1": "", "t1": "", "p2": "", "t2": "", "s1": "unscheduled", "s2": "unscheduled"}, {"time": "15:38", "court": 9, "code": "G高A-3", "p1": "", "t1": "", "p2": "", "t2": "", "s1": "unscheduled", "s2": "unscheduled"}, {"time": "15:38", "court": 10, "code": "G高A-4", "p1": "", "t1": "", "p2": "", "t2": "", "s1": "unscheduled", "s2": "unscheduled"}, {"time": "15:38", "court": 11, "code": "G高B-1", "p1": "", "t1": "", "p2": "", "t2": "", "s1": "unscheduled", "s2": "unscheduled"}, {"time": "15:38", "court": 12, "code": "G高B-2", "p1": "", "t1": "", "p2": "", "t2": "", "s1": "unscheduled", "s2": "unscheduled"}, {"time": "15:38", "court": 13, "code": "B4A-2", "p1": "", "t1": "", "p2": "", "t2": "", "s1": "unscheduled", "s2": "unscheduled"}, {"time": "15:38", "court": 14, "code": "B4B-1", "p1": "", "t1": "", "p2": "", "t2": "", "s1": "unscheduled", "s2": "unscheduled"}, {"time": "15:38", "court": 15, "code": "B4B-2", "p1": "", "t1": "", "p2": "", "t2": "", "s1": "unscheduled", "s2": "unscheduled"}, {"time": "15:56", "court": 1, "code": "G4A-1", "p1": "", "t1": "", "p2": "", "t2": "", "s1": "unscheduled", "s2": "unscheduled"}, {"time": "15:56", "court": 2, "code": "G4A-2", "p1": "", "t1": "", "p2": "", "t2": "", "s1": "unscheduled", "s2": "unscheduled"}, {"time": "15:56", "court": 3, "code": "G4A-3", "p1": "", "t1": "", "p2": "", "t2": "", "s1": "unscheduled", "s2": "unscheduled"}, {"time": "15:56", "court": 4, "code": "G4B-1", "p1": "", "t1": "", "p2": "", "t2": "", "s1": "unscheduled", "s2": "unscheduled"}, {"time": "15:56", "court": 5, "code": "B高A-1", "p1": "", "t1": "", "p2": "", "t2": "", "s1": "unscheduled", "s2": "unscheduled"}, {"time": "15:56", "court": 6, "code": "B高B-1", "p1": "", "t1": "", "p2": "", "t2": "", "s1": "unscheduled", "s2": "unscheduled"}, {"time": "15:56", "court": 7, "code": "B高B-2", "p1": "", "t1": "", "p2": "", "t2": "", "s1": "unscheduled", "s2": "unscheduled"}, {"time": "15:56", "court": 8, "code": "G高A-5", "p1": "", "t1": "", "p2": "", "t2": "", "s1": "unscheduled", "s2": "unscheduled"}, {"time": "15:56", "court": 9, "code": "G高A-6", "p1": "", "t1": "", "p2": "", "t2": "", "s1": "unscheduled", "s2": "unscheduled"}, {"time": "15:56", "court": 10, "code": "G高A-7", "p1": "", "t1": "", "p2": "", "t2": "", "s1": "unscheduled", "s2": "unscheduled"}, {"time": "15:56", "court": 11, "code": "G高A-8", "p1": "", "t1": "", "p2": "", "t2": "", "s1": "unscheduled", "s2": "unscheduled"}, {"time": "15:56", "court": 12, "code": "G高B-3", "p1": "", "t1": "", "p2": "", "t2": "", "s1": "unscheduled", "s2": "unscheduled"}, {"time": "15:56", "court": 13, "code": "B4B-3", "p1": "", "t1": "", "p2": "", "t2": "", "s1": "unscheduled", "s2": "unscheduled"}, {"time": "15:56", "court": 14, "code": "X高B-1", "p1": "Ｂ高Ｂ：Ｆ－２", "t1": "", "p2": "Ｇ高Ｂ：Ｊ－２", "t2": "", "s1": "pending", "s2": "pending"}, {"time": "15:56", "court": 15, "code": "X高B-2", "p1": "Ｂ高Ｂ：Ｆ－３", "t1": "", "p2": "Ｇ高Ｂ：Ｊ－３", "t2": "", "s1": "pending", "s2": "pending"}, {"time": "16:14", "court": 1, "code": "G高B-4", "p1": "", "t1": "", "p2": "", "t2": "", "s1": "unscheduled", "s2": "unscheduled"}, {"time": "16:14", "court": 2, "code": "G高B-5", "p1": "", "t1": "", "p2": "", "t2": "", "s1": "unscheduled", "s2": "unscheduled"}, {"time": "16:14", "court": 3, "code": "G高B-6", "p1": "", "t1": "", "p2": "", "t2": "", "s1": "unscheduled", "s2": "unscheduled"}, {"time": "16:14", "court": 4, "code": "G4A-4", "p1": "", "t1": "", "p2": "", "t2": "", "s1": "unscheduled", "s2": "unscheduled"}, {"time": "16:14", "court": 5, "code": "G4A-5", "p1": "", "t1": "", "p2": "", "t2": "", "s1": "unscheduled", "s2": "unscheduled"}, {"time": "16:14", "court": 6, "code": "G4B-2", "p1": "", "t1": "", "p2": "", "t2": "", "s1": "unscheduled", "s2": "unscheduled"}, {"time": "16:14", "court": 7, "code": "G4B-3", "p1": "", "t1": "", "p2": "", "t2": "", "s1": "unscheduled", "s2": "unscheduled"}, {"time": "16:14", "court": 8, "code": "G4B-4", "p1": "", "t1": "", "p2": "", "t2": "", "s1": "unscheduled", "s2": "unscheduled"}, {"time": "16:14", "court": 9, "code": "G4B-5", "p1": "", "t1": "", "p2": "", "t2": "", "s1": "unscheduled", "s2": "unscheduled"}, {"time": "16:14", "court": 10, "code": "B高A-2", "p1": "", "t1": "", "p2": "", "t2": "", "s1": "unscheduled", "s2": "unscheduled"}, {"time": "16:14", "court": 11, "code": "B高A-3", "p1": "", "t1": "", "p2": "", "t2": "", "s1": "unscheduled", "s2": "unscheduled"}, {"time": "16:14", "court": 12, "code": "B高B-3", "p1": "", "t1": "", "p2": "", "t2": "", "s1": "unscheduled", "s2": "unscheduled"}, {"time": "16:14", "court": 13, "code": "X4A-1", "p1": "Ｂ４Ａ：Ｄ－２", "t1": "", "p2": "Ｇ４Ａ：Ｆ－２", "t2": "", "s1": "pending", "s2": "pending"}, {"time": "16:14", "court": 14, "code": "X4A-2", "p1": "Ｂ４Ａ：Ｄ－３", "t1": "", "p2": "Ｇ４Ａ：Ｇ－３", "t2": "", "s1": "pending", "s2": "pending"}, {"time": "16:14", "court": 15, "code": "X4A-3", "p1": "Ｇ４Ａ：Ｆ－３", "t1": "", "p2": "Ｇ４Ａ：Ｇ－２", "t2": "", "s1": "pending", "s2": "pending"}, {"time": "16:32", "court": 1, "code": "B高B-4", "p1": "", "t1": "", "p2": "", "t2": "", "s1": "unscheduled", "s2": "unscheduled"}, {"time": "16:32", "court": 2, "code": "G高A-9", "p1": "", "t1": "", "p2": "", "t2": "", "s1": "unscheduled", "s2": "unscheduled"}, {"time": "16:32", "court": 3, "code": "G高A-10", "p1": "", "t1": "", "p2": "", "t2": "", "s1": "unscheduled", "s2": "unscheduled"}, {"time": "16:32", "court": 4, "code": "G高B-7", "p1": "", "t1": "", "p2": "", "t2": "", "s1": "unscheduled", "s2": "unscheduled"}, {"time": "16:32", "court": 5, "code": "G高B-8", "p1": "", "t1": "", "p2": "", "t2": "", "s1": "unscheduled", "s2": "unscheduled"}, {"time": "16:32", "court": 6, "code": "G4A-決勝", "p1": "", "t1": "", "p2": "", "t2": "", "s1": "unscheduled", "s2": "unscheduled"}, {"time": "16:32", "court": 7, "code": "G4B-6", "p1": "", "t1": "", "p2": "", "t2": "", "s1": "unscheduled", "s2": "unscheduled"}, {"time": "16:32", "court": 8, "code": "G4B-7", "p1": "", "t1": "", "p2": "", "t2": "", "s1": "unscheduled", "s2": "unscheduled"}, {"time": "16:32", "court": 9, "code": "B4A-決勝", "p1": "", "t1": "", "p2": "", "t2": "", "s1": "unscheduled", "s2": "unscheduled"}, {"time": "16:32", "court": 10, "code": "B4B-4", "p1": "", "t1": "", "p2": "", "t2": "", "s1": "unscheduled", "s2": "unscheduled"}, {"time": "16:32", "court": 11, "code": "B4B-5", "p1": "", "t1": "", "p2": "", "t2": "", "s1": "unscheduled", "s2": "unscheduled"}, {"time": "16:50", "court": 1, "code": "B高B-決勝", "p1": "", "t1": "", "p2": "", "t2": "", "s1": "unscheduled", "s2": "unscheduled"}, {"time": "16:50", "court": 2, "code": "G高A-決勝", "p1": "", "t1": "", "p2": "", "t2": "", "s1": "unscheduled", "s2": "unscheduled"}, {"time": "16:50", "court": 3, "code": "G高B-決勝", "p1": "", "t1": "", "p2": "", "t2": "", "s1": "unscheduled", "s2": "unscheduled"}, {"time": "16:50", "court": 4, "code": "G4B-決勝", "p1": "", "t1": "", "p2": "", "t2": "", "s1": "unscheduled", "s2": "unscheduled"}, {"time": "16:50", "court": 5, "code": "B高A-決勝", "p1": "", "t1": "", "p2": "", "t2": "", "s1": "unscheduled", "s2": "unscheduled"}, {"time": "16:50", "court": 6, "code": "X4B-1", "p1": "Ｂ４Ｂ：Ｆ－２", "t1": "", "p2": "Ｇ４Ｂ：Ｇ－２", "t2": "", "s1": "pending", "s2": "pending"}, {"time": "16:50", "court": 7, "code": "X4B-2", "p1": "Ｂ４Ｂ：Ｇ－２", "t1": "", "p2": "Ｇ４Ｂ：Ｈ－２", "t2": "", "s1": "pending", "s2": "pending"}, {"time": "16:50", "court": 8, "code": "X4B-3", "p1": "Ｂ４Ｂ：Ｇ－２", "t1": "", "p2": "Ｇ４Ｂ：Ｉ－２", "t2": "", "s1": "pending", "s2": "pending"}, {"time": "17:08", "court": 1, "code": "X4B-4", "p1": "Ｂ４Ｂ：Ｆ－３", "t1": "", "p2": "Ｇ４Ｂ：Ｈ－３", "t2": "", "s1": "pending", "s2": "pending"}, {"time": "17:08", "court": 2, "code": "X4B-5", "p1": "Ｇ４Ｂ：Ｇ－３", "t1": "", "p2": "Ｇ４Ｂ：Ｉ－３", "t2": "", "s1": "pending", "s2": "pending"}, {"time": "17:08", "court": 3, "code": "B4B-決勝", "p1": "", "t1": "", "p2": "", "t2": "", "s1": "unscheduled", "s2": "unscheduled"}];
+const EVENT_DATE = "2026-10-04";
+
+function divPrefix(code){ return code.split('-')[0]; }
+function divClass(prefix){ if(prefix.startsWith('G')) return 'div-g'; if(prefix.startsWith('B')) return 'div-b'; return 'div-x'; }
+ALL.forEach(m=>{ m.div = divPrefix(m.code); });
+
+// favorites (localStorage, per-viewer only)
+let FAVS = [];
+try{
+  const raw = localStorage.getItem('ng_favs');
+  FAVS = raw ? JSON.parse(raw) : [];
+}catch(e){ FAVS = []; }
+function saveFavs(){ try{ localStorage.setItem('ng_favs', JSON.stringify(FAVS)); }catch(e){} }
+function isFav(name){ return FAVS.includes(name); }
+function toggleFav(name){
+  if(!name) return;
+  const i = FAVS.indexOf(name);
+  if(i>=0) FAVS.splice(i,1); else FAVS.push(name);
+  saveFavs();
+  render();
+}
+
+// division chips
+const divCounts = {};
+ALL.forEach(m=>{
+  if(m.s1==='confirmed' || m.s2==='confirmed' || m.s1==='pending' || m.s2==='pending'){
+    divCounts[m.div] = (divCounts[m.div]||0)+1;
+  }
+});
+const divOrder = ['G高A','G高B','G4A','G4B','B高A','B高B','B4A','B4B','X高A','X高B','X4A','X4B'];
+const divs = divOrder.filter(d=>divCounts[d]);
+let activeDiv = 'all';
+let onlyFav = false;
+let selectedTeam = '';
+
+// team dropdown (used for grid highlighting, also narrows list view)
+const teamSelectEl = document.getElementById('teamSelect');
+const teamClearEl = document.getElementById('teamClear');
+(function initTeamSelect(){
+  const teamSet = new Set();
+  ALL.forEach(m=>{
+    if(m.s1==='confirmed' && m.t1) teamSet.add(m.t1);
+    if(m.s2==='confirmed' && m.t2) teamSet.add(m.t2);
+  });
+  const teams = [...teamSet].sort((a,b)=>a.localeCompare(b,'ja'));
+  teams.forEach(t=>{
+    const opt = document.createElement('option');
+    opt.value = t; opt.textContent = t;
+    teamSelectEl.appendChild(opt);
+  });
+})();
+teamSelectEl.addEventListener('change', ()=>{
+  selectedTeam = teamSelectEl.value;
+  teamClearEl.classList.toggle('show', !!selectedTeam);
+  render();
+});
+teamClearEl.addEventListener('click', ()=>{
+  selectedTeam = ''; teamSelectEl.value = ''; teamClearEl.classList.remove('show'); render();
+});
+
+const divFiltersEl = document.getElementById('divFilters');
+function renderChips(){
+  let out = `<div class="chip star ${onlyFav?'active':''}" data-star="1">★ お気に入り${FAVS.length?` (${FAVS.length})`:''}</div>`;
+  out += `<div class="chip ${activeDiv==='all'?'active':''}" data-div="all">すべて</div>`;
+  out += divs.map(d=>`<div class="chip ${activeDiv===d?'active':''}" data-div="${d}">${d} (${divCounts[d]})</div>`).join('');
+  divFiltersEl.innerHTML = out;
+  divFiltersEl.querySelectorAll('.chip[data-div]').forEach(c=>{
+    c.addEventListener('click', ()=>{ activeDiv = c.dataset.div; renderChips(); render(); });
+  });
+  divFiltersEl.querySelector('.chip[data-star]').addEventListener('click', ()=>{
+    onlyFav = !onlyFav; renderChips(); render();
+  });
+}
+
+let sortByTime = true;
+document.getElementById('sortBtn').addEventListener('click', ()=>{
+  sortByTime = !sortByTime;
+  document.getElementById('sortBtn').textContent = sortByTime ? '⏱ 時刻順' : '🏟 コート順';
+  render();
+});
+
+const qEl = document.getElementById('q');
+const clearBtn = document.getElementById('clearBtn');
+qEl.addEventListener('input', ()=>{ clearBtn.classList.toggle('show', qEl.value.length>0); render(); });
+clearBtn.addEventListener('click', ()=>{ qEl.value=''; clearBtn.classList.remove('show'); render(); qEl.focus(); });
+
+// tabs
+let currentTab = 'list';
+document.querySelectorAll('.tabbtn').forEach(b=>{
+  b.addEventListener('click', ()=>{
+    document.querySelectorAll('.tabbtn').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active');
+    currentTab = b.dataset.tab;
+    document.getElementById('listView').classList.toggle('hidden', currentTab!=='list');
+    document.getElementById('gridView').classList.toggle('hidden', currentTab!=='grid');
+    render();
+  });
+});
+
+document.getElementById('statsToggle').addEventListener('click', ()=>{
+  const el = document.getElementById('rankList');
+  const show = el.classList.contains('hidden');
+  el.classList.toggle('hidden');
+  document.getElementById('statsToggle').textContent = show ? '隠す ▲' : '表示 ▼';
+});
+
+function escapeHtml(s){ return (s||'').replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function highlight(text, q){
+  if(!q || !text) return escapeHtml(text||'');
+  const idx = text.toLowerCase().indexOf(q.toLowerCase());
+  if(idx===-1) return escapeHtml(text);
+  return escapeHtml(text.slice(0,idx)) + '<mark>' + escapeHtml(text.slice(idx,idx+q.length)) + '</mark>' + escapeHtml(text.slice(idx+q.length));
+}
+function matchesQuery(m, q){
+  if(!q) return true;
+  const hay = [m.p1,m.t1,m.p2,m.t2,m.code,m.div].join(' ').toLowerCase();
+  return hay.includes(q.toLowerCase());
+}
+function matchesFav(m){
+  if(!onlyFav) return true;
+  return isFav(m.p1) || isFav(m.p2);
+}
+function matchesTeam(m){
+  if(!selectedTeam) return true;
+  return m.t1===selectedTeam || m.t2===selectedTeam;
+}
+
+// "now" detection
+function nowSlotKey(){
+  const d = new Date();
+  const y = d.getFullYear(), mo = String(d.getMonth()+1).padStart(2,'0'), da = String(d.getDate()).padStart(2,'0');
+  const today = `${y}-${mo}-${da}`;
+  if(today !== EVENT_DATE) return null;
+  const mins = d.getHours()*60 + d.getMinutes();
+  let best = null, bestDiff = 999;
+  ALL.forEach(m=>{
+    const [h,mm] = m.time.split(':').map(Number);
+    const t = h*60+mm;
+    const diff = mins - t;
+    if(diff >= 0 && diff < 18 && diff < bestDiff){ bestDiff = diff; best = m.time; }
+  });
+  return best;
+}
+const nowTime = nowSlotKey();
+
+function teamRanking(){
+  const counts = {};
+  ALL.forEach(m=>{
+    if(m.s1==='confirmed' && m.t1) counts[m.t1] = (counts[m.t1]||0)+1;
+    if(m.s2==='confirmed' && m.t2) counts[m.t2] = (counts[m.t2]||0)+1;
+  });
+  return Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+}
+function renderStats(){
+  const ranking = teamRanking();
+  const total = ranking.reduce((a,b)=>a+b[1],0);
+  document.getElementById('rankList').innerHTML =
+    `<div class="rankrow"><span>確定済み出場選手のべ人数</span><b>${total}</b></div>` +
+    ranking.slice(0,12).map(([team,c],i)=>`<div class="rankrow"><span>${i+1}. ${escapeHtml(team)}</span><b>${c}</b></div>`).join('');
+}
+
+function playerCellHtml(name, team, status, q, isP1){
+  if(status==='unscheduled') return `<div class="player unsched"><div class="namerow"><span class="name">未定</span></div></div>`;
+  if(status==='pending') return `<div class="player pending"><div class="namerow"><span class="name">${escapeHtml(name)}</span></div><div class="team">勝者待ち</div></div>`;
+  const fav = isFav(name);
+  return `<div class="player ${fav?'fav':''}" data-name="${escapeHtml(name)}">
+      <div class="namerow"><span class="star">${fav?'★':'☆'}</span><span class="name">${highlight(name,q)}</span></div>
+      <div class="team">${team?highlight(team,q):'&nbsp;'}</div>
+    </div>`;
+}
+
+function render(){
+  const q = qEl.value.trim();
+  renderStats();
+
+  let filtered = ALL.filter(m => (activeDiv==='all' || m.div===activeDiv) && matchesQuery(m,q) && matchesFav(m) && matchesTeam(m) && (m.s1!=='unscheduled' || m.s2!=='unscheduled'));
+
+  filtered = filtered.slice().sort((a,b)=>{
+    if(sortByTime){ if(a.time!==b.time) return a.time.localeCompare(b.time); return a.court-b.court; }
+    return a.court!==b.court ? a.court-b.court : a.time.localeCompare(b.time);
+  });
+
+  document.getElementById('hitcount').textContent = filtered.length;
+  document.getElementById('totalcount').textContent = ALL.filter(m=>m.s1!=='unscheduled'||m.s2!=='unscheduled').length;
+
+  if(currentTab === 'list'){
+    const list = document.getElementById('list');
+    if(filtered.length===0){
+      list.innerHTML = '<div class="empty">🔍 該当する試合が見つかりませんでした。<br>表記ゆれ（漢字/ひらがな・異体字）を変えてお試しください。</div>';
+      return;
+    }
+    list.innerHTML = filtered.map(m=>{
+      const isNow = nowTime && m.time===nowTime;
+      return `<div class="card ${isNow?'now':''}">
+        <div class="meta">
+          <span class="time">${m.time}</span>
+          ${isNow?'<span class="nowtag">NOW</span>':''}
+          <span class="court">コート${m.court}</span>
+          <span class="code">${escapeHtml(m.code)}</span>
+          <span class="div ${divClass(m.div)}">${escapeHtml(m.div)}</span>
+        </div>
+        <div class="vs">
+          ${playerCellHtml(m.p1,m.t1,m.s1,q,true)}
+          <div class="vsmark">VS</div>
+          ${playerCellHtml(m.p2,m.t2,m.s2,q,false)}
+        </div>
+      </div>`;
+    }).join('');
+    list.querySelectorAll('.player[data-name]').forEach(el=>{
+      el.addEventListener('click', ()=>toggleFav(el.dataset.name));
+    });
+  } else {
+    renderGrid(q, filtered);
+  }
+}
+
+function nameSpan(name, team, status, q){
+  if(status==='unscheduled') return `<span class="nm unsched">未定</span>`;
+  if(status==='pending') return `<span class="nm pending">${escapeHtml(name)}</span>`;
+  const isTeamPlayer = selectedTeam && team===selectedTeam;
+  return `<span class="nm${isTeamPlayer?' teamplayer':''}">${highlight(name,q)}</span>`;
+}
+
+function renderGrid(q, filteredSet){
+  const filteredKeys = new Set(filteredSet.map(m=>m.time+'|'+m.court));
+  const hasFilter = q.length>0 || activeDiv!=='all' || onlyFav || !!selectedTeam;
+  const times = [...new Set(ALL.map(m=>m.time))];
+  const byKey = {};
+  ALL.forEach(m=>{ byKey[m.time+'|'+m.court] = m; });
+
+  let html = '<table class="grid"><thead><tr><th>時刻</th>' +
+    Array.from({length:15},(_,i)=>`<th>C${i+1}</th>`).join('') + '</tr></thead><tbody>';
+
+  times.forEach(t=>{
+    html += `<tr><th>${t}</th>`;
+    for(let c=1;c<=15;c++){
+      const m = byKey[t+'|'+c];
+      if(!m || (m.s1==='unscheduled' && m.s2==='unscheduled')){
+        html += `<td class="${hasFilter?'dim':''}">-</td>`;
+        continue;
+      }
+      const isHit = filteredKeys.has(t+'|'+c);
+      const isTeamHit = selectedTeam && (m.t1===selectedTeam || m.t2===selectedTeam);
+      let cls = '';
+      if(hasFilter) cls = isHit ? (isTeamHit ? 'teamhit' : 'hit') : 'dim';
+      const n1 = nameSpan(m.p1, m.t1, m.s1, q);
+      const n2 = nameSpan(m.p2, m.t2, m.s2, q);
+      html += `<td class="${cls}"><span class="code">${escapeHtml(m.code)}</span>${n1}${n2}</td>`;
+    }
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  document.getElementById('gridTableHolder').innerHTML = html;
+
+  if(selectedTeam){
+    const firstHit = document.querySelector('table.grid td.teamhit');
+    if(firstHit) firstHit.scrollIntoView({behavior:'smooth', block:'center', inline:'center'});
+  }
+}
+
+renderChips();
+render();
+</script>
+</body>
+</html>
