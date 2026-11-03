@@ -1,0 +1,974 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="color-scheme" content="light dark" />
+<link rel="icon" href="data:," />
+<title>バドミントン・ライブスコア</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700;800&family=Noto+Sans+JP:wght@400;500;700;900&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --bg:#eef2ee; --surface:#ffffff; --surface2:#e3eae3; --ink:#14201a; --ink2:#43544b;
+    --line:#c9d4ca; --accent:#0c6b3c; --accent-ink:#ffffff; --amber:#e8a100; --red:#c62f3b;
+    --board:#0d2118; --board2:#123324; --board-ink:#f4f8f2; --board-sub:#a9c4b2;
+    --flash:#ffe27a;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#0b120e; --surface:#15211a; --surface2:#1c2d23; --ink:#eef4ee; --ink2:#a9bcb0;
+      --line:#2c4034; --accent:#2fbf71; --accent-ink:#06130b;
+      --board:#0d2118; --board2:#143526; --board-ink:#f4f8f2; --board-sub:#a9c4b2;
+    }
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0; padding:0;}
+  body{
+    font-family:"Noto Sans JP", system-ui, -apple-system, "Hiragino Kaku Gothic ProN", sans-serif;
+    background:var(--bg); color:var(--ink); font-size:15px; line-height:1.5;
+  }
+  .num{font-family:"Barlow Semi Condensed","Noto Sans JP",sans-serif; font-variant-numeric:tabular-nums;}
+  button{font-family:inherit; cursor:pointer;}
+  input,select{font-family:inherit;}
+  .wrap{max-width:860px; margin:0 auto; padding:14px 14px 40px;}
+  .hidden{display:none !important;}
+
+  /* ---------- common ---------- */
+  .card{background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:14px; margin-bottom:12px;}
+  .card h2{font-size:16px; margin:0 0 8px; font-weight:900;}
+  .card h3{font-size:14px; margin:14px 0 6px; font-weight:900;}
+  .small{font-size:12px; color:var(--ink2);}
+  .notice{font-size:12px; color:var(--ink2); background:var(--surface2); border-radius:8px; padding:9px 11px; margin-top:12px;}
+  .btn{
+    display:inline-flex; align-items:center; justify-content:center; gap:6px;
+    border:1px solid var(--line); background:var(--surface); color:var(--ink);
+    border-radius:8px; padding:9px 14px; font-size:14px; font-weight:700; text-decoration:none;
+    min-height:44px;
+  }
+  .btn.primary{background:var(--accent); border-color:var(--accent); color:var(--accent-ink);}
+  .btn.line-green{background:#06c755; border-color:#06c755; color:#fff;}
+  .btn.danger{color:var(--red); border-color:var(--red); background:transparent;}
+  .btn.sm{min-height:36px; padding:5px 10px; font-size:13px;}
+  .btn:disabled{opacity:.45; cursor:default;}
+  .btnrow{display:flex; flex-wrap:wrap; gap:8px; margin-top:10px;}
+  .conn{display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:700; padding:4px 10px; border-radius:999px; border:1px solid var(--line); background:var(--surface);}
+  .conn .dot{width:9px; height:9px; border-radius:50%; background:#999; flex:none;}
+  .conn.on .dot{background:#22b573; box-shadow:0 0 0 3px rgba(34,181,115,.25);}
+  .conn.off .dot{background:var(--red);}
+  .conn.mid .dot{background:var(--amber);}
+  #toast{
+    position:fixed; left:50%; bottom:22px; transform:translateX(-50%) translateY(80px);
+    background:#101a14; color:#fff; padding:10px 18px; border-radius:999px; font-size:14px; font-weight:700;
+    opacity:0; transition:all .25s; z-index:99; pointer-events:none; max-width:92vw; text-align:center;
+  }
+  #toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+
+  /* ---------- lobby ---------- */
+  .lead{font-size:15px; margin:2px 0 12px;}
+  .lead b{color:var(--accent);}
+  label.f{display:block; font-size:13px; font-weight:700; margin:10px 0 4px;}
+  label.f span{font-weight:400; color:var(--ink2); font-size:12px;}
+  input[type=text], select{
+    width:100%; padding:10px; font-size:16px; border:1px solid var(--line); border-radius:8px;
+    background:var(--surface); color:var(--ink);
+  }
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+  @media (max-width:560px){ .grid2{grid-template-columns:1fr;} }
+  .match-item{
+    display:flex; align-items:center; gap:10px; border:1px solid var(--line); border-radius:10px;
+    padding:10px 12px; margin-bottom:8px; background:var(--surface); text-decoration:none; color:var(--ink);
+  }
+  .match-item .mi-main{flex:1; min-width:0;}
+  .match-item .mi-name{font-weight:900; font-size:15px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .match-item .mi-sub{font-size:12px; color:var(--ink2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .role-badge{font-size:11px; font-weight:900; padding:3px 8px; border-radius:999px; flex:none;}
+  .role-badge.keeper{background:var(--accent); color:var(--accent-ink);}
+  .role-badge.viewer{background:var(--surface2); color:var(--ink2); border:1px solid var(--line);}
+  .mi-del{flex:none; border:none; background:none; color:var(--ink2); font-size:18px; padding:6px; line-height:1;}
+  .steps{display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:6px;}
+  @media (max-width:560px){ .steps{grid-template-columns:1fr;} }
+  .step{background:var(--surface2); border-radius:8px; padding:9px 11px; font-size:13px;}
+  .step b{display:block; font-size:13px; margin-bottom:2px;}
+  .step .n{color:var(--accent); font-weight:900;}
+
+  /* ---------- scoreboard (keeper + viewer) ---------- */
+  .topbar{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:10px;}
+  .topbar .spacer{flex:1;}
+  .match-title{font-size:17px; font-weight:900; margin:0;}
+  .match-sub{font-size:12px; color:var(--ink2); margin:0 0 10px;}
+  .board{
+    background:var(--board); color:var(--board-ink); border-radius:14px; overflow:hidden;
+    border:1px solid #00000033; user-select:none;
+  }
+  .board-head{
+    display:flex; align-items:stretch; text-align:center; background:var(--board2);
+    border-bottom:2px solid #ffffff22; font-size:13px; font-weight:700;
+  }
+  .board-head .bh{flex:1; padding:7px 6px; min-width:0;}
+  .board-head .bh + .bh{border-left:1px solid #ffffff1c;}
+  .board-head .gcount{font-size:12px; color:var(--board-sub); font-weight:500;}
+  .board-head .pips{display:flex; gap:4px; justify-content:center; margin-top:3px;}
+  .pip{width:11px; height:11px; border-radius:50%; border:2px solid var(--board-sub); display:inline-block;}
+  .pip.won{background:var(--amber); border-color:var(--amber);}
+  .gnum{
+    flex:0 0 86px !important; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    color:var(--board-sub); font-size:11px;
+  }
+  .gnum b{color:var(--board-ink); font-size:19px;}
+  .score-row{display:flex; align-items:stretch;}
+  .side{
+    flex:1; text-align:center; padding:14px 6px 18px; min-width:0; position:relative;
+    background:transparent; border:none; color:var(--board-ink); display:block; width:50%;
+  }
+  button.side{cursor:pointer;}
+  button.side:active{background:#ffffff14;}
+  .side + .side{border-left:2px solid #ffffff22;}
+  .side .pname{font-size:clamp(17px,5.2vw,27px); font-weight:900; line-height:1.2; word-break:break-all; min-height:1.2em;}
+  .side .pteam{font-size:12px; color:var(--board-sub); min-height:1.4em;}
+  .side .pscore{
+    font-size:clamp(92px,27vw,190px); font-weight:800; line-height:.98; letter-spacing:-.01em;
+    transition:color .15s;
+  }
+  .side.flash .pscore{color:var(--flash);}
+  .serve-dot{
+    width:15px; height:15px; border-radius:50%; background:var(--amber); display:inline-block;
+    vertical-align:middle; margin-right:6px; box-shadow:0 0 0 4px rgba(232,161,0,.22);
+    visibility:hidden;
+  }
+  .serving .serve-dot{visibility:visible;}
+  .serve-label{font-size:12px; color:var(--board-sub); height:18px;}
+  .serve-label .sl-text{visibility:hidden;}
+  .serving .serve-label{color:var(--amber); font-weight:700;}
+  .serving .serve-label .sl-text{visibility:visible;}
+
+  .banner{
+    margin:12px 0; border-radius:10px; padding:13px 14px; text-align:center; font-weight:900;
+    font-size:clamp(17px,5vw,23px); line-height:1.35; display:none;
+  }
+  .banner.show{display:block;}
+  .banner.mp{background:#7a1220; color:#fff;}
+  .banner.gp{background:#8a5a00; color:#fff;}
+  .banner.interval{background:var(--surface2); color:var(--ink); border:1px solid var(--line);}
+  .banner.win{background:var(--accent); color:var(--accent-ink);}
+  .banner small{display:block; font-size:13px; font-weight:700; opacity:.9;}
+
+  .controls{display:flex; flex-wrap:wrap; gap:8px; margin:12px 0;}
+  .controls .btn{flex:1; min-width:100px;}
+  .minus-row{display:flex; gap:8px; margin-top:-4px; margin-bottom:4px;}
+  .minus-row .btn{flex:1;}
+
+  .rally-strip{display:flex; flex-wrap:wrap; gap:3px; margin-top:6px;}
+  .rally-strip .r{width:14px; height:20px; border-radius:3px; font-size:10px; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700;}
+  .r.a{background:#1f7a4d;} .r.b{background:#8a4b12;}
+  @media (prefers-color-scheme: dark){ .r.a{background:#2fbf71; color:#06130b;} .r.b{background:#e8a100; color:#231a00;} }
+  .game-scores{display:flex; flex-wrap:wrap; gap:6px; margin-top:6px;}
+  .gs-chip{background:var(--surface2); border-radius:6px; padding:4px 10px; font-size:13px; font-weight:700;}
+  .gs-chip b{font-size:15px;}
+
+  .linkbox{
+    width:100%; font-size:12px; padding:9px; border:1px dashed var(--line); border-radius:8px;
+    background:var(--surface2); color:var(--ink); word-break:break-all;
+  }
+  .qrbox{display:flex; gap:14px; align-items:center; margin-top:10px; flex-wrap:wrap;}
+  .qrbox .qr{background:#fff; padding:8px; border-radius:8px; line-height:0;}
+  .qrbox .qr svg, .qrbox .qr img{width:132px; height:132px;}
+
+  .viewer-note{text-align:center; font-size:13px; color:var(--ink2); margin-top:12px;}
+  .winner-name{font-size:clamp(24px,7vw,38px);}
+  .modal-bg{
+    position:fixed; inset:0; background:rgba(0,0,0,.55); display:none; align-items:center; justify-content:center; z-index:50; padding:16px;
+  }
+  .modal-bg.show{display:flex;}
+  .modal{background:var(--surface); color:var(--ink); border-radius:12px; padding:18px; max-width:420px; width:100%;}
+  .modal h3{margin:0 0 8px; font-size:16px;}
+</style>
+</head>
+<body>
+
+<!-- ================= LOBBY ================= -->
+<main id="view-lobby" class="wrap hidden">
+  <p class="lead">会場でスコアをつける人と、家で見る人が、<b>リンク1つ</b>でつながるバドミントンのライブスコアです。試合ごとに部屋が分かれるので、<b>チームの他の家族もそれぞれ自分の試合を作って</b>使えます。観戦する側はアプリも登録もいりません。</p>
+
+  <section class="card">
+    <h2>新しい試合を作る（スコアをつける人）</h2>
+    <label class="f">試合名 <span>（大会名・試合番号など、自由に）</span></label>
+    <input type="text" id="f-match" placeholder="例：滋賀県小学生秋季大会・準決勝" maxlength="60" />
+    <div class="grid2">
+      <div>
+        <label class="f">選手Aの名前 <span>（ペアの場合は2人分書けます）</span></label>
+        <input type="text" id="f-name-a" placeholder="例：山田 はな" maxlength="30" />
+        <label class="f">選手Aの所属 <span>（任意）</span></label>
+        <input type="text" id="f-team-a" placeholder="例：唐崎" maxlength="30" />
+      </div>
+      <div>
+        <label class="f">選手Bの名前</label>
+        <input type="text" id="f-name-b" placeholder="例：佐藤 そら" maxlength="30" />
+        <label class="f">選手Bの所属 <span>（任意）</span></label>
+        <input type="text" id="f-team-b" placeholder="例：相手チーム" maxlength="30" />
+      </div>
+    </div>
+    <label class="f">試合形式</label>
+    <select id="f-format">
+      <option value="21x3">21点・3ゲーム（2ゲーム先取）</option>
+      <option value="15x3">15点・3ゲーム（2ゲーム先取）</option>
+      <option value="21x1">21点・1ゲーム</option>
+      <option value="15x1">15点・1ゲーム</option>
+    </select>
+    <div class="btnrow">
+      <button class="btn primary" id="btn-create" style="flex:1;">試合を作って操作画面を開く</button>
+    </div>
+    <div class="steps">
+      <div class="step"><span class="n">1</span> <b>試合を作る</b>この画面で選手名と形式を入れるだけです。</div>
+      <div class="step"><span class="n">2</span> <b>観戦リンクを送る</b>操作画面に出るリンクかQRを、LINEで家族に送ります。</div>
+      <div class="step"><span class="n">3</span> <b>タップで加点</b>ラリーが決まるたび点数をタップ。家族の画面にすぐ反映されます。</div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>自分の試合リスト</h2>
+    <p class="small" style="margin-top:0;">この端末で作った試合・見た試合がここに残ります（他の人には見えません）。</p>
+    <div id="my-list"><p class="small">まだ試合がありません。</p></div>
+    <h3>観戦リンクから参加する</h3>
+    <p class="small" style="margin-top:0;">家族から届いた観戦リンクを貼ると、この端末のリストに加わります。</p>
+    <input type="text" id="f-join" placeholder="観戦リンクを貼り付け" />
+    <div class="btnrow"><button class="btn" id="btn-join">このリンクで観戦する</button></div>
+  </section>
+
+  <p class="notice">このページは無料の公開中継サービスを使った個人・チーム向けの仕組みです。リンクを知っている人は誰でも観戦できます。大事な個人情報は選手名に入れないでください。スコアの操作は「操作用リンク」を持っている人だけができます。観戦用リンクは家族にだけ配ってください。</p>
+</main>
+
+<!-- ================= KEEPER ================= -->
+<main id="view-keeper" class="wrap hidden">
+  <div class="topbar">
+    <span class="conn mid" id="k-conn"><span class="dot"></span><span id="k-conn-text">接続中…</span></span>
+    <span class="small" id="k-updated"></span>
+    <span class="spacer"></span>
+    <button class="btn sm" id="k-to-lobby">ロビーへ</button>
+  </div>
+  <h1 class="match-title" id="k-title">試合</h1>
+  <p class="match-sub" id="k-sub"></p>
+
+  <div id="k-banner" class="banner"></div>
+
+  <div class="board" id="k-board">
+    <div class="board-head">
+      <div class="bh" id="k-head-0"></div>
+      <div class="bh gnum">ゲーム<span><b class="num" id="k-gnum">1</b></span><span id="k-format-label"></span></div>
+      <div class="bh" id="k-head-1"></div>
+    </div>
+    <div class="score-row">
+      <button class="side" id="k-side-0" aria-label="左の選手に1点">
+        <div class="pname" id="k-name-0"></div>
+        <div class="pteam" id="k-team-0"></div>
+        <div class="pscore num" id="k-score-0">0</div>
+        <div class="serve-label"><span class="serve-dot"></span><span class="sl-text">サーブ</span></div>
+      </button>
+      <button class="side" id="k-side-1" aria-label="右の選手に1点">
+        <div class="pname" id="k-name-1"></div>
+        <div class="pteam" id="k-team-1"></div>
+        <div class="pscore num" id="k-score-1">0</div>
+        <div class="serve-label"><span class="serve-dot"></span><span class="sl-text">サーブ</span></div>
+      </button>
+    </div>
+  </div>
+  <p class="small" style="margin:6px 2px 0;">点数を付けたい選手の側をタップすると、その選手に1点入ってサーブ権が移ります。</p>
+
+  <div class="controls">
+    <button class="btn" id="k-undo">↩ 1つ取り消す</button>
+    <button class="btn" id="k-swap">⇄ 左右を入れ替え</button>
+  </div>
+  <div class="minus-row">
+    <button class="btn sm" id="k-minus-0">左 −1（誤タップ修正）</button>
+    <button class="btn sm" id="k-minus-1">右 −1（誤タップ修正）</button>
+  </div>
+
+  <section class="card">
+    <h2>この試合の記録</h2>
+    <div class="small">終わったゲーム</div>
+    <div class="game-scores" id="k-games"><span class="small">まだありません</span></div>
+    <div class="small" style="margin-top:10px;">今のゲームの得点の流れ（左から順に、誰が何点目を取ったか）</div>
+    <div class="rally-strip" id="k-rally"><span class="small">まだ点が入っていません</span></div>
+  </section>
+
+  <section class="card">
+    <h2>家族に観戦してもらう</h2>
+    <p class="small" style="margin-top:0;">下の<b>観戦用リンク</b>を家族に送ってください。開くだけで、今の点数がそのまま見られます（途中から開いても最新の点数が出ます）。このリンクではスコアは変えられません。</p>
+    <div class="linkbox" id="k-viewer-link"></div>
+    <div class="btnrow">
+      <button class="btn primary" id="k-copy">リンクをコピー</button>
+      <a class="btn line-green" id="k-line" href="#" target="_blank" rel="noopener">LINEで送る</a>
+    </div>
+    <div class="qrbox">
+      <div class="qr" id="k-qr"></div>
+      <p class="small" style="margin:0; flex:1; min-width:180px;">同じ場所にいる家族なら、このQRコードをスマホで読み取るだけでも観戦画面が開きます。</p>
+    </div>
+    <h3>操作用リンク（自分専用）</h3>
+    <p class="small" style="margin-top:0;">自分のタブレットなど、別の端末でもスコアを付けたいとき用です。<b>このリンクではスコアが変えられるので、家族への共有には使わないでください。</b></p>
+    <div class="linkbox" id="k-keeper-link"></div>
+    <div class="btnrow"><button class="btn" id="k-copy-keeper">操作用リンクをコピー</button></div>
+  </section>
+
+  <section class="card">
+    <h2>試合の操作</h2>
+    <div class="btnrow" style="margin-top:0;">
+      <button class="btn danger" id="k-reset">試合を最初からやり直す</button>
+    </div>
+  </section>
+  <p class="notice">通信が切れても、この画面ではそのままタップを続けられます。つながり直したときに最新の点数が自動で送られます。</p>
+</main>
+
+<!-- ================= VIEWER ================= -->
+<main id="view-viewer" class="wrap hidden">
+  <div class="topbar">
+    <span class="conn mid" id="v-conn"><span class="dot"></span><span id="v-conn-text">接続中…</span></span>
+    <span class="small" id="v-updated"></span>
+    <span class="spacer"></span>
+    <button class="btn sm" id="v-to-lobby">ロビーへ</button>
+  </div>
+  <h1 class="match-title" id="v-title">試合</h1>
+  <p class="match-sub" id="v-sub"></p>
+
+  <div id="v-banner" class="banner"></div>
+
+  <div class="board" id="v-board">
+    <div class="board-head">
+      <div class="bh" id="v-head-0"></div>
+      <div class="bh gnum">ゲーム<span><b class="num" id="v-gnum">1</b></span><span id="v-format-label"></span></div>
+      <div class="bh" id="v-head-1"></div>
+    </div>
+    <div class="score-row">
+      <div class="side" id="v-side-0">
+        <div class="pname" id="v-name-0"></div>
+        <div class="pteam" id="v-team-0"></div>
+        <div class="pscore num" id="v-score-0">0</div>
+        <div class="serve-label"><span class="serve-dot"></span><span class="sl-text">サーブ</span></div>
+      </div>
+      <div class="side" id="v-side-1">
+        <div class="pname" id="v-name-1"></div>
+        <div class="pteam" id="v-team-1"></div>
+        <div class="pscore num" id="v-score-1">0</div>
+        <div class="serve-label"><span class="serve-dot"></span><span class="sl-text">サーブ</span></div>
+      </div>
+    </div>
+  </div>
+  <p class="viewer-note">この画面は見るだけです。点数が入ると自動で変わるので、そのまま開いておいてください。</p>
+
+  <section class="card">
+    <h2>これまでのゲーム</h2>
+    <div class="game-scores" id="v-games"><span class="small">まだ終わったゲームはありません</span></div>
+    <div class="small" style="margin-top:10px;">今のゲームの得点の流れ</div>
+    <div class="rally-strip" id="v-rally"><span class="small">まだ点が入っていません</span></div>
+  </section>
+  <p class="notice">このページは無料の公開中継サービスを使った個人・チーム向けの仕組みです。リンクを知っている人は誰でも観戦できます。</p>
+</main>
+
+<div id="toast"></div>
+
+<div class="modal-bg" id="modal-bg">
+  <div class="modal">
+    <h3 id="modal-title"></h3>
+    <p class="small" id="modal-body" style="font-size:14px; color:var(--ink);"></p>
+    <div class="btnrow">
+      <button class="btn" id="modal-cancel">やめる</button>
+      <button class="btn danger" id="modal-ok" style="border-style:solid;">実行する</button>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* ============================================================
+   バドミントン・ライブスコア
+   公開MQTTブローカー経由のリアルタイム同期 + 改ざん防止ハッシュ検証
+   ============================================================ */
+var BROKERS = ["wss://broker.emqx.io:8084/mqtt", "wss://broker.hivemq.com:8884/mqtt"];
+var TOPIC_PREFIX = "kzscore/v1/";
+var LS_MATCHES = "kzscore_matches_v1";
+var FORMATS = {
+  "21x3": { key:"21x3", label:"21点・3ゲーム", target:21, cap:30, gamesToWin:2, maxGames:3, interval:11 },
+  "15x3": { key:"15x3", label:"15点・3ゲーム", target:15, cap:21, gamesToWin:2, maxGames:3, interval:8 },
+  "21x1": { key:"21x1", label:"21点・1ゲーム", target:21, cap:30, gamesToWin:1, maxGames:1, interval:11 },
+  "15x1": { key:"15x1", label:"15点・1ゲーム", target:15, cap:21, gamesToWin:1, maxGames:1, interval:8 }
+};
+
+function $(id){ return document.getElementById(id); }
+function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
+function toast(msg){
+  var t = $("toast"); t.textContent = msg; t.classList.add("show");
+  clearTimeout(toast._h); toast._h = setTimeout(function(){ t.classList.remove("show"); }, 2400);
+}
+var ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789";
+function randStr(n){
+  var buf = new Uint8Array(n); crypto.getRandomValues(buf);
+  var s = ""; for (var i=0;i<n;i++) s += ALPHABET[buf[i] % ALPHABET.length];
+  return s;
+}
+function sha256hex(str){
+  return crypto.subtle.digest("SHA-256", new TextEncoder().encode(str)).then(function(buf){
+    return Array.prototype.map.call(new Uint8Array(buf), function(b){ return ("0"+b.toString(16)).slice(-2); }).join("");
+  });
+}
+function loadScriptSequential(urls){
+  return new Promise(function(resolve, reject){
+    (function tryNext(i){
+      if (i >= urls.length) return reject(new Error("all failed"));
+      var s = document.createElement("script");
+      s.src = urls[i]; s.async = true;
+      s.onload = function(){ resolve(urls[i]); };
+      s.onerror = function(){ s.remove(); tryNext(i+1); };
+      document.head.appendChild(s);
+    })(0);
+  });
+}
+
+/* ---------------- state ---------------- */
+function newState(room, cfg){
+  return {
+    v: 1, room: room,
+    matchName: cfg.matchName,
+    formatKey: cfg.formatKey,
+    players: [
+      { name: cfg.nameA || "選手A", team: cfg.teamA || "" },
+      { name: cfg.nameB || "選手B", team: cfg.teamB || "" }
+    ],
+    games: [],              // {a,b,rallies:[0|1,...]}
+    cur: { a:0, b:0 },
+    rallies: [],            // current game rally winners (player idx)
+    server: 0,
+    swapped: false,
+    finished: false,
+    winner: -1,
+    seq: 0,
+    updatedAt: 0
+  };
+}
+function fmtOf(state){ return FORMATS[state.formatKey] || FORMATS["21x3"]; }
+function gamesWon(state, p){
+  return state.games.filter(function(g){ return (p===0 ? g.a>g.b : g.b>g.a); }).length;
+}
+function dispOrder(state){ return state.swapped ? [1,0] : [0,1]; }
+function scoreOf(state, p){ return p===0 ? state.cur.a : state.cur.b; }
+
+/* would player p win the GAME by taking the next point? */
+function gamePointFor(state, p){
+  var f = fmtOf(state), s = scoreOf(state,p), o = scoreOf(state,1-p);
+  if (state.finished) return false;
+  return (s+1 >= f.target && (s+1)-o >= 2) || (s+1 === f.cap);
+}
+function matchPointFor(state, p){
+  return gamePointFor(state,p) && (gamesWon(state,p) + 1 >= fmtOf(state).gamesToWin);
+}
+function gameWinnerByScore(state){
+  var f = fmtOf(state), a = state.cur.a, b = state.cur.b;
+  if ((a >= f.target && a-b >= 2) || a === f.cap) return 0;
+  if ((b >= f.target && b-a >= 2) || b === f.cap) return 1;
+  return -1;
+}
+
+/* status wording shared by keeper & viewer */
+function statusInfo(state){
+  if (state.finished && state.winner >= 0){
+    return { cls:"win", main: esc(state.players[state.winner].name) + " さんの勝ち",
+             sub: "試合終了 ・ " + gamesWon(state,0) + " - " + gamesWon(state,1) + "（ゲーム数）" };
+  }
+  for (var p=0;p<2;p++){
+    if (matchPointFor(state,p))
+      return { cls:"mp", main:"マッチポイント", sub: esc(state.players[p].name) + " さん、あと1点で勝ち" };
+  }
+  for (var p2=0;p2<2;p2++){
+    if (gamePointFor(state,p2))
+      return { cls:"gp", main:"ゲームポイント", sub: esc(state.players[p2].name) + " さん、あと1点でこのゲームを取ります" };
+  }
+  var f = fmtOf(state);
+  var lead = Math.max(state.cur.a, state.cur.b);
+  if ((state.cur.a === f.interval || state.cur.b === f.interval) && lead === f.interval && state.rallies.length > 0
+      && intervalJustHit(state)){
+    return { cls:"interval", main:"インターバル", sub:"少し休憩です。そのままお待ちください" };
+  }
+  return null;
+}
+function intervalJustHit(state){
+  /* interval banner only right after the rally that first reached the interval point */
+  var f = fmtOf(state);
+  if (state.rallies.length === 0) return false;
+  var a=0,b=0, hitAt=-1;
+  for (var i=0;i<state.rallies.length;i++){
+    if (state.rallies[i]===0) a++; else b++;
+    if ((a===f.interval || b===f.interval) && hitAt<0) hitAt=i;
+  }
+  return hitAt === state.rallies.length-1;
+}
+
+/* ---------------- local match list ---------------- */
+function loadMatches(){
+  try { return JSON.parse(localStorage.getItem(LS_MATCHES) || "[]"); } catch(e){ return []; }
+}
+function saveMatches(list){
+  try { localStorage.setItem(LS_MATCHES, JSON.stringify(list.slice(0,60))); } catch(e){}
+}
+function upsertMatch(entry){
+  var list = loadMatches().filter(function(m){ return m.room !== entry.room; });
+  entry.ts = Date.now();
+  list.unshift(entry); saveMatches(list);
+}
+function pageBase(){
+  return location.origin + location.pathname;
+}
+function keeperLink(room, key){ return pageBase() + "#m=" + room + "&k=" + key; }
+function viewerLink(room, vhash){ return pageBase() + "#m=" + room + "&v=" + vhash; }
+
+/* ---------------- sync engine ---------------- */
+var Sync = {
+  client:null, brokerIdx:0, connected:false, everConnected:false, connectTimer:null,
+  topic:null, role:null, verifyHash:null, lastSeq:-1, onState:null, onStatus:null,
+  bc:null,
+  setStatus: function(kind, text){ if (this.onStatus) this.onStatus(kind, text); },
+  start: function(opts){
+    this.topic = TOPIC_PREFIX + opts.room;
+    this.role = opts.role; this.verifyHash = opts.verifyHash;
+    this.onState = opts.onState; this.onStatus = opts.onStatus;
+    var self = this;
+    /* BroadcastChannel fallback (same device tabs) */
+    try {
+      this.bc = new BroadcastChannel("kzscore-" + opts.room);
+      this.bc.onmessage = function(ev){ self.receive(ev.data, "bc"); };
+    } catch(e){ this.bc = null; }
+    this.setStatus("mid", "接続中…");
+    loadScriptSequential([
+      "https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js",
+      "https://cdn.jsdelivr.net/npm/mqtt@5.10.1/dist/mqtt.min.js"
+    ]).then(function(){
+      self.connectBroker(0);
+    }).catch(function(){
+      self.setStatus("off", "中継に接続できません（同一端末の別タブとは同期できます）");
+    });
+  },
+  connectBroker: function(idx){
+    var self = this;
+    this.brokerIdx = idx;
+    if (typeof mqtt === "undefined"){ this.setStatus("off","中継ライブラリを読み込めませんでした"); return; }
+    var clientId = "kz-" + randStr(12);
+    var client;
+    try {
+      client = mqtt.connect(BROKERS[idx], {
+        clientId: clientId, reconnectPeriod: 4000, connectTimeout: 9000,
+        keepalive: 40, clean: true
+      });
+    } catch(e){
+      if (idx+1 < BROKERS.length) return this.connectBroker(idx+1);
+      this.setStatus("off","中継に接続できません"); return;
+    }
+    this.client = client;
+    var gotConnect = false;
+    clearTimeout(this.connectTimer);
+    this.connectTimer = setTimeout(function(){
+      if (!gotConnect && idx+1 < BROKERS.length){
+        try { client.end(true); } catch(e){}
+        self.connectBroker(idx+1);
+      }
+    }, 10000);
+    client.on("connect", function(){
+      gotConnect = true; self.connected = true; self.everConnected = true;
+      self.setStatus("on", "接続中（ライブ配信中）");
+      client.subscribe(self.topic, { qos:1 }, function(err){
+        if (!err && self.role === "keeper" && self._pendingState) self.publish(self._pendingState);
+      });
+    });
+    client.on("reconnect", function(){ self.connected=false; self.setStatus("mid","再接続中…"); });
+    client.on("offline", function(){ self.connected=false; self.setStatus("mid","再接続中…"); });
+    client.on("error", function(){ self.setStatus("mid","再接続中…"); });
+    client.on("message", function(topic, buf){
+      try { self.receive(JSON.parse(buf.toString()), "mqtt"); } catch(e){}
+    });
+  },
+  publish: function(state){
+    var self = this;
+    this._pendingState = state;
+    var stateJson = JSON.stringify(state);
+    return sha256hex(this.verifyHash + "|" + state.seq + "|" + stateJson).then(function(proof){
+      var payload = { state: state, seq: state.seq, proof: proof };
+      if (self.bc){ try { self.bc.postMessage(payload); } catch(e){} }
+      if (self.client && self.connected){
+        self.client.publish(self.topic, JSON.stringify(payload), { retain:true, qos:1 });
+      }
+      return payload;
+    });
+  },
+  receive: function(payload, via){
+    if (!payload || typeof payload.seq !== "number" || !payload.state) return;
+    if (payload.seq <= this.lastSeq) return;
+    var self = this;
+    var stateJson = JSON.stringify(payload.state);
+    sha256hex(this.verifyHash + "|" + payload.seq + "|" + stateJson).then(function(proof){
+      if (proof !== payload.proof) return; /* 改ざん・別試合のメッセージは表示しない */
+      if (payload.seq <= self.lastSeq) return;
+      self.lastSeq = payload.seq;
+      if (self.onState) self.onState(payload.state, via);
+    });
+  }
+};
+
+/* ---------------- rendering (shared) ---------------- */
+function renderBoard(prefix, state, prev){
+  var f = fmtOf(state), order = dispOrder(state);
+  $(prefix+"-title").textContent = state.matchName || "試合";
+  $(prefix+"-sub").textContent = f.label + " ・ 先に" + f.gamesToWin + "ゲーム取った方が勝ち";
+  $(prefix+"-gnum").textContent = Math.min(state.games.length + 1, f.maxGames);
+  $(prefix+"-format-label").textContent = f.target + "点制";
+  for (var d=0; d<2; d++){
+    var p = order[d];
+    $(prefix+"-head-"+d).innerHTML =
+      "<div>" + esc(state.players[p].name) + "</div>" +
+      '<div class="gcount">ゲーム ' + gamesWon(state,p) + '</div>' +
+      '<div class="pips">' + pipsHtml(state,p) + "</div>";
+    $(prefix+"-name-"+d).textContent = state.players[p].name;
+    $(prefix+"-team-"+d).textContent = state.players[p].team || "";
+    var scoreEl = $(prefix+"-score-"+d);
+    var newScore = scoreOf(state,p);
+    if (prev && scoreOf(prev,p) !== newScore){
+      var side = $(prefix+"-side-"+d);
+      side.classList.remove("flash"); void side.offsetWidth; side.classList.add("flash");
+      setTimeout((function(el){ return function(){ el.classList.remove("flash"); }; })(side), 650);
+    }
+    scoreEl.textContent = newScore;
+    $(prefix+"-side-"+d).classList.toggle("serving", state.server === p && !state.finished);
+  }
+  var banner = $(prefix+"-banner");
+  var st = statusInfo(state);
+  if (st){
+    banner.className = "banner show " + st.cls;
+    banner.innerHTML = (st.cls==="win" ? '<span class="winner-name">' + st.main + "</span>" : st.main) +
+      (st.sub ? "<small>" + st.sub + "</small>" : "");
+  } else {
+    banner.className = "banner"; banner.innerHTML = "";
+  }
+  /* games history */
+  var gh = state.games.length
+    ? state.games.map(function(g,i){
+        return '<span class="gs-chip">G' + (i+1) + ' <b class="num">' +
+          (state.swapped ? g.b : g.a) + " - " + (state.swapped ? g.a : g.b) + "</b></span>";
+      }).join("")
+    : '<span class="small">まだ終わったゲームはありません</span>';
+  $(prefix+"-games").innerHTML = gh;
+  /* rally strip */
+  var rh = state.rallies.length
+    ? state.rallies.map(function(w,i){
+        var dp = dispOrder(state).indexOf(w);
+        return '<span class="r ' + (dp===0?"a":"b") + '">' + (i+1) + "</span>";
+      }).join("")
+    : '<span class="small">まだ点が入っていません</span>';
+  $(prefix+"-rally").innerHTML = rh;
+}
+function pipsHtml(state, p){
+  var f = fmtOf(state), w = gamesWon(state,p), s = "";
+  for (var i=0;i<f.gamesToWin;i++) s += '<span class="pip' + (i<w ? " won" : "") + '"></span>';
+  return s;
+}
+function fmtAgo(ts){
+  if (!ts) return "";
+  var sec = Math.max(0, Math.round((Date.now()-ts)/1000));
+  if (sec < 5) return "たった今更新";
+  if (sec < 60) return sec + "秒前に更新";
+  return Math.floor(sec/60) + "分前に更新";
+}
+
+/* ---------------- router ---------------- */
+function parseHash(){
+  var h = location.hash.replace(/^#/, "");
+  var out = {};
+  h.split("&").forEach(function(kv){
+    var i = kv.indexOf("="); if (i>0) out[kv.slice(0,i)] = decodeURIComponent(kv.slice(i+1));
+  });
+  return out;
+}
+function show(view){
+  ["lobby","keeper","viewer"].forEach(function(v){ $("view-"+v).classList.toggle("hidden", v!==view); });
+  window.scrollTo(0,0);
+}
+
+/* ================= LOBBY ================= */
+function initLobby(){
+  show("lobby");
+  renderMyList();
+  $("btn-create").onclick = function(){
+    var nameA = $("f-name-a").value.trim(), nameB = $("f-name-b").value.trim();
+    if (!nameA || !nameB){ toast("選手Aと選手Bの名前を入れてください"); return; }
+    var room = randStr(18);
+    var keeperKey = randStr(24);
+    var cfg = {
+      matchName: $("f-match").value.trim() || "バドミントン試合",
+      nameA: nameA, teamA: $("f-team-a").value.trim(),
+      nameB: nameB, teamB: $("f-team-b").value.trim(),
+      formatKey: $("f-format").value
+    };
+    try { localStorage.setItem("kzscore_cfg_" + room, JSON.stringify(cfg)); } catch(e){}
+    sha256hex(keeperKey).then(function(vhash){
+      upsertMatch({ room:room, keeperKey:keeperKey, verifyHash:vhash, role:"keeper",
+        matchName:cfg.matchName, players:nameA + " vs " + nameB });
+      location.hash = "m=" + room + "&k=" + keeperKey;
+    });
+  };
+  $("btn-join").onclick = function(){
+    var v = $("f-join").value.trim();
+    var m = v.match(/#?m=([a-z0-9]+)&v=([a-f0-9]{16,})/i);
+    if (!m){ toast("観戦リンクの形式が違うようです"); return; }
+    upsertMatch({ room:m[1], verifyHash:m[2], role:"viewer", matchName:"観戦中の試合", players:"" });
+    location.hash = "m=" + m[1] + "&v=" + m[2];
+  };
+}
+function renderMyList(){
+  var list = loadMatches(), box = $("my-list");
+  if (!list.length){ box.innerHTML = '<p class="small">まだ試合がありません。</p>'; return; }
+  box.innerHTML = "";
+  list.forEach(function(m){
+    var a = document.createElement("a");
+    a.className = "match-item";
+    a.href = m.role === "keeper" ? keeperLink(m.room, m.keeperKey) : viewerLink(m.room, m.verifyHash);
+    a.innerHTML =
+      '<div class="mi-main"><div class="mi-name">' + esc(m.matchName || "試合") + '</div>' +
+      '<div class="mi-sub">' + esc(m.players || "") + " ・ " + new Date(m.ts).toLocaleString("ja-JP") + "</div></div>" +
+      '<span class="role-badge ' + m.role + '">' + (m.role==="keeper" ? "操作" : "観戦") + "</span>";
+    var del = document.createElement("button");
+    del.className = "mi-del"; del.textContent = "×"; del.title = "リストから消す";
+    del.onclick = function(ev){
+      ev.preventDefault(); ev.stopPropagation();
+      saveMatches(loadMatches().filter(function(x){ return x.room !== m.room; }));
+      renderMyList();
+    };
+    a.appendChild(del);
+    box.appendChild(a);
+  });
+}
+
+/* ================= KEEPER ================= */
+var K = { room:null, key:null, vhash:null, state:null, undoStack:[] };
+
+function initKeeper(room, keeperKey){
+  show("keeper");
+  K.room = room; K.key = keeperKey; K.undoStack = [];
+  sha256hex(keeperKey).then(function(vhash){
+    K.vhash = vhash;
+    /* restore state: local snapshot first, then retained MQTT state may override */
+    var restored = null;
+    try { restored = JSON.parse(localStorage.getItem("kzscore_state_" + room) || "null"); } catch(e){}
+    if (restored && restored.room === room){
+      K.state = restored;
+    } else {
+      var cfg = null;
+      try { cfg = JSON.parse(localStorage.getItem("kzscore_cfg_" + room) || "null"); } catch(e){}
+      if (!cfg){
+        /* keeper link opened on a fresh device before any state exists */
+        cfg = { matchName:"バドミントン試合", nameA:"選手A", teamA:"", nameB:"選手B", teamB:"", formatKey:"21x3" };
+      }
+      K.state = newState(room, cfg);
+    }
+    Sync.lastSeq = K.state.seq;
+    upsertMatch({ room:room, keeperKey:keeperKey, verifyHash:vhash, role:"keeper",
+      matchName:K.state.matchName, players:K.state.players[0].name + " vs " + K.state.players[1].name });
+    renderKeeper(null);
+    wireKeeper();
+    Sync.start({
+      room: room, role:"keeper", verifyHash: vhash,
+      onStatus: function(kind, text){ setConn("k", kind, text); },
+      onState: function(state){ /* another keeper device (same link) updated */
+        if (state.seq > K.state.seq){ K.state = state; persistState(); renderKeeper(null); }
+      }
+    });
+    if (K.state.seq > 0 || K.state.rallies.length || K.state.games.length) Sync.publish(K.state);
+    startUpdatedTicker("k", function(){ return K.state ? K.state.updatedAt : 0; });
+  });
+}
+function persistState(){
+  try { localStorage.setItem("kzscore_state_" + K.room, JSON.stringify(K.state)); } catch(e){}
+}
+function pushAndRender(prev){
+  K.state.seq += 1; K.state.updatedAt = Date.now();
+  persistState(); renderKeeper(prev);
+  Sync.publish(K.state);
+}
+function snapshot(){ return JSON.parse(JSON.stringify(K.state)); }
+
+function wireKeeper(){
+  var order = function(){ return dispOrder(K.state); };
+  $("k-side-0").onclick = function(){ addPoint(order()[0]); };
+  $("k-side-1").onclick = function(){ addPoint(order()[1]); };
+  $("k-minus-0").onclick = function(){ minusPoint(order()[0]); };
+  $("k-minus-1").onclick = function(){ minusPoint(order()[1]); };
+  $("k-undo").onclick = function(){
+    if (!K.undoStack.length){ toast("これ以上戻れません"); return; }
+    var prev = snapshot();
+    var targetSeq = K.state.seq;
+    K.state = K.undoStack.pop();
+    K.state.seq = targetSeq; /* seq is monotonic: undo publishes as a new state */
+    pushAndRender(prev); buzz(15);
+  };
+  $("k-swap").onclick = function(){
+    if (K.state.finished) return;
+    K.undoStack.push(snapshot());
+    var prev = snapshot();
+    K.state.swapped = !K.state.swapped;
+    pushAndRender(prev); toast("左右を入れ替えました");
+  };
+  $("k-reset").onclick = function(){
+    openModal("試合を最初からやり直しますか？", "点数・ゲーム・履歴がすべて消えます。観戦中の家族の画面も最初の状態に戻ります。", function(){
+      var cfg = { matchName:K.state.matchName, formatKey:K.state.formatKey,
+        nameA:K.state.players[0].name, teamA:K.state.players[0].team,
+        nameB:K.state.players[1].name, teamB:K.state.players[1].team };
+      var prev = snapshot(); var seq = K.state.seq;
+      K.state = newState(K.room, cfg); K.state.seq = seq;
+      K.undoStack = [];
+      pushAndRender(prev); toast("リセットしました");
+    });
+  };
+  $("k-to-lobby").onclick = function(){ location.hash = ""; };
+  var vlink = viewerLink(K.room, K.vhash), klink = keeperLink(K.room, K.key);
+  $("k-viewer-link").textContent = vlink;
+  $("k-keeper-link").textContent = klink;
+  $("k-line").href = "https://social-plugins.line.me/lineit/share?url=" + encodeURIComponent(vlink);
+  $("k-copy").onclick = function(){ copyText(vlink, "観戦リンクをコピーしました"); };
+  $("k-copy-keeper").onclick = function(){ copyText(klink, "操作用リンクをコピーしました"); };
+  drawQr($("k-qr"), vlink);
+}
+function buzz(ms){ if (navigator.vibrate) { try { navigator.vibrate(ms); } catch(e){} } }
+function addPoint(p){
+  var st = K.state;
+  if (st.finished){ toast("試合は終了しています"); return; }
+  K.undoStack.push(snapshot()); if (K.undoStack.length > 300) K.undoStack.shift();
+  var prev = snapshot();
+  if (p===0) st.cur.a++; else st.cur.b++;
+  st.rallies.push(p); st.server = p;
+  buzz(20);
+  var gw = gameWinnerByScore(st);
+  if (gw >= 0){
+    st.games.push({ a: st.cur.a, b: st.cur.b, rallies: st.rallies.slice() });
+    st.cur = { a:0, b:0 }; st.rallies = [];
+    if (gamesWon(st, gw) >= fmtOf(st).gamesToWin){
+      st.finished = true; st.winner = gw;
+    } else {
+      st.swapped = !st.swapped; /* ゲーム間はコートチェンジ */
+      toast("ゲーム終了。コートチェンジして次のゲームです");
+    }
+  }
+  pushAndRender(prev);
+}
+function minusPoint(p){
+  var st = K.state;
+  if (st.finished) { toast("終了した試合は修正できません。リセットしてください"); return; }
+  if (scoreOf(st,p) <= 0){ toast("0点より下にはできません"); return; }
+  K.undoStack.push(snapshot());
+  var prev = snapshot();
+  if (p===0) st.cur.a--; else st.cur.b--;
+  /* remove the most recent rally won by p in this game, if any */
+  var idx = st.rallies.lastIndexOf(p); if (idx >= 0) st.rallies.splice(idx,1);
+  if (st.rallies.length) st.server = st.rallies[st.rallies.length-1];
+  pushAndRender(prev);
+}
+function renderKeeper(prev){ renderBoard("k", K.state, prev); }
+
+/* ================= VIEWER ================= */
+var V = { room:null, vhash:null, state:null, wakeLock:null };
+function initViewer(room, vhash){
+  show("viewer");
+  V.room = room; V.vhash = vhash; V.state = null;
+  $("v-title").textContent = "試合のスコアを待っています…";
+  $("v-sub").textContent = "会場でスコアが付き始めると、ここに表示されます。";
+  Sync.start({
+    room: room, role:"viewer", verifyHash: vhash,
+    onStatus: function(kind, text){ setConn("v", kind, text); },
+    onState: function(state){
+      var prev = V.state;
+      V.state = state;
+      upsertMatch({ room:room, verifyHash:vhash, role:"viewer",
+        matchName: state.matchName, players: state.players[0].name + " vs " + state.players[1].name });
+      renderBoard("v", state, prev);
+      buzz(30);
+    }
+  });
+  startUpdatedTicker("v", function(){ return V.state ? V.state.updatedAt : 0; });
+  $("v-to-lobby").onclick = function(){ location.hash = ""; };
+  requestWakeLock();
+  document.addEventListener("visibilitychange", function(){
+    if (document.visibilityState === "visible") requestWakeLock();
+  });
+}
+function requestWakeLock(){
+  if ("wakeLock" in navigator){
+    navigator.wakeLock.request("screen").then(function(wl){ V.wakeLock = wl; }).catch(function(){});
+  }
+}
+
+/* ---------------- shared UI helpers ---------------- */
+function setConn(prefix, kind, text){
+  var el = $(prefix+"-conn"); if (!el) return;
+  el.className = "conn " + (kind==="on" ? "on" : kind==="off" ? "off" : "mid");
+  $(prefix+"-conn-text").textContent = text;
+}
+var tickerStarted = {};
+function startUpdatedTicker(prefix, getTs){
+  if (tickerStarted[prefix]) return; tickerStarted[prefix] = true;
+  setInterval(function(){
+    var el = $(prefix+"-updated"); if (!el || $("view-"+(prefix==="k"?"keeper":"viewer")).classList.contains("hidden")) return;
+    el.textContent = fmtAgo(getTs());
+  }, 5000);
+}
+function copyText(text, doneMsg){
+  function done(){ toast(doneMsg); }
+  if (navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(done).catch(function(){ fallback(); });
+  } else fallback();
+  function fallback(){
+    var ta = document.createElement("textarea");
+    ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand("copy"); done(); } catch(e){ toast("コピーできませんでした。リンクを長押ししてコピーしてください"); }
+    ta.remove();
+  }
+}
+function drawQr(box, text){
+  function render(){
+    if (typeof qrcode === "undefined"){ box.innerHTML = ""; return; }
+    try {
+      var qr = qrcode(0, "M"); qr.addData(text); qr.make();
+      box.innerHTML = qr.createSvgTag({ cellSize:3, margin:6, scalable:true });
+    } catch(e){ box.innerHTML = ""; }
+  }
+  if (typeof qrcode !== "undefined") return render();
+  loadScriptSequential([
+    "https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js",
+    "https://unpkg.com/qrcode-generator@1.4.4/qrcode.min.js"
+  ]).then(render).catch(function(){ box.innerHTML = ""; });
+}
+var modalCb = null;
+function openModal(title, body, cb){
+  $("modal-title").textContent = title; $("modal-body").textContent = body;
+  modalCb = cb; $("modal-bg").classList.add("show");
+}
+$("modal-cancel").onclick = function(){ $("modal-bg").classList.remove("show"); modalCb = null; };
+$("modal-ok").onclick = function(){
+  $("modal-bg").classList.remove("show");
+  if (modalCb) modalCb(); modalCb = null;
+};
+
+/* ---------------- boot / routing ---------------- */
+var booted = false;
+function route(){
+  var p = parseHash();
+  if (p.m && p.k){ initKeeper(p.m, p.k); }
+  else if (p.m && p.v){ initViewer(p.m, p.v); }
+  else {
+    if (booted){ location.reload(); return; } /* leaving a live screen: reset sync cleanly */
+    initLobby();
+  }
+  booted = true;
+}
+window.addEventListener("hashchange", function(){
+  /* switching between live screens needs a fresh sync client */
+  var p = parseHash();
+  if (p.m) location.reload(); else route();
+});
+route();
+</script>
+</body>
+</html>
