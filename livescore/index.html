@@ -364,22 +364,12 @@
 
   <section class="card">
     <h2>新しい試合を作る（スコアをつける人）</h2>
-    <label class="f">試合名 <span>（大会名・試合番号など、自由に）</span></label>
-    <input type="text" id="f-match" placeholder="例：滋賀県小学生秋季大会・準決勝" maxlength="60" />
-    <div class="grid2">
-      <div>
-        <label class="f">選手Aの名前 <span>（ペアの場合は2人分書けます）</span></label>
-        <input type="text" id="f-name-a" placeholder="例：山田 はな" maxlength="30" />
-        <label class="f">選手Aの所属 <span>（任意）</span></label>
-        <input type="text" id="f-team-a" placeholder="例：唐崎" maxlength="30" />
-      </div>
-      <div>
-        <label class="f">選手Bの名前</label>
-        <input type="text" id="f-name-b" placeholder="例：佐藤 そら" maxlength="30" />
-        <label class="f">選手Bの所属 <span>（任意）</span></label>
-        <input type="text" id="f-team-b" placeholder="例：相手チーム" maxlength="30" />
-      </div>
-    </div>
+    <p class="small" style="margin-top:0;">このツールでは選手名は入力しません。画面では「自選手」「相手選手」とだけ表示され、名前がネットワークに流れることはありません。</p>
+    <label class="f">コート番号 <span>（試合の区別用・任意）</span></label>
+    <select id="f-court">
+      <option value="">指定なし</option>
+      <option value="1">1番コート</option><option value="2">2番コート</option><option value="3">3番コート</option><option value="4">4番コート</option><option value="5">5番コート</option><option value="6">6番コート</option><option value="7">7番コート</option><option value="8">8番コート</option><option value="9">9番コート</option><option value="10">10番コート</option><option value="11">11番コート</option><option value="12">12番コート</option><option value="13">13番コート</option><option value="14">14番コート</option><option value="15">15番コート</option><option value="16">16番コート</option><option value="17">17番コート</option><option value="18">18番コート</option><option value="19">19番コート</option><option value="20">20番コート</option>
+    </select>
     <label class="f">試合形式</label>
     <select id="f-format">
       <option value="21x3">21点・3ゲーム（2ゲーム先取）</option>
@@ -391,7 +381,7 @@
       <button class="btn primary" id="btn-create" style="flex:1;">試合を作って操作画面を開く</button>
     </div>
     <div class="steps">
-      <div class="step"><span class="n">1</span> <b>試合を作る</b>この画面で選手名と形式を入れるだけです。</div>
+      <div class="step"><span class="n">1</span> <b>試合を作る</b>この画面で試合形式とコート番号を選ぶだけです。</div>
       <div class="step"><span class="n">2</span> <b>観戦リンクを送る</b>操作画面に出るリンクかQRを、LINEで家族に送ります。</div>
       <div class="step"><span class="n">3</span> <b>タップで加点</b>ラリーが決まるたび点数をタップ。家族の画面にすぐ反映されます。</div>
     </div>
@@ -407,7 +397,7 @@
     <div class="btnrow"><button class="btn" id="btn-join">このリンクで観戦する</button></div>
   </section>
 
-  <p class="notice">このページは無料の公開中継サービスを使った個人・チーム向けの仕組みです。リンクを知っている人は誰でも観戦できます。大事な個人情報は選手名に入れないでください。スコアの操作は「操作用リンク」を持っている人だけができます。観戦用リンクは家族にだけ配ってください。</p>
+  <p class="notice">このツールでは選手名は表示されず、「自選手」「相手選手」とだけ表示されます。リンクを知っている人は観戦できます。スコアの操作は操作用リンクを持っている人だけができます。観戦用リンクは家族にだけ配ってください。</p>
 </main>
 
 <!-- ================= KEEPER ================= -->
@@ -546,7 +536,7 @@
     <div class="btnrow" style="margin-top:0;"><button class="btn" id="v-sheet">スコアシートを見る</button></div>
   </section>
 
-  <p class="notice">このページは無料の公開中継サービスを使った個人・チーム向けの仕組みです。リンクを知っている人は誰でも観戦できます。</p>
+  <p class="notice">この画面では選手名は表示されず、「自選手」「相手選手」とだけ表示されます。</p>
 </main>
 
 <!-- ================= SCORE SHEET OVERLAY ================= -->
@@ -580,6 +570,8 @@
         <div><label>会場名</label><input type="text" id="ss-m-venue"></div>
         <div><label>コート番号</label><input type="text" id="ss-m-court"></div>
         <div><label>試合番号</label><input type="text" id="ss-m-match"></div>
+        <div><label>シート用 選手Aの名前（任意・この画面だけ）</label><input type="text" id="ss-m-namea" placeholder="未入力なら「自選手」"></div>
+        <div><label>シート用 選手Bの名前（任意・この画面だけ）</label><input type="text" id="ss-m-nameb" placeholder="未入力なら「相手選手」"></div>
         <div><label>選手A側 所属</label><input type="text" id="ss-m-affl" placeholder="例: 唐崎"></div>
         <div><label>選手B側 所属</label><input type="text" id="ss-m-affr"></div>
         <div><label>使用シャトル数</label><input type="number" id="ss-m-shuttles" min="0" max="50"></div>
@@ -655,14 +647,34 @@ function loadScriptSequential(urls){
 }
 
 /* ---------------- state ---------------- */
+/* 表示名の固定化: 選手名・所属は固定表示のみ。個人情報を状態にも送信データにも入れない */
+var FIXED_NAME_A = "自選手", FIXED_NAME_B = "相手選手";
+function courtTitle(court){ return court ? ("第" + court + "コートの試合") : "バドミントン試合"; }
+function sanitizeState(st){
+  if (!st || typeof st !== "object") return st;
+  var court = st.court || (st.cfg && st.cfg.court) || "";
+  st.court = court;
+  st.matchName = courtTitle(court);
+  st.players = [ { name: FIXED_NAME_A, team: "" }, { name: FIXED_NAME_B, team: "" } ];
+  if (st.cfg) st.cfg = sanitizeCfg(st.cfg);
+  return st;
+}
+function sanitizeCfg(cfg){
+  if (!cfg || typeof cfg !== "object") return cfg;
+  var court = cfg.court || "";
+  return { matchName: courtTitle(court), court: court,
+    nameA: FIXED_NAME_A, teamA: "", nameB: FIXED_NAME_B, teamB: "",
+    formatKey: cfg.formatKey || "21x3" };
+}
 function newState(room, cfg){
   return {
     v: 1, room: room,
-    matchName: cfg.matchName,
+    matchName: courtTitle(cfg.court || ""),
+    court: cfg.court || "",
     formatKey: cfg.formatKey,
     players: [
-      { name: cfg.nameA || "選手A", team: cfg.teamA || "" },
-      { name: cfg.nameB || "選手B", team: cfg.teamB || "" }
+      { name: FIXED_NAME_A, team: "" },
+      { name: FIXED_NAME_B, team: "" }
     ],
     games: [],              // {a,b,rallies:[0|1,...]}
     cur: { a:0, b:0 },
@@ -734,7 +746,12 @@ function intervalJustHit(state){
 
 /* ---------------- local match list ---------------- */
 function loadMatches(){
-  try { return JSON.parse(localStorage.getItem(LS_MATCHES) || "[]"); } catch(e){ return []; }
+  try {
+    var list = JSON.parse(localStorage.getItem(LS_MATCHES) || "[]");
+    /* 旧データに選手名が残っていても、表示・再利用しないよう除去する */
+    list.forEach(function(m){ delete m.players; });
+    return list;
+  } catch(e){ return []; }
 }
 function saveMatches(list){
   try { localStorage.setItem(LS_MATCHES, JSON.stringify(list.slice(0,60))); } catch(e){}
@@ -836,7 +853,7 @@ var Sync = {
       if (proof !== payload.proof) return; /* 改ざん・別試合のメッセージは表示しない */
       if (payload.seq <= self.lastSeq) return;
       self.lastSeq = payload.seq;
-      if (self.onState) self.onState(payload.state, via);
+      if (self.onState) self.onState(sanitizeState(payload.state), via);
     });
   }
 };
@@ -924,20 +941,19 @@ function initLobby(){
   show("lobby");
   renderMyList();
   $("btn-create").onclick = function(){
-    var nameA = $("f-name-a").value.trim(), nameB = $("f-name-b").value.trim();
-    if (!nameA || !nameB){ toast("選手Aと選手Bの名前を入れてください"); return; }
     var room = randStr(18);
     var keeperKey = randStr(24);
+    var court = $("f-court").value;
     var cfg = {
-      matchName: $("f-match").value.trim() || "バドミントン試合",
-      nameA: nameA, teamA: $("f-team-a").value.trim(),
-      nameB: nameB, teamB: $("f-team-b").value.trim(),
+      matchName: courtTitle(court), court: court,
+      nameA: FIXED_NAME_A, teamA: "",
+      nameB: FIXED_NAME_B, teamB: "",
       formatKey: $("f-format").value
     };
     try { localStorage.setItem("kzscore_cfg_" + room, JSON.stringify(cfg)); } catch(e){}
     sha256hex(keeperKey).then(function(vhash){
       upsertMatch({ room:room, keeperKey:keeperKey, verifyHash:vhash, role:"keeper",
-        matchName:cfg.matchName, players:nameA + " vs " + nameB });
+        court:court, matchName:cfg.matchName, fixed:true });
       location.hash = "m=" + room + "&k=" + keeperKey;
     });
   };
@@ -945,7 +961,7 @@ function initLobby(){
     var v = $("f-join").value.trim();
     var m = v.match(/#?m=([a-z0-9]+)&v=([a-f0-9]{16,})/i);
     if (!m){ toast("観戦リンクの形式が違うようです"); return; }
-    upsertMatch({ room:m[1], verifyHash:m[2], role:"viewer", matchName:"観戦中の試合", players:"" });
+    upsertMatch({ room:m[1], verifyHash:m[2], role:"viewer", matchName:"バドミントン試合", fixed:true });
     location.hash = "m=" + m[1] + "&v=" + m[2];
   };
 }
@@ -957,9 +973,10 @@ function renderMyList(){
     var a = document.createElement("a");
     a.className = "match-item";
     a.href = m.role === "keeper" ? keeperLink(m.room, m.keeperKey) : viewerLink(m.room, m.verifyHash);
+    var title = m.court ? courtTitle(m.court) : (m.fixed ? (m.matchName || "バドミントン試合") : "バドミントン試合");
     a.innerHTML =
-      '<div class="mi-main"><div class="mi-name">' + esc(m.matchName || "試合") + '</div>' +
-      '<div class="mi-sub">' + esc(m.players || "") + " ・ " + new Date(m.ts).toLocaleString("ja-JP") + "</div></div>" +
+      '<div class="mi-main"><div class="mi-name">' + esc(title) + '</div>' +
+      '<div class="mi-sub">' + new Date(m.ts).toLocaleString("ja-JP") + " ・ #" + esc(String(m.room).slice(-4)) + "</div></div>" +
       '<span class="role-badge ' + m.role + '">' + (m.role==="keeper" ? "操作" : "観戦") + "</span>";
     var del = document.createElement("button");
     del.className = "mi-del"; del.textContent = "×"; del.title = "リストから消す";
@@ -985,19 +1002,18 @@ function initKeeper(room, keeperKey){
     var restored = null;
     try { restored = JSON.parse(localStorage.getItem("kzscore_state_" + room) || "null"); } catch(e){}
     if (restored && restored.room === room){
-      K.state = restored;
+      K.state = sanitizeState(restored); /* 旧データの実名は表示・再送信前に固定表示へ */
+      persistState();
     } else {
       var cfg = null;
       try { cfg = JSON.parse(localStorage.getItem("kzscore_cfg_" + room) || "null"); } catch(e){}
-      if (!cfg){
-        /* keeper link opened on a fresh device before any state exists */
-        cfg = { matchName:"バドミントン試合", nameA:"選手A", teamA:"", nameB:"選手B", teamB:"", formatKey:"21x3" };
-      }
+      cfg = sanitizeCfg(cfg) || { matchName:"バドミントン試合", court:"", nameA:FIXED_NAME_A, teamA:"", nameB:FIXED_NAME_B, teamB:"", formatKey:"21x3" };
+      try { localStorage.setItem("kzscore_cfg_" + room, JSON.stringify(cfg)); } catch(e){}
       K.state = newState(room, cfg);
     }
     Sync.lastSeq = K.state.seq;
     upsertMatch({ room:room, keeperKey:keeperKey, verifyHash:vhash, role:"keeper",
-      matchName:K.state.matchName, players:K.state.players[0].name + " vs " + K.state.players[1].name });
+      court:K.state.court || "", matchName:K.state.matchName, fixed:true });
     renderKeeper(null);
     wireKeeper();
     Sync.start({
@@ -1044,9 +1060,8 @@ function wireKeeper(){
   };
   $("k-reset").onclick = function(){
     openModal("試合を最初からやり直しますか？", "点数・ゲーム・履歴がすべて消えます。観戦中の家族の画面も最初の状態に戻ります。", function(){
-      var cfg = { matchName:K.state.matchName, formatKey:K.state.formatKey,
-        nameA:K.state.players[0].name, teamA:K.state.players[0].team,
-        nameB:K.state.players[1].name, teamB:K.state.players[1].team };
+      var cfg = { matchName:K.state.matchName, court:K.state.court || "", formatKey:K.state.formatKey,
+        nameA:FIXED_NAME_A, teamA:"", nameB:FIXED_NAME_B, teamB:"" };
       var prev = snapshot(); var seq = K.state.seq;
       K.state = newState(K.room, cfg); K.state.seq = seq;
       K.undoStack = [];
@@ -1112,7 +1127,7 @@ function initViewer(room, vhash){
       var prev = V.state;
       V.state = state;
       upsertMatch({ room:room, verifyHash:vhash, role:"viewer",
-        matchName: state.matchName, players: state.players[0].name + " vs " + state.players[1].name });
+        court: state.court || "", matchName: state.matchName, fixed:true });
       renderBoard("v", state, prev);
       buzz(30);
     }
@@ -1483,7 +1498,7 @@ function ssCollectRecords() {
       var raw = null;
       try { raw = JSON.parse(localStorage.getItem("kzscore_state_" + m.room) || "null"); } catch (e) {}
       if (raw && raw.players && raw.formatKey) {
-        var rec = ssBuildRecordFromState(raw, fmtOf(raw));
+        var rec = ssBuildRecordFromState(sanitizeState(raw), fmtOf(raw));
         recs.push(rec); seen[rec.id] = true;
       }
     });
@@ -1493,12 +1508,55 @@ function ssCollectRecords() {
 function ssActiveRecord() {
   return SS.records.find(function (r) { return r.id === SS.activeId; }) || SS.records[0] || null;
 }
+/* シート専用名の差し替え: 対象はシート表示だけ。state・保存・送信には一切影響しない */
+function ssDisplayRecord(rec) {
+  if (!rec || !SS.meta) return rec;
+  var na = (SS.meta.nameA || "").trim(), nb = (SS.meta.nameB || "").trim();
+  if (!na && !nb) return rec;
+  var c = JSON.parse(JSON.stringify(rec));
+  function swapName(oldName, newName) {
+    if (!newName || !oldName) return;
+    if (c.winnerName && c.winnerName.indexOf(oldName) === 0) c.winnerName = newName + c.winnerName.slice(oldName.length);
+  }
+  if (na) {
+    swapName(c.teamLeftName, na);
+    c.teamLeftName = na;
+    (c.teamLeftPlayers || []).forEach(function (pl) { pl.name = na; });
+    (c.games || []).forEach(function (g) {
+      (g.teamLeftPlayers || []).forEach(function (pl) { if (pl.name === rec.teamLeftName) pl.name = na; });
+      (g.rallies || []).forEach(function (r) {
+        if (r.serverPlayerName === rec.teamLeftName) r.serverPlayerName = na;
+        if (r.receiverPlayerName === rec.teamLeftName) r.receiverPlayerName = na;
+        if (r.nextServerPlayerName === rec.teamLeftName) r.nextServerPlayerName = na;
+      });
+      if (g.initialServerPlayerName === rec.teamLeftName) g.initialServerPlayerName = na;
+      if (g.initialReceiverPlayerName === rec.teamLeftName) g.initialReceiverPlayerName = na;
+    });
+  }
+  if (nb) {
+    swapName(c.teamRightName, nb);
+    c.teamRightName = nb;
+    (c.teamRightPlayers || []).forEach(function (pl) { pl.name = nb; });
+    (c.games || []).forEach(function (g) {
+      (g.teamRightPlayers || []).forEach(function (pl) { if (pl.name === rec.teamRightName) pl.name = nb; });
+      (g.rallies || []).forEach(function (r) {
+        if (r.serverPlayerName === rec.teamRightName) r.serverPlayerName = nb;
+        if (r.receiverPlayerName === rec.teamRightName) r.receiverPlayerName = nb;
+        if (r.nextServerPlayerName === rec.teamRightName) r.nextServerPlayerName = nb;
+      });
+      if (g.initialServerPlayerName === rec.teamRightName) g.initialServerPlayerName = nb;
+      if (g.initialReceiverPlayerName === rec.teamRightName) g.initialReceiverPlayerName = nb;
+    });
+  }
+  return c;
+}
 function ssInitMeta(rec) {
   SS.meta = {
     tournamentName: rec ? (rec.tournamentName || "") : "",
     venue: rec ? (rec.venue || "") : "",
     courtNumber: rec ? (rec.courtNumber || "") : "",
     matchNumber: rec ? (rec.matchNumber || "") : "",
+    nameA: "", nameB: "",
     affL: "", affR: "",
     shuttles: rec && rec.shuttlesUsed ? rec.shuttlesUsed : 2,
     remarks: ""
@@ -1520,7 +1578,12 @@ function openSheet() {
   ssRender();
   ssUpdateZoom();
 }
-function closeSheet() { $("sheet-overlay").classList.add("ss-hidden"); }
+function closeSheet() {
+  $("sheet-overlay").classList.add("ss-hidden");
+  SS.meta = null; /* シート専用名は閉じたら破棄（保存も送信もしない） */
+  var na = $("ss-m-namea"), nb = $("ss-m-nameb");
+  if (na) na.value = ""; if (nb) nb.value = "";
+}
 function ssUpdateZoom() {
   var el = $("ss-body"); if (!el) return;
   var cs = getComputedStyle(el);
@@ -1716,8 +1779,9 @@ function ssRender() {
   } else selWrap.style.display = "none";
   $("ss-meta-editor").classList.toggle("ss-hidden", !SS.metaOpen);
   var root = $("ss-paper-root");
-  if (SS.type === "official_sheet") root.innerHTML = ssRenderOfficial(rec);
-  else if (SS.type === "single_match") root.innerHTML = ssRenderSlip(rec);
+  var drec = ssDisplayRecord(rec);
+  if (SS.type === "official_sheet") root.innerHTML = ssRenderOfficial(drec);
+  else if (SS.type === "single_match") root.innerHTML = ssRenderSlip(drec);
   else root.innerHTML = ssRenderList(SS.records);
   ssUpdateZoom();
 }
@@ -1736,7 +1800,8 @@ function ssWire() {
   });
   $("ss-matchsel").onchange = function () { SS.activeId = this.value; ssRender(); };
   var fields = { "ss-m-tournament": "tournamentName", "ss-m-venue": "venue", "ss-m-court": "courtNumber",
-    "ss-m-match": "matchNumber", "ss-m-affl": "affL", "ss-m-affr": "affR", "ss-m-remarks": "remarks" };
+    "ss-m-match": "matchNumber", "ss-m-affl": "affL", "ss-m-affr": "affR", "ss-m-remarks": "remarks",
+    "ss-m-namea": "nameA", "ss-m-nameb": "nameB" };
   Object.keys(fields).forEach(function (id) {
     $(id).addEventListener("input", function () { SS.meta[fields[id]] = this.value; ssRenderPaperOnly(); });
   });
@@ -1746,14 +1811,16 @@ function ssWire() {
 function ssRenderPaperOnly() {
   var rec = ssActiveRecord(); if (!rec) return;
   var root = $("ss-paper-root");
-  if (SS.type === "official_sheet") root.innerHTML = ssRenderOfficial(rec);
-  else if (SS.type === "single_match") root.innerHTML = ssRenderSlip(rec);
+  var drec = ssDisplayRecord(rec);
+  if (SS.type === "official_sheet") root.innerHTML = ssRenderOfficial(drec);
+  else if (SS.type === "single_match") root.innerHTML = ssRenderSlip(drec);
 }
 function ssInitMetaInputs() {
   /* メタ編集欄へ現在値を反映（オーバーレイを開くたび） */
   var m = SS.meta; if (!m) return;
   $("ss-m-tournament").value = m.tournamentName; $("ss-m-venue").value = m.venue;
   $("ss-m-court").value = m.courtNumber; $("ss-m-match").value = m.matchNumber;
+  $("ss-m-namea").value = m.nameA; $("ss-m-nameb").value = m.nameB;
   $("ss-m-affl").value = m.affL; $("ss-m-affr").value = m.affR;
   $("ss-m-shuttles").value = m.shuttles; $("ss-m-remarks").value = m.remarks;
 }
