@@ -2,7 +2,7 @@
    方針: HTMLはネットワーク優先（更新をすぐ届ける／オフライン時はキャッシュで開く）。
    アイコン・マニフェスト・CDNスクリプトは stale-while-revalidate で高速化＆オフライン対応。
    スコアの中継（MQTT/WebSocket）には一切関与しない。 */
-var CACHE = "kzscore-pwa-v2";
+var CACHE = "kzscore-pwa-v3";
 var CORE = [
   "./",
   "./index.html",

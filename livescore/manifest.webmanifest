@@ -1,1 +1,32 @@
-{"background_color":"#0175c0","description":"会場でタップした点数が、家で見る家族の画面にリアルタイムで届くバドミントンのライブスコア。試合ごとに部屋が分かれるので、チームの複数家族がそれぞれ使えます。","display":"standalone","icons":[{"purpose":"any","sizes":"192x192","src":"icons/icon-192.png","type":"image/png"},{"purpose":"any","sizes":"512x512","src":"icons/icon-512.png","type":"image/png"},{"purpose":"maskable","sizes":"512x512","src":"icons/maskable-512.png","type":"image/png"}],"lang":"ja","name":"バドミントン・ライブスコア","orientation":"portrait","scope":"./","short_name":"ライブスコア","start_url":"./","theme_color":"#0175c0"}
+{
+  "background_color": "#070b16",
+  "description": "会場でタップした点数が、家で見る家族の画面にリアルタイムで届くバドミントンのライブスコア。試合ごとに部屋が分かれるので、チームの複数家族がそれぞれ使えます。",
+  "display": "standalone",
+  "icons": [
+    {
+      "purpose": "any",
+      "sizes": "192x192",
+      "src": "icons/icon-192.png",
+      "type": "image/png"
+    },
+    {
+      "purpose": "any",
+      "sizes": "512x512",
+      "src": "icons/icon-512.png",
+      "type": "image/png"
+    },
+    {
+      "purpose": "maskable",
+      "sizes": "512x512",
+      "src": "icons/maskable-512.png",
+      "type": "image/png"
+    }
+  ],
+  "lang": "ja",
+  "name": "バドミントン・ライブスコア",
+  "orientation": "portrait",
+  "scope": "./",
+  "short_name": "ライブスコア",
+  "start_url": "./",
+  "theme_color": "#0b1020"
+}

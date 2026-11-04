@@ -8,7 +8,7 @@
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
 <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png" />
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
-<meta name="theme-color" content="#0175c0" />
+<meta name="theme-color" content="#0b1020" />
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
@@ -349,11 +349,225 @@
 }
 
 </style>
+<style>
+/* ============================================================
+   THE ARENA — LUXURY SPORTS EXPERIENCE
+   操作・観戦ボードとアプリ全体のテーマ上書き（ロジックには触れない）
+   ============================================================ */
+:root{
+  --bg:#070b16; --surface:#101828; --surface2:#182238; --ink:#f5efe3; --ink2:#a9b3c9;
+  --line:#2b3854; --accent:#d4af6a; --accent-ink:#231806; --amber:#e8c37a; --red:#e88a92;
+  --board:#0a1122; --board2:#101a33; --board-ink:#fff8ea; --board-sub:#aeb9d2;
+  --flash:#ffd98a;
+  --gold:#d4af6a; --gold-hi:#ffe9b8; --rose:#e3a6b7; --rose-hi:#ffd9e4;
+  --serif:"Playfair Display","Didot","Bodoni MT","Hiragino Mincho ProN","YuMincho","Yu Mincho",serif;
+}
+html{background:#070b16;}
+body{
+  background:
+    radial-gradient(120% 60% at 50% -10%, #2a3a63 0%, transparent 60%),
+    radial-gradient(90% 45% at 85% 0%, rgba(212,175,106,.14) 0%, transparent 55%),
+    radial-gradient(90% 45% at 10% 0%, rgba(163,140,220,.10) 0%, transparent 55%),
+    linear-gradient(180deg,#0a1020 0%, #070b16 40%, #05070f 100%);
+  background-attachment:fixed;
+  color:var(--ink);
+}
+.wrap{padding-top:calc(10px + env(safe-area-inset-top)); padding-bottom:calc(16px + env(safe-area-inset-bottom));}
+
+/* ---------- ブランド行 ---------- */
+.brand-row{display:flex; align-items:center; gap:10px; margin:2px 2px 12px;}
+.brand-row svg{flex:none; filter:drop-shadow(0 0 6px rgba(212,175,106,.65));}
+.brand-name{font-family:var(--serif); font-size:14px; letter-spacing:.34em; color:#ecd9a8; font-weight:700; white-space:nowrap;}
+.brand-tag{margin-left:auto; font-size:9px; letter-spacing:.42em; color:var(--ink2); white-space:nowrap;}
+
+/* ---------- 共通パーツのガラス化 ---------- */
+.card{
+  background:linear-gradient(180deg, rgba(255,255,255,.055), rgba(255,255,255,.02));
+  border:1px solid rgba(255,255,255,.13); border-radius:18px;
+  box-shadow:0 12px 28px rgba(0,0,0,.35);
+  backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+}
+.card h2{font-size:15px; letter-spacing:.06em; color:#f0e6cf;}
+.notice{background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.09); border-radius:12px;}
+.btn{
+  border-radius:999px; border:1px solid rgba(255,255,255,.24);
+  background:rgba(255,255,255,.07); color:var(--ink);
+  backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+  transition:transform .08s ease, box-shadow .2s ease, background .2s ease;
+}
+.btn:active{transform:scale(.97);}
+.btn.primary{
+  background:linear-gradient(135deg, var(--gold-hi), var(--gold) 62%, #b8913f);
+  border:none; color:#231806; font-weight:800;
+  box-shadow:0 8px 20px rgba(212,175,106,.35);
+}
+.btn.danger{color:#f0a3ab; border-color:rgba(232,138,146,.55); background:rgba(232,138,146,.07);}
+input[type="text"], select{
+  background:rgba(7,12,24,.72); border:1px solid rgba(255,255,255,.2); border-radius:12px; color:var(--ink);
+}
+input[type="text"]:focus, select:focus{outline:2px solid rgba(212,175,106,.65); outline-offset:1px;}
+.lead b{color:var(--gold-hi);}
+.conn{background:rgba(255,255,255,.06); border-color:rgba(255,255,255,.16);}
+.match-item{background:rgba(255,255,255,.045); border-color:rgba(255,255,255,.13); border-radius:14px;}
+.role-badge.keeper{background:linear-gradient(135deg, var(--gold-hi), var(--gold)); color:#231806;}
+.linkbox{background:rgba(7,12,24,.66); border:1px solid rgba(255,255,255,.15); border-radius:12px; color:#dfe6f5;}
+
+/* ---------- 試合ヘッダー ---------- */
+.match-title{font-size:19px; font-weight:900; letter-spacing:.05em; color:#fff6df; margin:2px 2px 0;}
+.match-sub{color:var(--ink2); letter-spacing:.05em; margin:2px 2px 12px;}
+
+/* ---------- バナー（状態演出） ---------- */
+.banner{border-radius:14px; letter-spacing:.05em;}
+.banner.mp{background:linear-gradient(135deg,#5c1220,#8a1f2e); color:#ffe9ec; box-shadow:0 8px 22px rgba(138,31,46,.4);}
+.banner.gp{background:linear-gradient(135deg,#6b4a05,#96700f); color:#fff3d0; box-shadow:0 8px 22px rgba(150,112,15,.35);}
+.banner.interval{background:rgba(255,255,255,.07); color:var(--ink); border:1px solid rgba(255,255,255,.16);}
+.banner.win{
+  background:linear-gradient(120deg,#8a6a25,#d4af6a 30%,#ffeec2 50%,#d4af6a 70%,#8a6a25);
+  background-size:220% 100%; color:#2a1e04;
+  box-shadow:0 12px 30px rgba(212,175,106,.45);
+  animation:winShimmer 2.6s ease-in-out infinite;
+}
+.banner.win .winner-name{font-family:var(--serif); letter-spacing:.08em;}
+@keyframes winShimmer{0%{background-position:0% 0}50%{background-position:100% 0}100%{background-position:0% 0}}
+
+/* ---------- ボード本体 ---------- */
+.board{
+  position:relative; overflow:hidden;
+  background:
+    radial-gradient(130% 90% at 50% -20%, rgba(96,120,190,.35) 0%, transparent 55%),
+    radial-gradient(70% 40% at 50% 108%, rgba(212,175,106,.16) 0%, transparent 60%),
+    linear-gradient(168deg,#131f3d 0%, #0a1226 55%, #070c1a 100%);
+  border:1px solid rgba(212,175,106,.38); border-radius:26px;
+  padding:12px 12px 16px;
+  box-shadow:0 24px 48px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.14);
+}
+.board::before{ /* アリーナの光のライン */
+  content:""; position:absolute; inset:0; pointer-events:none;
+  background:
+    linear-gradient(112deg, transparent 42%, rgba(255,233,184,.07) 50%, transparent 58%),
+    linear-gradient(248deg, transparent 60%, rgba(227,166,183,.05) 72%, transparent 84%);
+}
+.board::after{ /* コート面の反射 */
+  content:""; position:absolute; left:6%; right:6%; bottom:10px; height:1px;
+  background:linear-gradient(90deg, transparent, rgba(255,233,184,.5), transparent);
+  pointer-events:none;
+}
+.arena-hero{display:flex; justify-content:center; padding:2px 0 4px; position:relative; z-index:1;}
+.arena-hero svg{filter:drop-shadow(0 6px 14px rgba(212,175,106,.55)); animation:heroFloat 6s ease-in-out infinite;}
+@keyframes heroFloat{0%,100%{transform:translateY(0) rotate(-4deg)}50%{transform:translateY(-4px) rotate(-2deg)}}
+.board-head{gap:8px; position:relative; z-index:1;}
+.board-head .bh{
+  background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.13);
+  border-radius:14px; text-align:center; font-weight:700; color:#f3ecd9;
+  backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+}
+.board-head .bh + .bh{border-left:1px solid rgba(255,255,255,.13);}
+.board-head .bh.gnum{
+  background:transparent; border:none; backdrop-filter:none; -webkit-backdrop-filter:none;
+  color:var(--board-sub); font-size:10px; letter-spacing:.34em; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0;
+}
+.board-head .bh.gnum .num{font-family:var(--serif); font-size:30px; line-height:1; color:#ffeec2; letter-spacing:0; text-shadow:0 0 14px rgba(212,175,106,.55);}
+.board-head .bh.gnum span:last-child{letter-spacing:.14em; font-size:10px;}
+.board-head .gcount{color:var(--board-sub);}
+.board-head .pip{width:8px; height:8px; border-radius:50%; background:rgba(255,255,255,.18); display:inline-block;}
+.board-head .pip.won{background:radial-gradient(circle at 35% 30%, var(--gold-hi), var(--gold)); box-shadow:0 0 8px rgba(212,175,106,.8);}
+.score-row{gap:10px; margin-top:10px; position:relative; z-index:1;}
+.side{
+  border-radius:22px; padding:14px 6px 16px; text-align:center; position:relative;
+  background:linear-gradient(165deg, rgba(255,255,255,.11), rgba(255,255,255,.03) 60%);
+  border:1px solid rgba(255,255,255,.16);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.16);
+  transition:box-shadow .25s ease;
+}
+button.side{cursor:pointer; color:var(--board-ink);}
+button.side:active{background:linear-gradient(165deg, rgba(255,255,255,.16), rgba(255,255,255,.05) 60%);}
+.side + .side{border-left:1px solid rgba(255,255,255,.16);}
+#k-side-0, #v-side-0{--acc:var(--gold); --acc-hi:var(--gold-hi);}
+#k-side-1, #v-side-1{--acc:var(--rose); --acc-hi:var(--rose-hi);}
+.side .pname{
+  font-size:clamp(16px, 4.8vw, 21px); font-weight:800; letter-spacing:.08em; color:var(--acc-hi);
+  min-height:1.25em;
+}
+.side .pteam{color:var(--board-sub); min-height:1.2em; font-size:11px;}
+.side .pscore{
+  font-family:var(--serif); font-weight:700;
+  font-size:clamp(62px, 18.5vw, 92px); line-height:1.04; color:#fffaf0;
+  font-variant-numeric:tabular-nums; font-feature-settings:"tnum";
+  text-shadow:0 4px 22px rgba(0,0,0,.45);
+  margin:2px 0 4px;
+}
+.side.serving{box-shadow:inset 0 0 0 2px var(--acc), 0 0 26px rgba(212,175,106,.22);}
+#k-side-1.serving, #v-side-1.serving{box-shadow:inset 0 0 0 2px var(--acc), 0 0 26px rgba(227,166,183,.25);}
+.serve-label{
+  display:inline-flex; align-items:center; gap:6px; height:auto; min-height:24px;
+  padding:3px 12px; border-radius:999px; font-size:11px; letter-spacing:.22em;
+  border:1px solid rgba(255,255,255,.18); color:var(--board-sub);
+}
+.serve-dot{width:7px; height:7px; border-radius:50%; background:var(--acc); visibility:hidden; box-shadow:0 0 8px var(--acc);}
+.serving .serve-label{background:linear-gradient(135deg, var(--acc-hi), var(--acc)); color:#2a1c05; font-weight:800; border:none;}
+.serving .serve-dot{visibility:visible; background:#2a1c05; box-shadow:none;}
+.plus-badge{
+  position:static; margin:8px auto 0; width:88px; height:42px; border-radius:999px;
+  display:flex; align-items:center; justify-content:center;
+  font-size:17px; font-weight:900; color:#2a1c05; letter-spacing:.06em;
+  background:radial-gradient(circle at 32% 28%, #fff6dd, var(--acc) 72%);
+  box-shadow:0 8px 18px rgba(0,0,0,.4), inset 0 1px 2px rgba(255,255,255,.8);
+  pointer-events:none;
+}
+button.side:active .plus-badge{transform:scale(.93);}
+.side.flash .pscore{animation:scorePop .45s ease;}
+.side.flash{background:linear-gradient(165deg, rgba(255,255,255,.2), rgba(255,255,255,.05) 60%);}
+@keyframes scorePop{
+  0%{transform:scale(1);}
+  35%{transform:scale(1.13); color:var(--acc-hi); text-shadow:0 0 26px var(--acc);}
+  100%{transform:scale(1);}
+}
+
+/* ---------- 操作ボタン ---------- */
+.controls{gap:10px; margin:14px 0 10px;}
+.controls .btn{min-height:54px; font-weight:700; letter-spacing:.04em;}
+#k-undo{
+  border-color:rgba(212,175,106,.6); color:#ffe9b8;
+  background:linear-gradient(180deg, rgba(212,175,106,.16), rgba(212,175,106,.05));
+}
+.minus-row{gap:10px;}
+.minus-row .btn{min-height:48px; font-size:13px; color:var(--ink2);}
+.viewer-note{color:var(--ink2); font-size:12px; margin:10px 2px 0;}
+
+/* ---------- 記録チップ ---------- */
+.gs-chip{
+  background:rgba(255,255,255,.06); border:1px solid rgba(212,175,106,.35); color:#f3ecd9;
+  border-radius:999px; padding:5px 12px; font-size:13px;
+}
+.gs-chip b{color:#ffeec2;}
+.rally-strip .r.a{background:linear-gradient(180deg,#c9a24f,#a37f31); color:#fff8e6;}
+.rally-strip .r.b{background:linear-gradient(180deg,#c9859c,#a55f78); color:#fff2f5;}
+
+/* ---------- スコアシート起動ボタン等 ---------- */
+#k-sheet, #v-sheet{min-height:50px;}
+
+/* ---------- 低い画面では詰める ---------- */
+@media (max-height:760px){
+  .arena-hero{display:none;}
+  .side .pscore{font-size:clamp(54px, 16.5vw, 76px);}
+  .board{padding:10px 10px 12px;}
+  .controls .btn{min-height:50px;}
+}
+@media (prefers-reduced-motion: reduce){
+  .arena-hero svg{animation:none;}
+  .banner.win{animation:none;}
+  .side.flash .pscore{animation:none;}
+  .btn{transition:none;}
+}
+
+</style>
 </head>
 <body>
 
 <!-- ================= LOBBY ================= -->
 <main id="view-lobby" class="wrap hidden">
+  <div class="brand-row"><svg width="27" height="27" viewBox="0 0 48 48" aria-hidden="true"><g stroke="#e9cd8f" stroke-width="2.6" fill="none" stroke-linecap="round"><path d="M24 29 L12.5 10"/><path d="M24 29 L18 6.5"/><path d="M24 29 L24 5.5"/><path d="M24 29 L30 6.5"/><path d="M24 29 L35.5 10"/><path d="M13.5 12.5 Q24 7.5 34.5 12.5"/></g><path d="M16.8 31.5 a7.2 7.2 0 0 0 14.4 0 z" fill="#f5efe3"/></svg><span class="brand-name">BADMINTON LIVE</span><span class="brand-tag">THE ARENA</span></div>
+  
   <p class="lead">会場でスコアをつける人と、家で見る人が、<b>リンク1つ</b>でつながるバドミントンのライブスコアです。試合ごとに部屋が分かれるので、<b>チームの他の家族もそれぞれ自分の試合を作って</b>使えます。観戦する側はアプリも登録もいりません。</p>
   <section class="card" id="install-card">
     <h2>ホーム画面に追加するとアプリみたいに使えます</h2>
@@ -402,6 +616,8 @@
 
 <!-- ================= KEEPER ================= -->
 <main id="view-keeper" class="wrap hidden">
+  <div class="brand-row"><svg width="27" height="27" viewBox="0 0 48 48" aria-hidden="true"><g stroke="#e9cd8f" stroke-width="2.6" fill="none" stroke-linecap="round"><path d="M24 29 L12.5 10"/><path d="M24 29 L18 6.5"/><path d="M24 29 L24 5.5"/><path d="M24 29 L30 6.5"/><path d="M24 29 L35.5 10"/><path d="M13.5 12.5 Q24 7.5 34.5 12.5"/></g><path d="M16.8 31.5 a7.2 7.2 0 0 0 14.4 0 z" fill="#f5efe3"/></svg><span class="brand-name">BADMINTON LIVE</span><span class="brand-tag">THE ARENA</span></div>
+  
   <div class="topbar">
     <span class="conn mid" id="k-conn"><span class="dot"></span><span id="k-conn-text">接続中…</span></span>
     <span class="small" id="k-updated"></span>
@@ -414,6 +630,8 @@
   <div id="k-banner" class="banner"></div>
 
   <div class="board" id="k-board">
+    <div class="arena-hero"><svg width="58" height="58" viewBox="0 0 48 48" aria-hidden="true"><ellipse cx="24" cy="21" rx="19" ry="6.5" transform="rotate(-16 24 21)" fill="none" stroke="#d4af6a" stroke-opacity=".45" stroke-width="1.1"/><g stroke="#f0dca6" stroke-width="2.2" fill="none" stroke-linecap="round"><path d="M24 29 L12.5 10"/><path d="M24 29 L18 6.5"/><path d="M24 29 L24 5.5"/><path d="M24 29 L30 6.5"/><path d="M24 29 L35.5 10"/><path d="M13.5 12.5 Q24 7.5 34.5 12.5"/></g><path d="M16.8 31.5 a7.2 7.2 0 0 0 14.4 0 z" fill="#fff8ea"/></svg></div>
+    
     <div class="board-head">
       <div class="bh" id="k-head-0"></div>
       <div class="bh gnum">ゲーム<span><b class="num" id="k-gnum">1</b></span><span id="k-format-label"></span></div>
@@ -425,12 +643,14 @@
         <div class="pteam" id="k-team-0"></div>
         <div class="pscore num" id="k-score-0">0</div>
         <div class="serve-label"><span class="serve-dot"></span><span class="sl-text">サーブ</span></div>
+        <div class="plus-badge">+1</div>
       </button>
       <button class="side" id="k-side-1" aria-label="右の選手に1点">
         <div class="pname" id="k-name-1"></div>
         <div class="pteam" id="k-team-1"></div>
         <div class="pscore num" id="k-score-1">0</div>
         <div class="serve-label"><span class="serve-dot"></span><span class="sl-text">サーブ</span></div>
+        <div class="plus-badge">+1</div>
       </button>
     </div>
   </div>
@@ -489,6 +709,8 @@
 
 <!-- ================= VIEWER ================= -->
 <main id="view-viewer" class="wrap hidden">
+  <div class="brand-row"><svg width="27" height="27" viewBox="0 0 48 48" aria-hidden="true"><g stroke="#e9cd8f" stroke-width="2.6" fill="none" stroke-linecap="round"><path d="M24 29 L12.5 10"/><path d="M24 29 L18 6.5"/><path d="M24 29 L24 5.5"/><path d="M24 29 L30 6.5"/><path d="M24 29 L35.5 10"/><path d="M13.5 12.5 Q24 7.5 34.5 12.5"/></g><path d="M16.8 31.5 a7.2 7.2 0 0 0 14.4 0 z" fill="#f5efe3"/></svg><span class="brand-name">BADMINTON LIVE</span><span class="brand-tag">THE ARENA</span></div>
+  
   <div class="topbar">
     <span class="conn mid" id="v-conn"><span class="dot"></span><span id="v-conn-text">接続中…</span></span>
     <span class="small" id="v-updated"></span>
@@ -501,6 +723,8 @@
   <div id="v-banner" class="banner"></div>
 
   <div class="board" id="v-board">
+    <div class="arena-hero"><svg width="58" height="58" viewBox="0 0 48 48" aria-hidden="true"><ellipse cx="24" cy="21" rx="19" ry="6.5" transform="rotate(-16 24 21)" fill="none" stroke="#d4af6a" stroke-opacity=".45" stroke-width="1.1"/><g stroke="#f0dca6" stroke-width="2.2" fill="none" stroke-linecap="round"><path d="M24 29 L12.5 10"/><path d="M24 29 L18 6.5"/><path d="M24 29 L24 5.5"/><path d="M24 29 L30 6.5"/><path d="M24 29 L35.5 10"/><path d="M13.5 12.5 Q24 7.5 34.5 12.5"/></g><path d="M16.8 31.5 a7.2 7.2 0 0 0 14.4 0 z" fill="#fff8ea"/></svg></div>
+    
     <div class="board-head">
       <div class="bh" id="v-head-0"></div>
       <div class="bh gnum">ゲーム<span><b class="num" id="v-gnum">1</b></span><span id="v-format-label"></span></div>
