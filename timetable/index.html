@@ -5,112 +5,163 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>共有タイムテーブル | 唐崎</title>
 <style>
-:root{
-  --bg:#0b1220; --panel:#131e33; --panel2:#182741; --line:#263757;
-  --txt:#eef3fb; --sub:#9db1cf; --gold:#e8c476; --rose:#e79bb4;
-  --win:#2fbf71; --lose:#5b6c8a; --ch:#9a7bd0; --warn:#e8b13c;
-}
 *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
-html,body{margin:0; padding:0;}
-body{background:var(--bg); color:var(--txt); font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif; font-size:15px; line-height:1.45;}
-.wrap{max-width:560px; margin:0 auto; padding:0 10px 40px;}
-header{position:sticky; top:0; z-index:20; background:rgba(11,18,32,.96); border-bottom:1px solid var(--line); padding:10px 10px 8px; margin:0 -10px;}
-h1{font-size:16px; margin:0 0 2px; letter-spacing:.02em;}
-.meta{font-size:12px; color:var(--sub);}
-.statusrow{display:flex; align-items:center; gap:8px; margin-top:6px; font-size:12px; color:var(--sub); flex-wrap:wrap;}
-.dot{width:9px; height:9px; border-radius:50%; background:#666; display:inline-block;}
-.dot.on{background:var(--win);} .dot.mid{background:var(--warn);} .dot.off{background:#e05a5a;}
-.badge{border:1px solid var(--line); border-radius:999px; padding:1px 8px; font-size:11px; color:var(--txt); background:var(--panel);}
-.badge.op{border-color:var(--gold); color:var(--gold);}
-button{font:inherit; color:inherit; background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:10px 12px; cursor:pointer;}
-button:active{transform:scale(.98);}
-.tabs{display:flex; gap:6px; margin:12px 0 10px;}
-.tabs button{flex:1; padding:11px 4px; font-weight:600; font-size:14px;}
-.tabs button.sel{background:var(--gold); color:#231a05; border-color:var(--gold);}
-.search{width:100%; padding:11px 12px; border-radius:10px; border:1px solid var(--line); background:var(--panel); color:var(--txt); font-size:16px; margin-bottom:10px;}
-.card{background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:12px; margin-bottom:10px;}
-.card.done{opacity:.62;}
-.card.ch{border-color:var(--ch);}
-.card.fin{border-color:var(--gold);}
-.c-top{display:flex; align-items:baseline; gap:8px;}
-.c-time{font-size:24px; font-weight:800; font-variant-numeric:tabular-nums;}
-.c-court{font-size:13px; color:var(--gold); font-weight:700;}
-.c-code{margin-left:auto; font-size:12px; color:var(--sub); font-variant-numeric:tabular-nums;}
-.c-name{font-size:19px; font-weight:800; margin:4px 0 0;}
-.c-cat{font-size:11px; color:var(--sub); border:1px solid var(--line); border-radius:999px; padding:0 7px; margin-left:6px; vertical-align:2px;}
-.c-opp{font-size:13px; color:var(--sub); margin-top:2px;}
-.c-label{font-size:12px; color:var(--warn); font-weight:700; margin-top:4px;}
-.btnrow{display:flex; gap:8px; margin-top:10px;}
-.btn-win,.btn-lose{flex:1; height:58px; font-size:19px; font-weight:800; border-radius:12px; border:none;}
-.btn-win{background:var(--win); color:#06240f;}
-.btn-lose{background:var(--lose); color:#e8eef8;}
-.btn-undo{width:100%; margin:4px 0 12px; padding:12px; font-weight:700;}
-.prow{display:flex; align-items:center; gap:8px; padding:11px 10px; border:1px solid var(--line); border-radius:12px; background:var(--panel); margin-bottom:7px; width:100%; text-align:left;}
+body{font-family:"Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic",Meiryo,sans-serif; margin:0; color:#222; background:#fff; -webkit-text-size-adjust:100%;}
+header.top{padding:10px 12px 6px; border-bottom:1px solid #ddd;}
+h1{font-size:17px; margin:0 0 2px; line-height:1.35;}
+.sub{font-size:12px; color:#555;}
+.statusrow{display:flex; align-items:center; gap:8px; margin-top:6px; font-size:12px; color:#555; flex-wrap:wrap;}
+.dot{width:9px; height:9px; border-radius:50%; background:#999; display:inline-block;}
+.dot.on{background:#2fbf71;} .dot.mid{background:#e8b13c;} .dot.off{background:#e05a5a;}
+.badge{border:1px solid #bbb; border-radius:999px; padding:1px 8px; font-size:11px; background:#f4f6fb;}
+.badge.op{border-color:#e65100; color:#bf360c; font-weight:bold;}
+.legend{display:flex; flex-wrap:wrap; gap:6px; margin:8px 12px 0; font-size:12px;}
+.legend span{padding:3px 8px; border-radius:6px; border:1px solid #bbb;}
+.lg-confirmed{background:#ffe082; font-weight:bold;}
+.lg-win{background:#dcedc8;}
+.lg-challenge{background:#ede7f6;}
+.lg-current{background:#fff3e0; border:2px solid #e65100 !important; font-weight:bold;}
+.toolbar{position:sticky; top:0; z-index:30; background:#fff; padding:6px 12px; border-bottom:1px solid #ddd; display:flex; gap:6px; flex-wrap:wrap; align-items:center;}
+.toolbar button{font-size:13.5px; padding:8px 11px; border-radius:8px; border:1.5px solid #305496; background:#fff; color:#305496; font-weight:bold; cursor:pointer; min-height:40px;}
+.toolbar button.on{background:#305496; color:#fff;}
+.search{flex:1 1 130px; padding:9px 10px; border-radius:8px; border:1.5px solid #bbb; font-size:15px; min-height:40px;}
+main{padding:0 0 34px;}
+/* ---- 表形式 ---- */
+.gridwrap{overflow:auto; -webkit-overflow-scrolling:touch; max-height:calc(100vh - 118px); border-bottom:2px solid #305496;}
+table.tt{border-collapse:separate; border-spacing:0; min-width:1480px; width:100%;}
+table.tt th, table.tt td{border-right:1px solid #bbb; border-bottom:1px solid #bbb; padding:5px 4px; vertical-align:top; min-width:76px;}
+table.tt thead th{background:#305496; color:#fff; font-size:12px; position:sticky; top:0; z-index:3; text-align:center;}
+table.tt th.time{background:#5b7ec2; color:#fff; font-size:15px; font-weight:bold; text-align:center; min-width:54px; position:sticky; left:0; z-index:2; border-right:2px solid #305496;}
+table.tt thead th.time{z-index:4;}
+td.plain{color:#aaa;}
+td .code{font-size:12px; font-weight:bold;}
+td.plain .code{font-weight:normal;}
+.cell-confirmed{background:#ffe082; box-shadow:inset 0 0 0 2px #e65100;}
+.cell-confirmed .code{font-size:13px; color:#bf360c;}
+.cell-win{background:#dcedc8;}
+.cell-win .code{color:#33691e;}
+.cell-challenge{background:#ede7f6;}
+.cell-challenge .code{color:#4527a0;}
+.cell-current{background:#fff3e0; box-shadow:inset 0 0 0 3px #e65100;}
+.cell-decided{background:#eeeeee;}
+.who{display:block; font-size:16px; font-weight:bold; color:#b71c1c; line-height:1.3;}
+.who2{display:block; font-size:13.5px; font-weight:bold; color:#33691e; line-height:1.3;}
+.who3{display:block; font-size:12.5px; font-weight:bold; color:#4527a0; line-height:1.3;}
+.vs{display:block; font-size:11.5px; color:#444; line-height:1.25;}
+.seg{margin-bottom:2px;}
+.seg.dead{opacity:.42; text-decoration:line-through;}
+.seg .res{font-size:11px; font-weight:bold; padding:0 5px; border-radius:5px; color:#fff; text-decoration:none; display:inline-block;}
+.res.w{background:#2e7d32;} .res.l{background:#8e24aa;}
+.seg .now{font-size:11px; font-weight:bold; color:#bf360c;}
+body.big .who{font-size:18.5px;} body.big .who2{font-size:15.5px;} body.big .vs{font-size:13px;}
+td.kz{cursor:pointer;}
+/* ---- リスト形式 ---- */
+.listwrap{padding:4px 10px 0; max-width:640px; margin:0 auto;}
+.thead{font-size:15px; font-weight:bold; color:#305496; margin:14px 0 6px; border-left:6px solid #305496; padding-left:8px;}
+.mcard{border:1.5px solid #bbb; border-radius:10px; padding:8px 10px; margin-bottom:8px; background:#fff;}
+.mcard.confirmed{background:#ffe082; border-color:#e65100;}
+.mcard.win{background:#eef6e6;}
+.mcard.challenge{background:#f3eefc;}
+.mcard.current{box-shadow:0 0 0 3px #e65100; background:#fff3e0;}
+.mcard.decided{background:#f2f2f2; opacity:.85;}
+.m-top{display:flex; gap:8px; align-items:baseline;}
+.m-code{font-size:13px; font-weight:bold; color:#bf360c;}
+.m-court{font-size:12.5px; color:#305496; font-weight:bold;}
+.m-time{margin-left:auto; font-size:12.5px; color:#555; font-variant-numeric:tabular-nums;}
+.chips{display:flex; flex-wrap:wrap; gap:4px; margin:2px 0 4px;}
+.chip{font-size:11px; color:#888; border:1px solid #ddd; border-radius:6px; padding:2px 6px; font-variant-numeric:tabular-nums;}
+.btnrow{display:flex; gap:8px; margin-top:8px;}
+.btn-win,.btn-lose{flex:1; height:52px; font-size:18px; font-weight:800; border-radius:10px; border:none; cursor:pointer;}
+.btn-win{background:#2fbf71; color:#06240f;}
+.btn-lose{background:#78909c; color:#fff;}
+.btn-undo{margin:8px 12px 0; padding:11px 14px; font-weight:700; border-radius:8px; border:1.5px solid #8e24aa; color:#8e24aa; background:#fff; cursor:pointer; width:calc(100% - 24px); max-width:616px;}
+.sharebox{margin:8px 12px 0; max-width:640px;}
+.sharebox button{width:100%; padding:13px; font-size:15px; font-weight:800; border:none; border-radius:10px; background:#e8c476; color:#231a05; cursor:pointer;}
+.linkbox{font-size:11.5px; word-break:break-all; background:#f7f7f7; border:1px dashed #bbb; border-radius:8px; padding:8px; margin-top:6px; color:#555;}
+/* ---- 入力カード / 選手別 / 履歴 ---- */
+.cards{padding:10px 10px 0; max-width:640px; margin:0 auto;}
+.card{border:1.5px solid #bbb; border-radius:12px; padding:11px; margin-bottom:9px; background:#fff;}
+.card.current{box-shadow:0 0 0 3px #e65100; background:#fff8ec;}
+.card.done{opacity:.65;}
+.c-time{font-size:22px; font-weight:800; font-variant-numeric:tabular-nums;}
+.c-court{font-size:13px; color:#305496; font-weight:700; margin-left:6px;}
+.c-code{float:right; font-size:12px; color:#888;}
+.c-name{font-size:19px; font-weight:800; margin-top:2px;}
+.c-cat{font-size:11px; color:#555; border:1px solid #bbb; border-radius:999px; padding:0 7px; margin-left:6px; vertical-align:2px;}
+.c-opp{font-size:13px; color:#555; margin-top:2px;}
+.c-label{font-size:12px; color:#bf360c; font-weight:700; margin-top:3px;}
+.past{font-size:12px; color:#666; margin-top:2px;}
+.past .w{color:#2e7d32; font-weight:700;} .past .l{color:#8e24aa; font-weight:700;}
+.gtitle{font-size:13.5px; color:#305496; font-weight:800; margin:14px 0 6px;}
+.prow{display:flex; align-items:center; gap:8px; padding:10px; border:1px solid #bbb; border-radius:10px; margin-bottom:7px; background:#fff;}
 .prow .pname{font-weight:700; font-size:16px;}
-.prow .pnext{margin-left:auto; text-align:right; font-size:12px; color:var(--sub);}
-.prow .pnext b{color:var(--txt); font-size:13px;}
-.past{font-size:12px; color:var(--sub); margin:2px 0 0;}
-.past .w{color:var(--win); font-weight:700;} .past .l{color:var(--rose); font-weight:700;}
-.gtitle{font-size:13px; color:var(--gold); font-weight:800; margin:14px 0 6px;}
-.hrow{font-size:13px; padding:8px 10px; border:1px solid var(--line); border-radius:10px; background:var(--panel); margin-bottom:6px;}
-.hrow .w{color:var(--win); font-weight:800;} .hrow .l{color:var(--rose); font-weight:800;}
-.empty{color:var(--sub); text-align:center; padding:26px 8px; font-size:14px;}
-.home{background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:16px 14px; margin-top:14px;}
-.home p{font-size:14px; color:var(--sub);}
-.home button{width:100%; margin-top:10px; padding:15px; font-size:16px; font-weight:800;}
-.home .primary{background:var(--gold); color:#231a05; border-color:var(--gold);}
-.linkbox{font-size:12px; word-break:break-all; background:var(--bg); border:1px dashed var(--line); border-radius:10px; padding:9px; margin-top:8px; color:var(--sub);}
-footer{margin-top:18px; font-size:12px; color:var(--sub);}
-#toast{position:fixed; left:50%; bottom:22px; transform:translateX(-50%) translateY(20px); background:#22314f; border:1px solid var(--line); color:var(--txt); padding:10px 16px; border-radius:999px; font-size:14px; opacity:0; pointer-events:none; transition:.25s; z-index:50; max-width:92vw; text-align:center;}
+.prow .pnext{margin-left:auto; text-align:right; font-size:12px; color:#555;}
+.prow .pnext b{color:#222; font-size:13px;}
+.hrow{font-size:13.5px; padding:9px 10px; border:1px solid #bbb; border-radius:9px; margin-bottom:6px; background:#fff;}
+.hrow .w{color:#2e7d32; font-weight:800;} .hrow .l{color:#8e24aa; font-weight:800;}
+.empty{color:#777; text-align:center; padding:26px 8px; font-size:14px;}
+.home{margin:16px 12px; border:1.5px solid #bbb; border-radius:12px; padding:16px 14px; max-width:640px;}
+.home p{font-size:14px; color:#555;}
+.home button{width:100%; margin-top:10px; padding:15px; font-size:16px; font-weight:800; border-radius:10px; border:1.5px solid #305496; background:#fff; color:#305496; cursor:pointer;}
+.home .primary{background:#305496; color:#fff;}
+.note{font-size:12px; color:#555; padding:10px 12px 0; line-height:1.6; max-width:900px;}
+#toast{position:fixed; left:50%; bottom:22px; transform:translateX(-50%) translateY(20px); background:#305496; color:#fff; padding:10px 16px; border-radius:999px; font-size:14px; opacity:0; pointer-events:none; transition:.25s; z-index:60; max-width:92vw; text-align:center;}
 #toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
 .hidden{display:none !important;}
+.flash{animation:fl 1.6s;}
+@keyframes fl{0%{box-shadow:0 0 0 5px #e65100;}100%{box-shadow:0 0 0 0 transparent;}}
 </style>
 </head>
 <body>
-<div class="wrap">
-  <header>
-    <h1 id="h-title">共有タイムテーブル</h1>
-    <div class="meta" id="h-meta"></div>
-    <div class="statusrow">
-      <span class="dot" id="conn-dot"></span><span id="conn-text">未接続</span>
-      <span class="badge hidden" id="mode-badge"></span>
-      <span class="badge hidden" id="count-badge"></span>
-    </div>
-  </header>
+<header class="top">
+  <h1 id="h-title">共有タイムテーブル</h1>
+  <div class="sub" id="h-meta"></div>
+  <div class="statusrow">
+    <span class="dot" id="conn-dot"></span><span id="conn-text">未接続</span>
+    <span class="badge hidden" id="mode-badge"></span>
+    <span class="badge hidden" id="count-badge"></span>
+  </div>
+</header>
 
-  <!-- ルーム未選択（ホーム） -->
-  <section id="view-home" class="hidden">
-    <div class="home">
-      <b>大会ルームを作る（操作する人）</b>
-      <p>ルームを作ると「操作用リンク」と「観戦用リンク」が発行されます。操作用は入力する担当だけに、観戦用は家族に渡してください。</p>
-      <button class="primary" id="btn-create">大会ルームを作る</button>
-      <button id="btn-local">ローカルで試す（この端末だけ・共有なし）</button>
-      <p>観戦・操作は、渡されたリンクを開くだけで始まります（この画面はリンクなしで開いたとき用です）。</p>
-    </div>
-  </section>
+<section id="view-home" class="hidden">
+  <div class="home">
+    <b>大会ルームを作る（操作する人）</b>
+    <p>ルームを作ると「操作用リンク」と「観戦用リンク」が発行されます。操作用は入力する担当だけに、観戦用は家族に渡してください。</p>
+    <button class="primary" id="btn-create">大会ルームを作る</button>
+    <button id="btn-local">ローカルで試す（この端末だけ・共有なし）</button>
+    <p>観戦・操作は、渡されたリンクを開くだけで始まります（この画面はリンクなしで開いたとき用です）。</p>
+  </div>
+</section>
 
-  <!-- ルーム画面 -->
-  <section id="view-room" class="hidden">
-    <div id="share-box" class="hidden">
-      <button class="btn-undo" id="btn-copy-viewer" style="background:var(--gold);color:#231a05;border:none;">観戦用リンクをコピーする</button>
-      <div class="linkbox" id="viewer-link"></div>
-    </div>
-    <input class="search" id="q" type="search" placeholder="選手名で探す" autocomplete="off" />
-    <div class="tabs">
-      <button id="tab-next" class="sel">次の試合</button>
-      <button id="tab-players">選手別</button>
-      <button id="tab-history">履歴</button>
-    </div>
-    <button class="btn-undo hidden" id="btn-undo">↩ 直前の入力を1つ取り消す</button>
-    <div id="list"></div>
-    <footer>
-      時刻はタイムテーブルの目安です。勝ち＝次の試合が自動で表示されます。初戦・2試合目で負けるとチャレンジ初戦、準決勝で負けると3位決定戦が次の試合になります。
-    </footer>
-  </section>
-</div>
+<section id="view-room" class="hidden">
+  <div class="legend">
+    <span class="lg-confirmed">■ 唐崎の選手の試合（確定）</span>
+    <span class="lg-win">■ 勝てば唐崎の選手が入る試合</span>
+    <span class="lg-challenge">■ 負けたら入るチャレンジ初戦</span>
+    <span class="lg-current">■ いまの次の試合</span>
+    <span>■ その他（試合番号のみ）</span>
+  </div>
+  <div class="sharebox hidden" id="share-box">
+    <button id="btn-copy-viewer">観戦用リンクをコピーする</button>
+    <div class="linkbox" id="viewer-link"></div>
+  </div>
+  <div class="toolbar">
+    <button data-tab="list" class="on">リスト</button>
+    <button data-tab="grid">表形式</button>
+    <button data-tab="next">次の試合・入力</button>
+    <button data-tab="players">選手別</button>
+    <button data-tab="history">履歴</button>
+    <input class="search" id="q" type="search" placeholder="選手名・試合番号で探す" autocomplete="off" />
+    <button id="btn-kara" class="hidden">唐崎の時間だけ</button>
+    <button id="btn-font" class="hidden">文字を大きく</button>
+  </div>
+  <button class="btn-undo hidden" id="btn-undo">↩ 直前の入力を1つ取り消す</button>
+  <main id="list"></main>
+  <p class="note">読み方：黄色は唐崎の選手が出る確定試合、緑は勝てば入る試合、紫は負けたら入るチャレンジ初戦です。結果を入れると、いまの次の試合がオレンジ枠で目立ち、終わった試合には勝ち／負けの印が付き、行かなくなった試合は取り消し線になります。時刻はタイムテーブルの目安です。</p>
+</section>
 <div id="toast"></div>
 
-<script type="application/json" id="tournament-data">{"meta": {"title": "雪印メグミルク杯 第89回滋賀県小学生秋季バドミントンシングルス大会", "date": "2026-11-03", "venue": "プロシードアリーナHIKONE", "team": "唐崎"}, "players": [{"id": "p01", "cat": "6年生女子（6G）", "catCode": "6G", "name": "野々垣 沙環", "main": [{"label": "初戦", "code": "6G-17", "time": "12:00", "court": "5", "opp": "平岡 ゆり愛（のとがわ）"}, {"label": "2試合目", "code": "6G-30", "time": "13:15", "court": "9", "opp": "16番の勝者"}, {"label": "3試合目", "code": "6G-37", "time": "14:30", "court": "6", "opp": "31番の勝者"}, {"label": "準決勝", "code": "6G-40", "time": "15:45", "court": "3", "opp": "36番の勝者"}], "final": {"label": "決勝", "code": "6G-決勝", "time": "16:35", "court": "8", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "6G-三決", "time": "16:35", "court": "7", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "6GZ-4", "time": "14:05", "court": "12", "opp": "(10敗者)"}, null]}, {"id": "p02", "cat": "6年生女子（6G）", "catCode": "6G", "name": "上坂 実結", "main": [{"label": "初戦", "code": "6G-23", "time": "12:00", "court": "11", "opp": "8番の勝者（篠澤 心春・市橋 瑠花）"}, {"label": "2試合目", "code": "6G-33", "time": "13:15", "court": "12", "opp": "22番の勝者"}, {"label": "3試合目", "code": "6G-38", "time": "14:30", "court": "7", "opp": "32番の勝者"}, {"label": "準決勝", "code": "6G-41", "time": "15:45", "court": "4", "opp": "39番の勝者"}], "final": {"label": "決勝", "code": "6G-決勝", "time": "16:35", "court": "8", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "6G-三決", "time": "16:35", "court": "7", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "6GZ-8", "time": "14:05", "court": "16", "opp": "(3敗者)"}, null]}, {"id": "p03", "cat": "5年生女子（5G）", "catCode": "5G", "name": "岸上 暖杏", "main": [{"label": "初戦", "code": "5G-1", "time": "09:30", "court": "3", "opp": "松田 奏来（瀬田北）"}, {"label": "2試合目", "code": "5G-11", "time": "11:35", "court": "3", "opp": "南田 紗希（FANATIC）"}, {"label": "3試合目", "code": "5G-27", "time": "12:50", "court": "18", "opp": "12番の勝者"}, {"label": "4試合目", "code": "5G-35", "time": "14:30", "court": "1", "opp": "28番の勝者"}, {"label": "準決勝", "code": "5G-39", "time": "15:45", "court": "1", "opp": "36番の勝者"}], "final": {"label": "決勝", "code": "5G-決勝", "time": "16:35", "court": "6", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "5G-三決", "time": "16:35", "court": "5", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "5GZ-6", "time": "14:17", "court": "14", "opp": "(20敗者)"}, {"code": "5GZ-11", "time": "15:07", "court": "15", "opp": "5GZ-1の勝者"}]}, {"id": "p04", "cat": "5年生女子（5G）", "catCode": "5G", "name": "春本 凛", "main": [{"label": "初戦", "code": "5G-15", "time": "11:35", "court": "7", "opp": "4番の勝者（籠谷 律花・梅田 心向）"}, {"label": "2試合目", "code": "5G-29", "time": "13:15", "court": "1", "opp": "16番の勝者"}, {"label": "3試合目", "code": "5G-36", "time": "14:30", "court": "2", "opp": "30番の勝者"}, {"label": "準決勝", "code": "5G-39", "time": "15:45", "court": "1", "opp": "35番の勝者"}], "final": {"label": "決勝", "code": "5G-決勝", "time": "16:35", "court": "6", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "5G-三決", "time": "16:35", "court": "5", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "5GZ-13", "time": "15:07", "court": "17", "opp": "5GZ-4の勝者"}, null]}, {"id": "p05", "cat": "5年生女子（5G）", "catCode": "5G", "name": "伊賀上 藍", "main": [{"label": "初戦", "code": "5G-7", "time": "09:30", "court": "9", "opp": "飯田 絢心（ベイシック）"}, {"label": "2試合目", "code": "5G-22", "time": "11:35", "court": "14", "opp": "岡本 雫（仰木の里）"}, {"label": "3試合目", "code": "5G-32", "time": "13:15", "court": "4", "opp": "21番の勝者"}, {"label": "4試合目", "code": "5G-37", "time": "14:30", "court": "3", "opp": "31番の勝者"}, {"label": "準決勝", "code": "5G-40", "time": "15:45", "court": "2", "opp": "38番の勝者"}], "final": {"label": "決勝", "code": "5G-決勝", "time": "16:35", "court": "6", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "5G-三決", "time": "16:35", "court": "5", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "5GZ-2", "time": "14:17", "court": "10", "opp": "(13敗者)"}, {"code": "5GZ-16", "time": "15:20", "court": "9", "opp": "5GZ-7の勝者"}]}, {"id": "p06", "cat": "5年生女子（5G）", "catCode": "5G", "name": "川西 彩陽", "main": [{"label": "初戦", "code": "5G-23", "time": "11:35", "court": "15", "opp": "8番の勝者（井口 裕莉・ニツ谷 恵麻）"}, {"label": "2試合目", "code": "5G-33", "time": "13:15", "court": "5", "opp": "24番の勝者"}, {"label": "3試合目", "code": "5G-38", "time": "14:30", "court": "4", "opp": "34番の勝者"}, {"label": "準決勝", "code": "5G-40", "time": "15:45", "court": "2", "opp": "37番の勝者"}], "final": {"label": "決勝", "code": "5G-決勝", "time": "16:35", "court": "6", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "5G-三決", "time": "16:35", "court": "5", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "5GZ-8", "time": "14:17", "court": "16", "opp": "(3敗者)"}, null]}, {"id": "p07", "cat": "4年生女子（4G）", "catCode": "4G", "name": "島田 虹奈", "main": [{"label": "初戦", "code": "4G-3", "time": "09:55", "court": "7", "opp": "二井家 彩桜（仰木の里）"}, {"label": "2試合目", "code": "4G-12", "time": "12:00", "court": "17", "opp": "2番の勝者"}, {"label": "3試合目", "code": "4G-19", "time": "13:40", "court": "8", "opp": "11番の勝者"}, {"label": "準決勝", "code": "4G-23", "time": "14:55", "court": "7", "opp": "20番の勝者"}], "final": {"label": "決勝", "code": "4G-決勝", "time": "16:10", "court": "4", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "4G-三決", "time": "16:10", "court": "3", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "4GZ-9", "time": "15:32", "court": "15", "opp": "(17敗者)"}, {"code": "4GZ-4", "time": "15:32", "court": "10", "opp": "(8敗者)"}]}, {"id": "p08", "cat": "4年生女子（4G）", "catCode": "4G", "name": "高阪 結夏", "main": [{"label": "初戦", "code": "4G-13", "time": "12:00", "court": "18", "opp": "4番の勝者（奥野 聖・三嶋 乃々葉）"}, {"label": "2試合目", "code": "4G-20", "time": "13:40", "court": "9", "opp": "14番の勝者"}, {"label": "準決勝", "code": "4G-23", "time": "14:55", "court": "7", "opp": "19番の勝者"}], "final": {"label": "決勝", "code": "4G-決勝", "time": "16:10", "court": "4", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "4G-三決", "time": "16:10", "court": "3", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "4GZ-5", "time": "15:32", "court": "11", "opp": "(9敗者)"}, null]}, {"id": "p09", "cat": "4年生女子（4G）", "catCode": "4G", "name": "大谷 珠凰", "main": [{"label": "初戦", "code": "4G-15", "time": "12:25", "court": "1", "opp": "6番の勝者（木村 藍子・城尾 笑里）"}, {"label": "2試合目", "code": "4G-21", "time": "13:40", "court": "10", "opp": "16番の勝者"}, {"label": "準決勝", "code": "4G-24", "time": "14:55", "court": "8", "opp": "22番の勝者"}], "final": {"label": "決勝", "code": "4G-決勝", "time": "16:10", "court": "4", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "4G-三決", "time": "16:10", "court": "3", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "4GZ-7", "time": "15:32", "court": "13", "opp": "(1敗者)"}, null]}, {"id": "p10", "cat": "3年生女子（3G）", "catCode": "3G", "name": "古谷 莉歩", "main": [{"label": "初戦", "code": "3G-4", "time": "11:10", "court": "7", "opp": "片岡 ひま（ベイシック）"}, {"label": "2試合目", "code": "3G-19", "time": "12:50", "court": "10", "opp": "3番の勝者"}, {"label": "3試合目", "code": "3G-27", "time": "14:05", "court": "5", "opp": "20番の勝者"}, {"label": "準決勝", "code": "3G-31", "time": "15:20", "court": "7", "opp": "28番の勝者"}], "final": {"label": "決勝", "code": "3G-決勝", "time": "16:35", "court": "4", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "3G-三決", "time": "16:35", "court": "3", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "3GZ-1", "time": "14:30", "court": "13", "opp": "(2敗者)"}, null]}, {"id": "p11", "cat": "3年生女子（3G）", "catCode": "3G", "name": "伊賀上 華", "main": [{"label": "初戦", "code": "3G-9", "time": "11:10", "court": "12", "opp": "杉江 咲希（SEPT）"}, {"label": "2試合目", "code": "3G-22", "time": "12:50", "court": "13", "opp": "10番の勝者"}, {"label": "3試合目", "code": "3G-28", "time": "14:05", "court": "6", "opp": "21番の勝者"}, {"label": "準決勝", "code": "3G-31", "time": "15:20", "court": "7", "opp": "27番の勝者"}], "final": {"label": "決勝", "code": "3G-決勝", "time": "16:35", "court": "4", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "3G-三決", "time": "16:35", "court": "3", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "3GZ-6", "time": "15:45", "court": "9", "opp": "(10敗者)"}, null]}, {"id": "p12", "cat": "3年生女子（3G）", "catCode": "3G", "name": "春田 菜花", "main": [{"label": "初戦", "code": "3G-16", "time": "11:10", "court": "19", "opp": "山本 杏波（瀬田北）"}, {"label": "2試合目", "code": "3G-25", "time": "12:50", "court": "16", "opp": "15番の勝者"}, {"label": "3試合目", "code": "3G-30", "time": "14:05", "court": "8", "opp": "26番の勝者"}, {"label": "準決勝", "code": "3G-32", "time": "15:20", "court": "8", "opp": "29番の勝者"}], "final": {"label": "決勝", "code": "3G-決勝", "time": "16:35", "court": "4", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "3G-三決", "time": "16:35", "court": "3", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "3GZ-9", "time": "15:45", "court": "12", "opp": "(15敗者)"}, null]}, {"id": "p13", "cat": "2年生以下女子（2G）", "catCode": "2G", "name": "香西 春瑠", "main": [{"label": "初戦", "code": "2G-1", "time": "10:45", "court": "18", "opp": "宇野 文乃①（ミナクサ会）"}, {"label": "2試合目", "code": "2G-8", "time": "13:40", "court": "4", "opp": "植田 愛梨（FANATIC）"}, {"label": "準決勝", "code": "2G-12", "time": "14:55", "court": "5", "opp": "9番の勝者"}], "final": {"label": "決勝", "code": "2G-決勝", "time": "16:10", "court": "2", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "2G-三決", "time": "16:10", "court": "1", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "2GZ-2", "time": "14:55", "court": "13", "opp": "(2敗者)"}, {"code": "2GZ-4", "time": "15:57", "court": "15", "opp": "2GZ-1の勝者"}]}, {"id": "p14", "cat": "2年生以下女子（2G）", "catCode": "2G", "name": "西川 椛", "main": [{"label": "初戦", "code": "2G-2", "time": "10:45", "court": "19", "opp": "堀 真佑花（仰木の里）"}, {"label": "2試合目", "code": "2G-9", "time": "13:40", "court": "5", "opp": "3番の勝者"}, {"label": "準決勝", "code": "2G-12", "time": "14:55", "court": "5", "opp": "8番の勝者"}], "final": {"label": "決勝", "code": "2G-決勝", "time": "16:10", "court": "2", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "2G-三決", "time": "16:10", "court": "1", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "2GZ-2", "time": "14:55", "court": "13", "opp": "(1敗者)"}, {"code": "2GZ-5", "time": "15:57", "court": "16", "opp": "(7敗者)"}]}, {"id": "p15", "cat": "2年生以下女子（2G）", "catCode": "2G", "name": "春本 一華", "main": [{"label": "初戦", "code": "2G-4", "time": "11:10", "court": "2", "opp": "工藤 朱々那（ベイシック）"}, {"label": "2試合目", "code": "2G-10", "time": "13:40", "court": "6", "opp": "5番の勝者"}, {"label": "準決勝", "code": "2G-13", "time": "14:55", "court": "6", "opp": "11番の勝者"}], "final": {"label": "決勝", "code": "2G-決勝", "time": "16:10", "court": "2", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "2G-三決", "time": "16:10", "court": "1", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "2GZ-3", "time": "14:55", "court": "14", "opp": "(3敗者)"}, {"code": "2GZ-6", "time": "15:57", "court": "17", "opp": "2GZ-2の勝者"}]}, {"id": "p16", "cat": "2年生以下女子（2G）", "catCode": "2G", "name": "高阪 遥夏", "main": [{"label": "初戦", "code": "2G-7", "time": "11:10", "court": "5", "opp": "今井 美緒（FANATIC）"}, {"label": "2試合目", "code": "2G-11", "time": "13:40", "court": "7", "opp": "6番の勝者"}, {"label": "準決勝", "code": "2G-13", "time": "14:55", "court": "6", "opp": "10番の勝者"}], "final": {"label": "決勝", "code": "2G-決勝", "time": "16:10", "court": "2", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "2G-三決", "time": "16:10", "court": "1", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "2GZ-5", "time": "15:57", "court": "16", "opp": "(9敗者)"}, {"code": "2GZ-7", "time": "15:57", "court": "18", "opp": "2GZ-3の勝者"}]}, {"id": "p17", "cat": "6年生男子（6B）", "catCode": "6B", "name": "拾井 陽向", "main": [{"label": "初戦", "code": "6B-2", "time": "09:55", "court": "16", "opp": "小林 亮介（瀬田北）"}, {"label": "2試合目", "code": "6B-10", "time": "12:25", "court": "6", "opp": "中嶋 勇喜（仰木の里）"}, {"label": "3試合目", "code": "6B-17", "time": "13:40", "court": "12", "opp": "9番の勝者"}, {"label": "準決勝", "code": "6B-21", "time": "15:20", "court": "1", "opp": "18番の勝者"}], "final": {"label": "決勝", "code": "6B-決勝", "time": "16:10", "court": "6", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "6B-三決", "time": "16:10", "court": "5", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "6BZ-6", "time": "14:42", "court": "9", "opp": "(14敗者)"}, {"code": "6BZ-2", "time": "14:30", "court": "16", "opp": "(6敗者)"}]}, {"id": "p18", "cat": "6年生男子（6B）", "catCode": "6B", "name": "木下 麗翔", "main": [{"label": "初戦", "code": "6B-6", "time": "10:20", "court": "1", "opp": "松ヶ枝 晃貴（SEPT）"}, {"label": "2試合目", "code": "6B-14", "time": "12:25", "court": "10", "opp": "進藤 匠真（仰木の里）"}, {"label": "3試合目", "code": "6B-19", "time": "13:40", "court": "14", "opp": "13番の勝者"}, {"label": "準決勝", "code": "6B-22", "time": "15:20", "court": "2", "opp": "20番の勝者"}], "final": {"label": "決勝", "code": "6B-決勝", "time": "16:10", "court": "6", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "6B-三決", "time": "16:10", "court": "5", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "6BZ-2", "time": "14:30", "court": "16", "opp": "(10敗者)"}, {"code": "6BZ-6", "time": "14:42", "court": "9", "opp": "(2敗者)"}]}, {"id": "p19", "cat": "5年生男子（5B）", "catCode": "5B", "name": "香西 信ノ輔", "main": [{"label": "初戦", "code": "5B-2", "time": "10:20", "court": "5", "opp": "藤本 弘文（仰木の里）"}, {"label": "2試合目", "code": "5B-13", "time": "12:25", "court": "14", "opp": "3番の勝者"}, {"label": "3試合目", "code": "5B-20", "time": "13:40", "court": "16", "opp": "12番の勝者"}, {"label": "準決勝", "code": "5B-24", "time": "15:20", "court": "3", "opp": "21番の勝者"}], "final": {"label": "決勝", "code": "5B-決勝", "time": "16:10", "court": "8", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "5B-三決", "time": "16:10", "court": "7", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "5BZ-2", "time": "14:30", "court": "9", "opp": "(1敗者)"}, {"code": "5BZ-5", "time": "15:20", "court": "13", "opp": "(9敗者)"}]}, {"id": "p20", "cat": "5年生男子（5B）", "catCode": "5B", "name": "小林 鈴空", "main": [{"label": "初戦", "code": "5B-7", "time": "10:20", "court": "10", "opp": "山﨑 颯仁（ベイシック）"}, {"label": "2試合目", "code": "5B-17", "time": "12:25", "court": "18", "opp": "8番の勝者"}, {"label": "3試合目", "code": "5B-22", "time": "13:40", "court": "18", "opp": "16番の勝者"}, {"label": "準決勝", "code": "5B-25", "time": "15:20", "court": "4", "opp": "23番の勝者"}], "final": {"label": "決勝", "code": "5B-決勝", "time": "16:10", "court": "8", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "5B-三決", "time": "16:10", "court": "7", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "5BZ-1", "time": "14:17", "court": "19", "opp": "(8敗者)"}, {"code": "5BZ-9", "time": "15:20", "court": "17", "opp": "(3敗者)"}]}, {"id": "p21", "cat": "4年生男子（4B）", "catCode": "4B", "name": "辻 琉希", "main": [{"label": "初戦", "code": "4B-2", "time": "10:20", "court": "16", "opp": "西田 陽真（ベイシック）"}, {"label": "2試合目", "code": "4B-9", "time": "13:15", "court": "15", "opp": "1番の勝者"}, {"label": "準決勝", "code": "4B-13", "time": "14:55", "court": "1", "opp": "10番の勝者"}], "final": {"label": "決勝", "code": "4B-決勝", "time": "15:45", "court": "6", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "4B-三決", "time": "15:45", "court": "5", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "4BZ-3", "time": "14:55", "court": "10", "opp": "(1敗者)"}, {"code": "4BZ-5", "time": "15:57", "court": "11", "opp": "4BZ-1の勝者"}]}, {"id": "p22", "cat": "4年生男子（4B）", "catCode": "4B", "name": "西岡 大翔", "main": [{"label": "初戦", "code": "4B-4", "time": "10:20", "court": "18", "opp": "山田 莉久翔（SEPT）"}, {"label": "2試合目", "code": "4B-10", "time": "13:15", "court": "16", "opp": "3番の勝者"}, {"label": "準決勝", "code": "4B-13", "time": "14:55", "court": "1", "opp": "9番の勝者"}], "final": {"label": "決勝", "code": "4B-決勝", "time": "15:45", "court": "6", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "4B-三決", "time": "15:45", "court": "5", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "4BZ-4", "time": "14:55", "court": "11", "opp": "(3敗者)"}, {"code": "4BZ-6", "time": "15:57", "court": "12", "opp": "4BZ-2の勝者"}]}, {"id": "p23", "cat": "4年生男子（4B）", "catCode": "4B", "name": "上坂 拓実", "main": [{"label": "初戦", "code": "4B-5", "time": "10:20", "court": "19", "opp": "井上 大登（MBJ）"}, {"label": "2試合目", "code": "4B-11", "time": "13:15", "court": "17", "opp": "6番の勝者"}, {"label": "準決勝", "code": "4B-14", "time": "14:55", "court": "2", "opp": "12番の勝者"}], "final": {"label": "決勝", "code": "4B-決勝", "time": "15:45", "court": "6", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "4B-三決", "time": "15:45", "court": "5", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "4BZ-1", "time": "14:42", "court": "19", "opp": "(6敗者)"}, {"code": "4BZ-7", "time": "15:57", "court": "13", "opp": "4BZ-3の勝者"}]}, {"id": "p24", "cat": "4年生男子（4B）", "catCode": "4B", "name": "西川 一燈", "main": [{"label": "初戦", "code": "4B-6", "time": "10:45", "court": "1", "opp": "竹端 郷（仰木の里）"}, {"label": "2試合目", "code": "4B-11", "time": "13:15", "court": "17", "opp": "5番の勝者"}, {"label": "準決勝", "code": "4B-14", "time": "14:55", "court": "2", "opp": "12番の勝者"}], "final": {"label": "決勝", "code": "4B-決勝", "time": "15:45", "court": "6", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "4B-三決", "time": "15:45", "court": "5", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "4BZ-1", "time": "14:42", "court": "19", "opp": "(5敗者)"}, {"code": "4BZ-7", "time": "15:57", "court": "13", "opp": "4BZ-3の勝者"}]}, {"id": "p25", "cat": "3年生男子（3B）", "catCode": "3B", "name": "岸上 楓向", "main": [{"label": "初戦", "code": "3B-4", "time": "10:45", "court": "7", "opp": "保田 蒼太（仰木の里）"}, {"label": "2試合目", "code": "3B-12", "time": "12:50", "court": "6", "opp": "谷口 琥珀（瀬田北）"}, {"label": "3試合目", "code": "3B-18", "time": "14:05", "court": "3", "opp": "13番の勝者"}, {"label": "準決勝", "code": "3B-21", "time": "15:20", "court": "6", "opp": "19番の勝者"}], "final": {"label": "決勝", "code": "3B-決勝", "time": "16:35", "court": "2", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "3B-三決", "time": "16:35", "court": "1", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "3BZ-7", "time": "14:42", "court": "18", "opp": "(15敗者)"}, {"code": "3BZ-4", "time": "14:42", "court": "15", "opp": "(1敗者)"}]}, {"id": "p26", "cat": "2年生以下男子（2B）", "catCode": "2B", "name": "島田 琉空", "main": [{"label": "初戦", "code": "2B-5", "time": "10:45", "court": "15", "opp": "進藤 海沙（仰木の里）"}, {"label": "2試合目", "code": "2B-10", "time": "13:40", "court": "2", "opp": "4番の勝者"}, {"label": "準決勝", "code": "2B-13", "time": "14:55", "court": "4", "opp": "11番の勝者"}], "final": {"label": "決勝", "code": "2B-決勝", "time": "15:45", "court": "8", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "2B-三決", "time": "15:45", "court": "7", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "2BZ-1", "time": "14:55", "court": "15", "opp": "(6敗者)"}, {"code": "2BZ-6", "time": "16:10", "court": "10", "opp": "2BZ-2の勝者"}]}]}</script>
+<script type="application/json" id="tournament-data">{"meta": {"title": "雪印メグミルク杯 第89回滋賀県小学生秋季バドミントンシングルス大会", "date": "2026-11-03", "venue": "プロシードアリーナHIKONE", "team": "唐崎"}, "players": [{"id": "p01", "cat": "6年生女子（6G）", "catCode": "6G", "name": "野々垣 沙環", "main": [{"label": "初戦", "code": "6G-17", "time": "12:00", "court": "5", "opp": "平岡 ゆり愛（のとがわ）"}, {"label": "2試合目", "code": "6G-30", "time": "13:15", "court": "9", "opp": "16番の勝者"}, {"label": "3試合目", "code": "6G-37", "time": "14:30", "court": "6", "opp": "31番の勝者"}, {"label": "準決勝", "code": "6G-40", "time": "15:45", "court": "3", "opp": "36番の勝者"}], "final": {"label": "決勝", "code": "6G-決勝", "time": "16:35", "court": "8", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "6G-三決", "time": "16:35", "court": "7", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "6GZ-4", "time": "14:05", "court": "12", "opp": "(10敗者)"}, null]}, {"id": "p02", "cat": "6年生女子（6G）", "catCode": "6G", "name": "上坂 実結", "main": [{"label": "初戦", "code": "6G-23", "time": "12:00", "court": "11", "opp": "8番の勝者（篠澤 心春・市橋 瑠花）"}, {"label": "2試合目", "code": "6G-33", "time": "13:15", "court": "12", "opp": "22番の勝者"}, {"label": "3試合目", "code": "6G-38", "time": "14:30", "court": "7", "opp": "32番の勝者"}, {"label": "準決勝", "code": "6G-41", "time": "15:45", "court": "4", "opp": "39番の勝者"}], "final": {"label": "決勝", "code": "6G-決勝", "time": "16:35", "court": "8", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "6G-三決", "time": "16:35", "court": "7", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "6GZ-8", "time": "14:05", "court": "16", "opp": "(3敗者)"}, null]}, {"id": "p03", "cat": "5年生女子（5G）", "catCode": "5G", "name": "岸上 暖杏", "main": [{"label": "初戦", "code": "5G-1", "time": "09:30", "court": "3", "opp": "松田 奏来（瀬田北）"}, {"label": "2試合目", "code": "5G-11", "time": "11:35", "court": "3", "opp": "南田 紗希（FANATIC）"}, {"label": "3試合目", "code": "5G-27", "time": "12:50", "court": "18", "opp": "12番の勝者"}, {"label": "4試合目", "code": "5G-35", "time": "14:30", "court": "1", "opp": "28番の勝者"}, {"label": "準決勝", "code": "5G-39", "time": "15:45", "court": "1", "opp": "36番の勝者"}], "final": {"label": "決勝", "code": "5G-決勝", "time": "16:35", "court": "6", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "5G-三決", "time": "16:35", "court": "5", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "5GZ-6", "time": "14:17", "court": "14", "opp": "(20敗者)"}, {"code": "5GZ-11", "time": "15:07", "court": "15", "opp": "5GZ-1の勝者"}]}, {"id": "p04", "cat": "5年生女子（5G）", "catCode": "5G", "name": "春本 凛", "main": [{"label": "初戦", "code": "5G-15", "time": "11:35", "court": "7", "opp": "4番の勝者（籠谷 律花・梅田 心向）"}, {"label": "2試合目", "code": "5G-29", "time": "13:15", "court": "1", "opp": "16番の勝者"}, {"label": "3試合目", "code": "5G-36", "time": "14:30", "court": "2", "opp": "30番の勝者"}, {"label": "準決勝", "code": "5G-39", "time": "15:45", "court": "1", "opp": "35番の勝者"}], "final": {"label": "決勝", "code": "5G-決勝", "time": "16:35", "court": "6", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "5G-三決", "time": "16:35", "court": "5", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "5GZ-13", "time": "15:07", "court": "17", "opp": "5GZ-4の勝者"}, null]}, {"id": "p05", "cat": "5年生女子（5G）", "catCode": "5G", "name": "伊賀上 藍", "main": [{"label": "初戦", "code": "5G-7", "time": "09:30", "court": "9", "opp": "飯田 絢心（ベイシック）"}, {"label": "2試合目", "code": "5G-22", "time": "11:35", "court": "14", "opp": "岡本 雫（仰木の里）"}, {"label": "3試合目", "code": "5G-32", "time": "13:15", "court": "4", "opp": "21番の勝者"}, {"label": "4試合目", "code": "5G-37", "time": "14:30", "court": "3", "opp": "31番の勝者"}, {"label": "準決勝", "code": "5G-40", "time": "15:45", "court": "2", "opp": "38番の勝者"}], "final": {"label": "決勝", "code": "5G-決勝", "time": "16:35", "court": "6", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "5G-三決", "time": "16:35", "court": "5", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "5GZ-2", "time": "14:17", "court": "10", "opp": "(13敗者)"}, {"code": "5GZ-16", "time": "15:20", "court": "9", "opp": "5GZ-7の勝者"}]}, {"id": "p06", "cat": "5年生女子（5G）", "catCode": "5G", "name": "川西 彩陽", "main": [{"label": "初戦", "code": "5G-23", "time": "11:35", "court": "15", "opp": "8番の勝者（井口 裕莉・ニツ谷 恵麻）"}, {"label": "2試合目", "code": "5G-33", "time": "13:15", "court": "5", "opp": "24番の勝者"}, {"label": "3試合目", "code": "5G-38", "time": "14:30", "court": "4", "opp": "34番の勝者"}, {"label": "準決勝", "code": "5G-40", "time": "15:45", "court": "2", "opp": "37番の勝者"}], "final": {"label": "決勝", "code": "5G-決勝", "time": "16:35", "court": "6", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "5G-三決", "time": "16:35", "court": "5", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "5GZ-8", "time": "14:17", "court": "16", "opp": "(3敗者)"}, null]}, {"id": "p07", "cat": "4年生女子（4G）", "catCode": "4G", "name": "島田 虹奈", "main": [{"label": "初戦", "code": "4G-3", "time": "09:55", "court": "7", "opp": "二井家 彩桜（仰木の里）"}, {"label": "2試合目", "code": "4G-12", "time": "12:00", "court": "17", "opp": "2番の勝者"}, {"label": "3試合目", "code": "4G-19", "time": "13:40", "court": "8", "opp": "11番の勝者"}, {"label": "準決勝", "code": "4G-23", "time": "14:55", "court": "7", "opp": "20番の勝者"}], "final": {"label": "決勝", "code": "4G-決勝", "time": "16:10", "court": "4", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "4G-三決", "time": "16:10", "court": "3", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "4GZ-9", "time": "15:32", "court": "15", "opp": "(17敗者)"}, {"code": "4GZ-4", "time": "15:32", "court": "10", "opp": "(8敗者)"}]}, {"id": "p08", "cat": "4年生女子（4G）", "catCode": "4G", "name": "高阪 結夏", "main": [{"label": "初戦", "code": "4G-13", "time": "12:00", "court": "18", "opp": "4番の勝者（奥野 聖・三嶋 乃々葉）"}, {"label": "2試合目", "code": "4G-20", "time": "13:40", "court": "9", "opp": "14番の勝者"}, {"label": "準決勝", "code": "4G-23", "time": "14:55", "court": "7", "opp": "19番の勝者"}], "final": {"label": "決勝", "code": "4G-決勝", "time": "16:10", "court": "4", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "4G-三決", "time": "16:10", "court": "3", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "4GZ-5", "time": "15:32", "court": "11", "opp": "(9敗者)"}, null]}, {"id": "p09", "cat": "4年生女子（4G）", "catCode": "4G", "name": "大谷 珠凰", "main": [{"label": "初戦", "code": "4G-15", "time": "12:25", "court": "1", "opp": "6番の勝者（木村 藍子・城尾 笑里）"}, {"label": "2試合目", "code": "4G-21", "time": "13:40", "court": "10", "opp": "16番の勝者"}, {"label": "準決勝", "code": "4G-24", "time": "14:55", "court": "8", "opp": "22番の勝者"}], "final": {"label": "決勝", "code": "4G-決勝", "time": "16:10", "court": "4", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "4G-三決", "time": "16:10", "court": "3", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "4GZ-7", "time": "15:32", "court": "13", "opp": "(1敗者)"}, null]}, {"id": "p10", "cat": "3年生女子（3G）", "catCode": "3G", "name": "古谷 莉歩", "main": [{"label": "初戦", "code": "3G-4", "time": "11:10", "court": "7", "opp": "片岡 ひま（ベイシック）"}, {"label": "2試合目", "code": "3G-19", "time": "12:50", "court": "10", "opp": "3番の勝者"}, {"label": "3試合目", "code": "3G-27", "time": "14:05", "court": "5", "opp": "20番の勝者"}, {"label": "準決勝", "code": "3G-31", "time": "15:20", "court": "7", "opp": "28番の勝者"}], "final": {"label": "決勝", "code": "3G-決勝", "time": "16:35", "court": "4", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "3G-三決", "time": "16:35", "court": "3", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "3GZ-1", "time": "14:30", "court": "13", "opp": "(2敗者)"}, null]}, {"id": "p11", "cat": "3年生女子（3G）", "catCode": "3G", "name": "伊賀上 華", "main": [{"label": "初戦", "code": "3G-9", "time": "11:10", "court": "12", "opp": "杉江 咲希（SEPT）"}, {"label": "2試合目", "code": "3G-22", "time": "12:50", "court": "13", "opp": "10番の勝者"}, {"label": "3試合目", "code": "3G-28", "time": "14:05", "court": "6", "opp": "21番の勝者"}, {"label": "準決勝", "code": "3G-31", "time": "15:20", "court": "7", "opp": "27番の勝者"}], "final": {"label": "決勝", "code": "3G-決勝", "time": "16:35", "court": "4", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "3G-三決", "time": "16:35", "court": "3", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "3GZ-6", "time": "15:45", "court": "9", "opp": "(10敗者)"}, null]}, {"id": "p12", "cat": "3年生女子（3G）", "catCode": "3G", "name": "春田 菜花", "main": [{"label": "初戦", "code": "3G-16", "time": "11:10", "court": "19", "opp": "山本 杏波（瀬田北）"}, {"label": "2試合目", "code": "3G-25", "time": "12:50", "court": "16", "opp": "15番の勝者"}, {"label": "3試合目", "code": "3G-30", "time": "14:05", "court": "8", "opp": "26番の勝者"}, {"label": "準決勝", "code": "3G-32", "time": "15:20", "court": "8", "opp": "29番の勝者"}], "final": {"label": "決勝", "code": "3G-決勝", "time": "16:35", "court": "4", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "3G-三決", "time": "16:35", "court": "3", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "3GZ-9", "time": "15:45", "court": "12", "opp": "(15敗者)"}, null]}, {"id": "p13", "cat": "2年生以下女子（2G）", "catCode": "2G", "name": "香西 春瑠", "main": [{"label": "初戦", "code": "2G-1", "time": "10:45", "court": "18", "opp": "宇野 文乃①（ミナクサ会）"}, {"label": "2試合目", "code": "2G-8", "time": "13:40", "court": "4", "opp": "植田 愛梨（FANATIC）"}, {"label": "準決勝", "code": "2G-12", "time": "14:55", "court": "5", "opp": "9番の勝者"}], "final": {"label": "決勝", "code": "2G-決勝", "time": "16:10", "court": "2", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "2G-三決", "time": "16:10", "court": "1", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "2GZ-2", "time": "14:55", "court": "13", "opp": "(2敗者)"}, {"code": "2GZ-4", "time": "15:57", "court": "15", "opp": "2GZ-1の勝者"}]}, {"id": "p14", "cat": "2年生以下女子（2G）", "catCode": "2G", "name": "西川 椛", "main": [{"label": "初戦", "code": "2G-2", "time": "10:45", "court": "19", "opp": "堀 真佑花（仰木の里）"}, {"label": "2試合目", "code": "2G-9", "time": "13:40", "court": "5", "opp": "3番の勝者"}, {"label": "準決勝", "code": "2G-12", "time": "14:55", "court": "5", "opp": "8番の勝者"}], "final": {"label": "決勝", "code": "2G-決勝", "time": "16:10", "court": "2", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "2G-三決", "time": "16:10", "court": "1", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "2GZ-2", "time": "14:55", "court": "13", "opp": "(1敗者)"}, {"code": "2GZ-5", "time": "15:57", "court": "16", "opp": "(7敗者)"}]}, {"id": "p15", "cat": "2年生以下女子（2G）", "catCode": "2G", "name": "春本 一華", "main": [{"label": "初戦", "code": "2G-4", "time": "11:10", "court": "2", "opp": "工藤 朱々那（ベイシック）"}, {"label": "2試合目", "code": "2G-10", "time": "13:40", "court": "6", "opp": "5番の勝者"}, {"label": "準決勝", "code": "2G-13", "time": "14:55", "court": "6", "opp": "11番の勝者"}], "final": {"label": "決勝", "code": "2G-決勝", "time": "16:10", "court": "2", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "2G-三決", "time": "16:10", "court": "1", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "2GZ-3", "time": "14:55", "court": "14", "opp": "(3敗者)"}, {"code": "2GZ-6", "time": "15:57", "court": "17", "opp": "2GZ-2の勝者"}]}, {"id": "p16", "cat": "2年生以下女子（2G）", "catCode": "2G", "name": "高阪 遥夏", "main": [{"label": "初戦", "code": "2G-7", "time": "11:10", "court": "5", "opp": "今井 美緒（FANATIC）"}, {"label": "2試合目", "code": "2G-11", "time": "13:40", "court": "7", "opp": "6番の勝者"}, {"label": "準決勝", "code": "2G-13", "time": "14:55", "court": "6", "opp": "10番の勝者"}], "final": {"label": "決勝", "code": "2G-決勝", "time": "16:10", "court": "2", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "2G-三決", "time": "16:10", "court": "1", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "2GZ-5", "time": "15:57", "court": "16", "opp": "(9敗者)"}, {"code": "2GZ-7", "time": "15:57", "court": "18", "opp": "2GZ-3の勝者"}]}, {"id": "p17", "cat": "6年生男子（6B）", "catCode": "6B", "name": "拾井 陽向", "main": [{"label": "初戦", "code": "6B-2", "time": "09:55", "court": "16", "opp": "小林 亮介（瀬田北）"}, {"label": "2試合目", "code": "6B-10", "time": "12:25", "court": "6", "opp": "中嶋 勇喜（仰木の里）"}, {"label": "3試合目", "code": "6B-17", "time": "13:40", "court": "12", "opp": "9番の勝者"}, {"label": "準決勝", "code": "6B-21", "time": "15:20", "court": "1", "opp": "18番の勝者"}], "final": {"label": "決勝", "code": "6B-決勝", "time": "16:10", "court": "6", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "6B-三決", "time": "16:10", "court": "5", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "6BZ-6", "time": "14:42", "court": "9", "opp": "(14敗者)"}, {"code": "6BZ-2", "time": "14:30", "court": "16", "opp": "(6敗者)"}]}, {"id": "p18", "cat": "6年生男子（6B）", "catCode": "6B", "name": "木下 麗翔", "main": [{"label": "初戦", "code": "6B-6", "time": "10:20", "court": "1", "opp": "松ヶ枝 晃貴（SEPT）"}, {"label": "2試合目", "code": "6B-14", "time": "12:25", "court": "10", "opp": "進藤 匠真（仰木の里）"}, {"label": "3試合目", "code": "6B-19", "time": "13:40", "court": "14", "opp": "13番の勝者"}, {"label": "準決勝", "code": "6B-22", "time": "15:20", "court": "2", "opp": "20番の勝者"}], "final": {"label": "決勝", "code": "6B-決勝", "time": "16:10", "court": "6", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "6B-三決", "time": "16:10", "court": "5", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "6BZ-2", "time": "14:30", "court": "16", "opp": "(10敗者)"}, {"code": "6BZ-6", "time": "14:42", "court": "9", "opp": "(2敗者)"}]}, {"id": "p19", "cat": "5年生男子（5B）", "catCode": "5B", "name": "香西 信ノ輔", "main": [{"label": "初戦", "code": "5B-2", "time": "10:20", "court": "5", "opp": "藤本 弘文（仰木の里）"}, {"label": "2試合目", "code": "5B-13", "time": "12:25", "court": "14", "opp": "3番の勝者"}, {"label": "3試合目", "code": "5B-20", "time": "13:40", "court": "16", "opp": "12番の勝者"}, {"label": "準決勝", "code": "5B-24", "time": "15:20", "court": "3", "opp": "21番の勝者"}], "final": {"label": "決勝", "code": "5B-決勝", "time": "16:10", "court": "8", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "5B-三決", "time": "16:10", "court": "7", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "5BZ-2", "time": "14:30", "court": "9", "opp": "(1敗者)"}, {"code": "5BZ-5", "time": "15:20", "court": "13", "opp": "(9敗者)"}]}, {"id": "p20", "cat": "5年生男子（5B）", "catCode": "5B", "name": "小林 鈴空", "main": [{"label": "初戦", "code": "5B-7", "time": "10:20", "court": "10", "opp": "山﨑 颯仁（ベイシック）"}, {"label": "2試合目", "code": "5B-17", "time": "12:25", "court": "18", "opp": "8番の勝者"}, {"label": "3試合目", "code": "5B-22", "time": "13:40", "court": "18", "opp": "16番の勝者"}, {"label": "準決勝", "code": "5B-25", "time": "15:20", "court": "4", "opp": "23番の勝者"}], "final": {"label": "決勝", "code": "5B-決勝", "time": "16:10", "court": "8", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "5B-三決", "time": "16:10", "court": "7", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "5BZ-1", "time": "14:17", "court": "19", "opp": "(8敗者)"}, {"code": "5BZ-9", "time": "15:20", "court": "17", "opp": "(3敗者)"}]}, {"id": "p21", "cat": "4年生男子（4B）", "catCode": "4B", "name": "辻 琉希", "main": [{"label": "初戦", "code": "4B-2", "time": "10:20", "court": "16", "opp": "西田 陽真（ベイシック）"}, {"label": "2試合目", "code": "4B-9", "time": "13:15", "court": "15", "opp": "1番の勝者"}, {"label": "準決勝", "code": "4B-13", "time": "14:55", "court": "1", "opp": "10番の勝者"}], "final": {"label": "決勝", "code": "4B-決勝", "time": "15:45", "court": "6", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "4B-三決", "time": "15:45", "court": "5", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "4BZ-3", "time": "14:55", "court": "10", "opp": "(1敗者)"}, {"code": "4BZ-5", "time": "15:57", "court": "11", "opp": "4BZ-1の勝者"}]}, {"id": "p22", "cat": "4年生男子（4B）", "catCode": "4B", "name": "西岡 大翔", "main": [{"label": "初戦", "code": "4B-4", "time": "10:20", "court": "18", "opp": "山田 莉久翔（SEPT）"}, {"label": "2試合目", "code": "4B-10", "time": "13:15", "court": "16", "opp": "3番の勝者"}, {"label": "準決勝", "code": "4B-13", "time": "14:55", "court": "1", "opp": "9番の勝者"}], "final": {"label": "決勝", "code": "4B-決勝", "time": "15:45", "court": "6", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "4B-三決", "time": "15:45", "court": "5", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "4BZ-4", "time": "14:55", "court": "11", "opp": "(3敗者)"}, {"code": "4BZ-6", "time": "15:57", "court": "12", "opp": "4BZ-2の勝者"}]}, {"id": "p23", "cat": "4年生男子（4B）", "catCode": "4B", "name": "上坂 拓実", "main": [{"label": "初戦", "code": "4B-5", "time": "10:20", "court": "19", "opp": "井上 大登（MBJ）"}, {"label": "2試合目", "code": "4B-11", "time": "13:15", "court": "17", "opp": "6番の勝者"}, {"label": "準決勝", "code": "4B-14", "time": "14:55", "court": "2", "opp": "12番の勝者"}], "final": {"label": "決勝", "code": "4B-決勝", "time": "15:45", "court": "6", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "4B-三決", "time": "15:45", "court": "5", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "4BZ-1", "time": "14:42", "court": "19", "opp": "(6敗者)"}, {"code": "4BZ-7", "time": "15:57", "court": "13", "opp": "4BZ-3の勝者"}]}, {"id": "p24", "cat": "4年生男子（4B）", "catCode": "4B", "name": "西川 一燈", "main": [{"label": "初戦", "code": "4B-6", "time": "10:45", "court": "1", "opp": "竹端 郷（仰木の里）"}, {"label": "2試合目", "code": "4B-11", "time": "13:15", "court": "17", "opp": "5番の勝者"}, {"label": "準決勝", "code": "4B-14", "time": "14:55", "court": "2", "opp": "12番の勝者"}], "final": {"label": "決勝", "code": "4B-決勝", "time": "15:45", "court": "6", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "4B-三決", "time": "15:45", "court": "5", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "4BZ-1", "time": "14:42", "court": "19", "opp": "(5敗者)"}, {"code": "4BZ-7", "time": "15:57", "court": "13", "opp": "4BZ-3の勝者"}]}, {"id": "p25", "cat": "3年生男子（3B）", "catCode": "3B", "name": "岸上 楓向", "main": [{"label": "初戦", "code": "3B-4", "time": "10:45", "court": "7", "opp": "保田 蒼太（仰木の里）"}, {"label": "2試合目", "code": "3B-12", "time": "12:50", "court": "6", "opp": "谷口 琥珀（瀬田北）"}, {"label": "3試合目", "code": "3B-18", "time": "14:05", "court": "3", "opp": "13番の勝者"}, {"label": "準決勝", "code": "3B-21", "time": "15:20", "court": "6", "opp": "19番の勝者"}], "final": {"label": "決勝", "code": "3B-決勝", "time": "16:35", "court": "2", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "3B-三決", "time": "16:35", "court": "1", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "3BZ-7", "time": "14:42", "court": "18", "opp": "(15敗者)"}, {"code": "3BZ-4", "time": "14:42", "court": "15", "opp": "(1敗者)"}]}, {"id": "p26", "cat": "2年生以下男子（2B）", "catCode": "2B", "name": "島田 琉空", "main": [{"label": "初戦", "code": "2B-5", "time": "10:45", "court": "15", "opp": "進藤 海沙（仰木の里）"}, {"label": "2試合目", "code": "2B-10", "time": "13:40", "court": "2", "opp": "4番の勝者"}, {"label": "準決勝", "code": "2B-13", "time": "14:55", "court": "4", "opp": "11番の勝者"}], "final": {"label": "決勝", "code": "2B-決勝", "time": "15:45", "court": "8", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "2B-三決", "time": "15:45", "court": "7", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "2BZ-1", "time": "14:55", "court": "15", "opp": "(6敗者)"}, {"code": "2BZ-6", "time": "16:10", "court": "10", "opp": "2BZ-2の勝者"}]}], "grid": {"2B-1": ["10:45", 11], "2B-10": ["13:40", 2], "2B-11": ["13:40", 3], "2B-12": ["14:55", 3], "2B-13": ["14:55", 4], "2B-2": ["10:45", 12], "2B-3": ["10:45", 13], "2B-4": ["10:45", 14], "2B-5": ["10:45", 15], "2B-6": ["10:45", 16], "2B-7": ["10:45", 17], "2B-8": ["13:15", 19], "2B-9": ["13:40", 1], "2B-三決": ["15:45", 7], "2B-決勝": ["15:45", 8], "2BZ-1": ["14:55", 15], "2BZ-2": ["14:55", 16], "2BZ-3": ["14:55", 17], "2BZ-4": ["15:57", 19], "2BZ-5": ["16:10", 9], "2BZ-6": ["16:10", 10], "2BZ-7": ["16:10", 11], "2BZ-8": ["16:35", 18], "2BZ-9": ["16:35", 19], "2BZ-決勝": ["17:00", 13], "2G-1": ["10:45", 18], "2G-10": ["13:40", 6], "2G-11": ["13:40", 7], "2G-12": ["14:55", 5], "2G-13": ["14:55", 6], "2G-2": ["10:45", 19], "2G-3": ["11:10", 1], "2G-4": ["11:10", 2], "2G-5": ["11:10", 3], "2G-6": ["11:10", 4], "2G-7": ["11:10", 5], "2G-8": ["13:40", 4], "2G-9": ["13:40", 5], "2G-三決": ["16:10", 1], "2G-決勝": ["16:10", 2], "2GZ-1": ["14:55", 12], "2GZ-2": ["14:55", 13], "2GZ-3": ["14:55", 14], "2GZ-4": ["15:57", 15], "2GZ-5": ["15:57", 16], "2GZ-6": ["15:57", 17], "2GZ-7": ["15:57", 18], "2GZ-8": ["16:35", 16], "2GZ-9": ["16:35", 17], "2GZ-決勝": ["17:00", 12], "3B-1": ["10:45", 4], "3B-10": ["12:50", 4], "3B-11": ["12:50", 5], "3B-12": ["12:50", 6], "3B-13": ["12:50", 7], "3B-14": ["12:50", 8], "3B-15": ["12:50", 9], "3B-16": ["14:05", 1], "3B-17": ["14:05", 2], "3B-18": ["14:05", 3], "3B-19": ["14:05", 4], "3B-2": ["10:45", 5], "3B-20": ["15:20", 5], "3B-21": ["15:20", 6], "3B-3": ["10:45", 6], "3B-4": ["10:45", 7], "3B-5": ["10:45", 8], "3B-6": ["10:45", 9], "3B-7": ["10:45", 10], "3B-8": ["12:50", 2], "3B-9": ["12:50", 3], "3B-三決": ["16:35", 1], "3B-決勝": ["16:35", 2], "3BZ-1": ["14:42", 12], "3BZ-10": ["15:57", 9], "3BZ-11": ["15:57", 10], "3BZ-12": ["16:35", 12], "3BZ-13": ["16:35", 13], "3BZ-2": ["14:42", 13], "3BZ-3": ["14:42", 14], "3BZ-4": ["14:42", 15], "3BZ-5": ["14:42", 16], "3BZ-6": ["14:42", 17], "3BZ-7": ["14:42", 18], "3BZ-8": ["15:45", 18], "3BZ-9": ["15:45", 19], "3BZ-決勝": ["17:00", 10], "3G-1": ["09:30", 1], "3G-10": ["11:10", 13], "3G-11": ["11:10", 14], "3G-12": ["11:10", 15], "3G-13": ["11:10", 16], "3G-14": ["11:10", 17], "3G-15": ["11:10", 18], "3G-16": ["11:10", 19], "3G-17": ["11:35", 1], "3G-18": ["11:35", 2], "3G-19": ["12:50", 10], "3G-2": ["09:30", 2], "3G-20": ["12:50", 11], "3G-21": ["12:50", 12], "3G-22": ["12:50", 13], "3G-23": ["12:50", 14], "3G-24": ["12:50", 15], "3G-25": ["12:50", 16], "3G-26": ["12:50", 17], "3G-27": ["14:05", 5], "3G-28": ["14:05", 6], "3G-29": ["14:05", 7], "3G-3": ["11:10", 6], "3G-30": ["14:05", 8], "3G-31": ["15:20", 7], "3G-32": ["15:20", 8], "3G-4": ["11:10", 7], "3G-5": ["11:10", 8], "3G-6": ["11:10", 9], "3G-7": ["11:10", 10], "3G-8": ["11:10", 11], "3G-9": ["11:10", 12], "3G-三決": ["16:35", 3], "3G-決勝": ["16:35", 4], "3GZ-1": ["14:30", 13], "3GZ-10": ["15:45", 13], "3GZ-11": ["16:22", 17], "3GZ-12": ["16:22", 18], "3GZ-13": ["16:22", 19], "3GZ-14": ["16:35", 9], "3GZ-15": ["16:47", 17], "3GZ-16": ["16:47", 18], "3GZ-2": ["14:30", 14], "3GZ-3": ["15:32", 17], "3GZ-4": ["15:32", 18], "3GZ-5": ["15:32", 19], "3GZ-6": ["15:45", 9], "3GZ-7": ["15:45", 10], "3GZ-8": ["15:45", 11], "3GZ-9": ["15:45", 12], "3GZ-決勝": ["17:00", 18], "4B-1": ["10:20", 15], "4B-10": ["13:15", 16], "4B-11": ["13:15", 17], "4B-12": ["13:15", 18], "4B-13": ["14:55", 1], "4B-14": ["14:55", 2], "4B-2": ["10:20", 16], "4B-3": ["10:20", 17], "4B-4": ["10:20", 18], "4B-5": ["10:20", 19], "4B-6": ["10:45", 1], "4B-7": ["10:45", 2], "4B-8": ["10:45", 3], "4B-9": ["13:15", 15], "4B-三決": ["15:45", 5], "4B-決勝": ["15:45", 6], "4BZ-1": ["14:42", 19], "4BZ-10": ["16:35", 15], "4BZ-2": ["14:55", 9], "4BZ-3": ["14:55", 10], "4BZ-4": ["14:55", 11], "4BZ-5": ["15:57", 11], "4BZ-6": ["15:57", 12], "4BZ-7": ["15:57", 13], "4BZ-8": ["15:57", 14], "4BZ-9": ["16:35", 14], "4BZ-決勝": ["17:00", 11], "4G-1": ["09:55", 5], "4G-10": ["09:55", 14], "4G-11": ["12:00", 16], "4G-12": ["12:00", 17], "4G-13": ["12:00", 18], "4G-14": ["12:00", 19], "4G-15": ["12:25", 1], "4G-16": ["12:25", 2], "4G-17": ["12:25", 3], "4G-18": ["12:25", 4], "4G-19": ["13:40", 8], "4G-2": ["09:55", 6], "4G-20": ["13:40", 9], "4G-21": ["13:40", 10], "4G-22": ["13:40", 11], "4G-23": ["14:55", 7], "4G-24": ["14:55", 8], "4G-3": ["09:55", 7], "4G-4": ["09:55", 8], "4G-5": ["09:55", 9], "4G-6": ["09:55", 10], "4G-7": ["09:55", 11], "4G-8": ["09:55", 12], "4G-9": ["09:55", 13], "4G-三決": ["16:10", 3], "4G-決勝": ["16:10", 4], "4GZ-1": ["14:30", 11], "4GZ-10": ["15:32", 16], "4GZ-11": ["16:22", 13], "4GZ-12": ["16:22", 14], "4GZ-13": ["16:22", 15], "4GZ-14": ["16:22", 16], "4GZ-15": ["16:47", 15], "4GZ-16": ["16:47", 16], "4GZ-2": ["14:30", 12], "4GZ-3": ["15:32", 9], "4GZ-4": ["15:32", 10], "4GZ-5": ["15:32", 11], "4GZ-6": ["15:32", 12], "4GZ-7": ["15:32", 13], "4GZ-8": ["15:32", 14], "4GZ-9": ["15:32", 15], "4GZ-決勝": ["17:00", 17], "5B-1": ["10:20", 4], "5B-10": ["10:20", 13], "5B-11": ["10:20", 14], "5B-12": ["12:25", 13], "5B-13": ["12:25", 14], "5B-14": ["12:25", 15], "5B-15": ["12:25", 16], "5B-16": ["12:25", 17], "5B-17": ["12:25", 18], "5B-18": ["12:25", 19], "5B-19": ["12:50", 1], "5B-2": ["10:20", 5], "5B-20": ["13:40", 16], "5B-21": ["13:40", 17], "5B-22": ["13:40", 18], "5B-23": ["13:40", 19], "5B-24": ["15:20", 3], "5B-25": ["15:20", 4], "5B-3": ["10:20", 6], "5B-4": ["10:20", 7], "5B-5": ["10:20", 8], "5B-6": ["10:20", 9], "5B-7": ["10:20", 10], "5B-8": ["10:20", 11], "5B-9": ["10:20", 12], "5B-三決": ["16:10", 7], "5B-決勝": ["16:10", 8], "5BZ-1": ["14:17", 19], "5BZ-10": ["15:20", 18], "5BZ-11": ["15:20", 19], "5BZ-12": ["16:22", 9], "5BZ-13": ["16:22", 10], "5BZ-14": ["16:22", 11], "5BZ-15": ["16:22", 12], "5BZ-16": ["16:47", 13], "5BZ-17": ["16:47", 14], "5BZ-2": ["14:30", 9], "5BZ-3": ["14:30", 10], "5BZ-4": ["15:20", 12], "5BZ-5": ["15:20", 13], "5BZ-6": ["15:20", 14], "5BZ-7": ["15:20", 15], "5BZ-8": ["15:20", 16], "5BZ-9": ["15:20", 17], "5BZ-決勝": ["17:00", 16], "5G-1": ["09:30", 3], "5G-10": ["09:30", 12], "5G-11": ["11:35", 3], "5G-12": ["11:35", 4], "5G-13": ["11:35", 5], "5G-14": ["11:35", 6], "5G-15": ["11:35", 7], "5G-16": ["11:35", 8], "5G-17": ["11:35", 9], "5G-18": ["11:35", 10], "5G-19": ["11:35", 11], "5G-2": ["09:30", 4], "5G-20": ["11:35", 12], "5G-21": ["11:35", 13], "5G-22": ["11:35", 14], "5G-23": ["11:35", 15], "5G-24": ["11:35", 16], "5G-25": ["11:35", 17], "5G-26": ["11:35", 18], "5G-27": ["12:50", 18], "5G-28": ["12:50", 19], "5G-29": ["13:15", 1], "5G-3": ["09:30", 5], "5G-30": ["13:15", 2], "5G-31": ["13:15", 3], "5G-32": ["13:15", 4], "5G-33": ["13:15", 5], "5G-34": ["13:15", 6], "5G-35": ["14:30", 1], "5G-36": ["14:30", 2], "5G-37": ["14:30", 3], "5G-38": ["14:30", 4], "5G-39": ["15:45", 1], "5G-4": ["09:30", 6], "5G-40": ["15:45", 2], "5G-5": ["09:30", 7], "5G-6": ["09:30", 8], "5G-7": ["09:30", 9], "5G-8": ["09:30", 10], "5G-9": ["09:30", 11], "5G-三決": ["16:35", 5], "5G-決勝": ["16:35", 6], "5GZ-1": ["14:17", 9], "5GZ-10": ["14:17", 18], "5GZ-11": ["15:07", 15], "5GZ-12": ["15:07", 16], "5GZ-13": ["15:07", 17], "5GZ-14": ["15:07", 18], "5GZ-15": ["15:07", 19], "5GZ-16": ["15:20", 9], "5GZ-17": ["15:20", 10], "5GZ-18": ["15:20", 11], "5GZ-19": ["16:10", 16], "5GZ-2": ["14:17", 10], "5GZ-20": ["16:10", 17], "5GZ-21": ["16:10", 18], "5GZ-22": ["16:10", 19], "5GZ-23": ["16:47", 11], "5GZ-24": ["16:47", 12], "5GZ-3": ["14:17", 11], "5GZ-4": ["14:17", 12], "5GZ-5": ["14:17", 13], "5GZ-6": ["14:17", 14], "5GZ-7": ["14:17", 15], "5GZ-8": ["14:17", 16], "5GZ-9": ["14:17", 17], "5GZ-決勝": ["17:00", 15], "6B-1": ["09:55", 15], "6B-10": ["12:25", 6], "6B-11": ["12:25", 7], "6B-12": ["12:25", 8], "6B-13": ["12:25", 9], "6B-14": ["12:25", 10], "6B-15": ["12:25", 11], "6B-16": ["12:25", 12], "6B-17": ["13:40", 12], "6B-18": ["13:40", 13], "6B-19": ["13:40", 14], "6B-2": ["09:55", 16], "6B-20": ["13:40", 15], "6B-21": ["15:20", 1], "6B-22": ["15:20", 2], "6B-3": ["09:55", 17], "6B-4": ["09:55", 18], "6B-5": ["09:55", 19], "6B-6": ["10:20", 1], "6B-7": ["10:20", 2], "6B-8": ["10:20", 3], "6B-9": ["12:25", 5], "6B-三決": ["16:10", 5], "6B-決勝": ["16:10", 6], "6BZ-1": ["14:30", 15], "6BZ-10": ["15:45", 15], "6BZ-11": ["15:45", 16], "6BZ-12": ["15:45", 17], "6BZ-13": ["16:35", 10], "6BZ-14": ["16:35", 11], "6BZ-2": ["14:30", 16], "6BZ-3": ["14:30", 17], "6BZ-4": ["14:30", 18], "6BZ-5": ["14:30", 19], "6BZ-6": ["14:42", 9], "6BZ-7": ["14:42", 10], "6BZ-8": ["14:42", 11], "6BZ-9": ["15:45", 14], "6BZ-決勝": ["17:00", 9], "6G-1": ["09:30", 13], "6G-10": ["09:55", 3], "6G-11": ["09:55", 4], "6G-12": ["11:35", 19], "6G-13": ["12:00", 1], "6G-14": ["12:00", 2], "6G-15": ["12:00", 3], "6G-16": ["12:00", 4], "6G-17": ["12:00", 5], "6G-18": ["12:00", 6], "6G-19": ["12:00", 7], "6G-2": ["09:30", 14], "6G-20": ["12:00", 8], "6G-21": ["12:00", 9], "6G-22": ["12:00", 10], "6G-23": ["12:00", 11], "6G-24": ["12:00", 12], "6G-25": ["12:00", 13], "6G-26": ["12:00", 14], "6G-27": ["12:00", 15], "6G-28": ["13:15", 7], "6G-29": ["13:15", 8], "6G-3": ["09:30", 15], "6G-30": ["13:15", 9], "6G-31": ["13:15", 10], "6G-32": ["13:15", 11], "6G-33": ["13:15", 12], "6G-34": ["13:15", 13], "6G-35": ["13:15", 14], "6G-36": ["14:30", 5], "6G-37": ["14:30", 6], "6G-38": ["14:30", 7], "6G-39": ["14:30", 8], "6G-4": ["09:30", 16], "6G-40": ["15:45", 3], "6G-41": ["15:45", 4], "6G-5": ["09:30", 17], "6G-6": ["09:30", 18], "6G-7": ["09:30", 19], "6G-8": ["09:55", 1], "6G-9": ["09:55", 2], "6G-三決": ["16:35", 7], "6G-決勝": ["16:35", 8], "6GZ-1": ["14:05", 9], "6GZ-10": ["14:05", 18], "6GZ-11": ["14:05", 19], "6GZ-12": ["14:55", 18], "6GZ-13": ["14:55", 19], "6GZ-14": ["15:07", 9], "6GZ-15": ["15:07", 10], "6GZ-16": ["15:07", 11], "6GZ-17": ["15:07", 12], "6GZ-18": ["15:07", 13], "6GZ-19": ["15:07", 14], "6GZ-2": ["14:05", 10], "6GZ-20": ["16:10", 12], "6GZ-21": ["16:10", 13], "6GZ-22": ["16:10", 14], "6GZ-23": ["16:10", 15], "6GZ-24": ["16:47", 9], "6GZ-25": ["16:47", 10], "6GZ-3": ["14:05", 11], "6GZ-4": ["14:05", 12], "6GZ-5": ["14:05", 13], "6GZ-6": ["14:05", 14], "6GZ-7": ["14:05", 15], "6GZ-8": ["14:05", 16], "6GZ-9": ["14:05", 17], "6GZ-決勝": ["17:00", 14]}}</script>
 <script src="https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js"></script>
 <script>
 "use strict";
@@ -129,7 +180,6 @@ function nodeOf(player, kind, idx){
   return null;
 }
 function applyResult(player, cur, result){
-  // cur の試合結果 result ("W"|"L") を受けて {next:node|null, doneLabel:string|null} を返す
   if (!cur) return {next:null, doneLabel:"終了"};
   if (cur.kind === "main"){
     var isSemi = cur.label === "準決勝";
@@ -137,7 +187,6 @@ function applyResult(player, cur, result){
       if (isSemi) return {next: nodeOf(player,"final"), doneLabel:null};
       return {next: nodeOf(player,"main",cur.idx+1), doneLabel:null};
     }
-    // lose
     if (cur.idx <= 1){
       var ch = nodeOf(player,"challenge",cur.idx);
       if (ch) return {next: ch, doneLabel:null};
@@ -156,13 +205,72 @@ function playerProgress(player, entries){
     var e = entries[i];
     if (e.pid !== player.id) continue;
     if (!cur) break;
-    if (e.code !== cur.code || e.kind !== cur.kind) continue; // データ不整合の記録は飛ばす
+    if (e.code !== cur.code || e.kind !== cur.kind) continue;
     past.push({node:cur, result:e.result});
     var r = applyResult(player, cur, e.result);
     cur = r.next; doneLabel = r.doneLabel;
     if (!cur && !doneLabel) doneLabel = "終了";
   }
   return {past:past, current:cur, doneLabel: cur ? null : (doneLabel || "終了")};
+}
+function nodeKey(n){ return n ? n.kind+":"+n.code : ""; }
+function possibleKeys(player, progress){
+  // 現在地から起こりうる今後の試合（勝ち続けルート＋途中の負け分岐）
+  var set = {};
+  var cur = progress.current;
+  if (!cur) return set;
+  set[nodeKey(cur)] = true;
+  var guard = 0, n = cur;
+  while (n && guard++ < 12){
+    if (n.kind === "main" && n.idx <= 1){
+      var ch = nodeOf(player,"challenge",n.idx);
+      if (ch) set[nodeKey(ch)] = true;
+    }
+    if (n.kind === "main" && n.label === "準決勝"){
+      var th = nodeOf(player,"third");
+      if (th) set[nodeKey(th)] = true;
+    }
+    var r = applyResult(player, n, "W");
+    n = r.next;
+    if (n) set[nodeKey(n)] = true;
+  }
+  return set;
+}
+function buildAnnotations(data){
+  // code -> [{pid, name, catCode, kind:'confirmed'|'win'|'challenge', nodeKind, nodeIdx, head, sub}]
+  var map = {};
+  function add(code, seg){ seg.code = code; (map[code] = map[code] || []).push(seg); }
+  data.players.forEach(function(p){
+    p.main.forEach(function(m, i){
+      if (i === 0) add(m.code, {pid:p.id, name:p.name, catCode:p.catCode, kind:"confirmed", nodeKind:"main", nodeIdx:0, head:"唐崎 "+p.name, sub:"vs "+(m.opp||"")});
+      else add(m.code, {pid:p.id, name:p.name, catCode:p.catCode, kind:"win", nodeKind:"main", nodeIdx:i, head:"勝てば 唐崎 "+p.name, sub:m.label});
+    });
+    if (p.final) add(p.final.code, {pid:p.id, name:p.name, catCode:p.catCode, kind:"win", nodeKind:"final", nodeIdx:-1, head:"勝てば 唐崎 "+p.name, sub:"決勝"});
+    if (p.third) add(p.third.code, {pid:p.id, name:p.name, catCode:p.catCode, kind:"win", nodeKind:"third", nodeIdx:-1, head:"準決で負けたら 唐崎 "+p.name, sub:"3位決定戦"});
+    (p.challenge||[]).forEach(function(c, i){
+      if (c) add(c.code, {pid:p.id, name:p.name, catCode:p.catCode, kind:"challenge", nodeKind:"challenge", nodeIdx:i, head:p.main[i].code+"で負けたら 唐崎 "+p.name, sub:"チャレンジ初戦 vs "+(c.opp||"")});
+    });
+  });
+  return map;
+}
+function liveInfo(data, entries){
+  // pid -> {progress, pastMap(key->result), possible(set), currentKey}
+  var out = {};
+  data.players.forEach(function(p){
+    var pr = playerProgress(p, entries);
+    var pastMap = {};
+    pr.past.forEach(function(x){ pastMap[nodeKey(x.node)] = x.result; });
+    out[p.id] = {progress:pr, pastMap:pastMap, possible:possibleKeys(p, pr), currentKey:nodeKey(pr.current)};
+  });
+  return out;
+}
+function segState(seg, live){
+  var li = live[seg.pid]; if (!li) return "future";
+  var key = seg.nodeKind+":"+seg.code;
+  if (li.pastMap[key]) return "past-"+li.pastMap[key];
+  if (li.currentKey === key) return "current";
+  if (li.possible[key]) return "future";
+  return "dead";
 }
 function nextMatches(data, entries){
   var out = [];
@@ -181,13 +289,14 @@ function nextMatches(data, entries){
 }
 // === LOGIC END ===
 if (typeof module !== "undefined" && module.exports){
-  module.exports = {nodeOf:nodeOf, applyResult:applyResult, playerProgress:playerProgress, nextMatches:nextMatches};
+  module.exports = {nodeOf:nodeOf, applyResult:applyResult, playerProgress:playerProgress, nextMatches:nextMatches, buildAnnotations:buildAnnotations, liveInfo:liveInfo, possibleKeys:possibleKeys, nodeKey:nodeKey, segState:segState};
 }
 </script>
 <script>
 "use strict";
 var DATA = JSON.parse(document.getElementById("tournament-data").textContent);
-var BROKERS = ["wss://broker.emqx.io:8084/mqtt", "wss://broker.hivemq.com:8884/mqtt"];
+var ANN = buildAnnotations(DATA);
+var BROKERS = ["wss://mqtt.eclipseprojects.io:443/mqtt", "wss://broker.emqx.io:8084/mqtt", "wss://broker.hivemq.com:8884/mqtt"];
 var TOPIC_PREFIX = "kztt/v1/";
 var ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789";
 function $(id){ return document.getElementById(id); }
@@ -199,22 +308,20 @@ function pageBase(){ return location.href.split("#")[0]; }
 function hashParams(){ var h=location.hash.replace(/^#/,""); var o={}; h.split("&").forEach(function(kv){ var p=kv.split("="); if(p[0]) o[p[0]]=p[1]||""; }); return o; }
 
 var App = {
-  role:null, room:null, key:null, vhash:null,
+  role:null, isLocal:false, room:null, key:null, vhash:null,
   state:{v:1, seq:0, entries:[]},
-  lastSeq:-1, tab:"next", ready:false,
+  lastSeq:-1, tab:(window.innerWidth>=821 ? "grid" : "list"), ready:false, karaOnly:false, focusPid:null,
   client:null, connected:false, bc:null,
   lsKey:function(){ return "kztt_state_" + (this.room || "local"); },
   saveLocal:function(){ try{ localStorage.setItem(this.lsKey(), JSON.stringify(this.state)); }catch(e){} },
   loadLocal:function(){ try{ var s=localStorage.getItem(this.lsKey()); if(s){ var st=JSON.parse(s); if(st && st.v===1 && Array.isArray(st.entries)) { this.state=st; this.lastSeq=st.seq||0; } } }catch(e){} },
   setConn:function(kind, text){ var d=$("conn-dot"); d.className="dot "+kind; $("conn-text").textContent=text; },
-
   startSync:function(){
     var self=this;
     try{ this.bc=new BroadcastChannel("kztt-"+this.room); this.bc.onmessage=function(ev){ self.receive(ev.data); }; }catch(e){}
     this.setConn("mid","接続中…");
     if (typeof mqtt==="undefined"){ this.setConn("off","中継ライブラリを読み込めませんでした"); this.ready=true; render(); return; }
     this.connectBroker(0);
-    // 操作側: 既存の保持状態を取りこぼさないよう、少し待ってから入力を有効化する
     if (this.role==="op"){ setTimeout(function(){ self.ready=true; render(); }, 2600); } else { this.ready=true; }
   },
   connectBroker:function(idx){
@@ -280,12 +387,39 @@ var App = {
   }
 };
 
-function pastText(past){
-  if(!past.length) return "";
-  return past.map(function(x){ return esc(x.node.code)+" "+(x.result==="W"?'<span class="w">勝ち</span>':'<span class="l">負け</span>'); }).join(" → ");
+function live(){ return liveInfo(DATA, App.state.entries); }
+function query(){ return $("q").value.trim(); }
+function segMatchesQ(seg){
+  var q=query(); if(!q) return true;
+  return seg.name.indexOf(q)>=0 || seg.code.indexOf(q)>=0 || seg.catCode===q;
 }
-function matchQuery(p){ var q=$("q").value.trim(); return !q || p.name.indexOf(q)>=0 || p.cat.indexOf(q)>=0; }
-
+function segHtml(seg, lv){
+  var st = segState(seg, lv);
+  var cls = seg.kind==="confirmed" ? "who" : (seg.kind==="win" ? "who2" : "who3");
+  var badge = "";
+  if (st==="past-W") badge = ' <span class="res w">勝ち</span>';
+  else if (st==="past-L") badge = ' <span class="res l">負け</span>';
+  else if (st==="current") badge = ' <span class="now">← いまの次の試合</span>';
+  return '<div class="seg'+(st==="dead"?' dead':'')+'"><span class="'+cls+'">'+esc(seg.head)+badge+'</span>'+(seg.sub?'<span class="vs">'+esc(seg.sub)+'</span>':'')+'</div>';
+}
+function cellClass(segs, lv){
+  if (!segs || !segs.length) return "plain";
+  var states = segs.map(function(s){ return segState(s, lv); });
+  if (states.indexOf("current")>=0) return "cell-current kz";
+  var alive = segs.filter(function(s,i){ return states[i]!=="dead"; });
+  if (!alive.length) return "cell-decided kz";
+  var kinds = {};
+  alive.forEach(function(s){ kinds[s.kind]=true; });
+  if (kinds.confirmed) return "cell-confirmed kz";
+  if (kinds.win) return "cell-win kz";
+  if (kinds.challenge) return "cell-challenge kz";
+  return "cell-decided kz";
+}
+function timesList(){
+  var set={};
+  Object.keys(DATA.grid).forEach(function(code){ set[DATA.grid[code][0]]=true; });
+  return Object.keys(set).sort();
+}
 function render(){
   $("h-title").textContent = (DATA.meta.team||"")+" 共有タイムテーブル";
   $("h-meta").textContent = [DATA.meta.date, DATA.meta.venue, DATA.meta.title].filter(Boolean).join(" ・ ");
@@ -301,67 +435,153 @@ function render(){
   $("share-box").classList.toggle("hidden", !(App.role==="op" && !App.isLocal));
   if(App.role==="op" && !App.isLocal){ $("viewer-link").textContent = pageBase()+"#r="+App.room+"&v="+App.vhash; }
   $("btn-undo").classList.toggle("hidden", !(App.role==="op" && App.state.entries.length));
-  ["next","players","history"].forEach(function(t){ $("tab-"+t).classList.toggle("sel", App.tab===t); });
-  var list=$("list");
-  if(App.tab==="next") list.innerHTML = viewNext();
-  else if(App.tab==="players") list.innerHTML = viewPlayers();
-  else list.innerHTML = viewHistory();
-  bindCards();
+  Array.prototype.forEach.call(document.querySelectorAll("[data-tab]"), function(b){ b.classList.toggle("on", b.getAttribute("data-tab")===App.tab); });
+  $("btn-kara").classList.toggle("hidden", App.tab!=="grid");
+  $("btn-font").classList.toggle("hidden", App.tab!=="grid");
+  $("btn-kara").classList.toggle("on", App.karaOnly);
+  $("btn-kara").textContent = App.karaOnly ? "すべての時間を表示" : "唐崎の時間だけ";
+  var lv = live();
+  var el = $("list");
+  if (App.tab==="grid") el.innerHTML = viewGrid(lv);
+  else if (App.tab==="list") el.innerHTML = viewList(lv);
+  else if (App.tab==="next") el.innerHTML = viewNext();
+  else if (App.tab==="players") el.innerHTML = viewPlayers();
+  else el.innerHTML = viewHistory();
+  bindActions();
+  if (App.focusPid){
+    var t=document.getElementById("card-"+App.focusPid);
+    if(t){ t.scrollIntoView({block:"center"}); t.classList.add("flash"); }
+    App.focusPid=null;
+  }
+}
+function viewGrid(lv){
+  var times = timesList();
+  var courts=[]; for(var c=1;c<=19;c++) courts.push(c);
+  var byTC={};
+  Object.keys(DATA.grid).forEach(function(code){ var g=DATA.grid[code]; byTC[g[0]+"|"+g[1]]=code; });
+  var q=query();
+  var html='<div class="gridwrap"><table class="tt"><thead><tr><th class="time">時刻</th>'+courts.map(function(c){return "<th>"+c+"コート</th>";}).join("")+"</tr></thead><tbody>";
+  times.forEach(function(t){
+    var rowCodes = courts.map(function(c){ return byTC[t+"|"+c]; }).filter(Boolean);
+    var hasKz = rowCodes.some(function(code){ return ANN[code]; });
+    if (App.karaOnly && !hasKz) return;
+    if (q && !rowCodes.some(function(code){ return (ANN[code]||[]).some(segMatchesQ) || code.indexOf(q)>=0; })) return;
+    html+='<tr><th class="time">'+esc(t)+"</th>";
+    courts.forEach(function(c){
+      var code=byTC[t+"|"+c];
+      if(!code){ html+='<td class="plain"></td>'; return; }
+      var segs=ANN[code];
+      if(!segs){ html+='<td class="plain"><div class="code">'+esc(code)+"</div></td>"; return; }
+      html+='<td class="'+cellClass(segs, lv)+'" data-code="'+esc(code)+'"><div class="code">'+esc(code)+"</div>"+segs.map(function(s){ return segHtml(s, lv); }).join("")+"</td>";
+    });
+    html+="</tr>";
+  });
+  return html+"</tbody></table></div>";
+}
+function viewList(lv){
+  var times=timesList(), q=query();
+  var html='<div class="listwrap">';
+  var any=false;
+  times.forEach(function(t){
+    var codes=Object.keys(DATA.grid).filter(function(c){ return DATA.grid[c][0]===t; }).sort(function(a,b){ return DATA.grid[a][1]-DATA.grid[b][1]; });
+    var kz=codes.filter(function(c){ return ANN[c]; });
+    var others=codes.filter(function(c){ return !ANN[c]; });
+    if (q){
+      kz=kz.filter(function(c){ return ANN[c].some(segMatchesQ); });
+      if(!kz.length) return;
+      others=[];
+    }
+    any=true;
+    html+='<div class="thead">'+esc(t)+'</div>';
+    kz.forEach(function(code){
+      var segs=ANN[code], g=DATA.grid[code];
+      var states=segs.map(function(s){ return segState(s, lv); });
+      var cls = states.indexOf("current")>=0 ? "mcard current" : (segs[0].kind==="confirmed" && states.some(function(s){return s!=="dead";}) ? "mcard confirmed" : (segs[0].kind==="challenge" ? "mcard challenge" : "mcard win"));
+      if (states.every(function(s){ return s==="dead" || s.indexOf("past")===0; }) && states.indexOf("current")<0) cls="mcard decided";
+      html+='<div class="'+cls+'"><div class="m-top"><span class="m-code">'+esc(code)+'</span><span class="m-court">'+g[1]+'コート</span><span class="m-time">'+esc(t)+'</span></div>'
+        + segs.map(function(s){ return segHtml(s, lv); }).join("");
+      if (App.role==="op"){
+        segs.forEach(function(s){
+          if (segState(s, lv)==="current"){
+            html+='<div class="btnrow"><button class="btn-win" data-pid="'+s.pid+'" data-r="W" '+(App.ready?"":"disabled")+'>'+esc(s.name)+' 勝ち</button><button class="btn-lose" data-pid="'+s.pid+'" data-r="L" '+(App.ready?"":"disabled")+'>負け</button></div>';
+          }
+        });
+      }
+      html+="</div>";
+    });
+    if (others.length) html+='<div class="chips">'+others.map(function(c){ return '<span class="chip">'+esc(c)+"</span>"; }).join("")+"</div>";
+  });
+  if(!any) return '<div class="empty">該当する試合がありません</div>';
+  return html+"</div>";
+}
+function pastText(past){
+  if(!past.length) return "";
+  return past.map(function(x){ return esc(x.node.code)+" "+(x.result==="W"?'<span class="w">勝ち</span>':'<span class="l">負け</span>'); }).join(" → ");
 }
 function viewNext(){
-  var items = nextMatches(DATA, App.state.entries).filter(function(x){ return matchQuery(x.player); });
-  if(!items.length) return '<div class="empty">該当する選手がいません</div>';
-  return items.map(function(x){
+  var q=query();
+  var items = nextMatches(DATA, App.state.entries).filter(function(x){ return !q || x.player.name.indexOf(q)>=0 || x.player.cat.indexOf(q)>=0 || (x.node && x.node.code.indexOf(q)>=0); });
+  if(!items.length) return '<div class="cards"><div class="empty">該当する選手がいません</div></div>';
+  var html='<div class="cards">';
+  items.forEach(function(x){
     var p=x.player;
     if(!x.node){
-      return '<div class="card done"><div class="c-top"><span class="c-code">'+esc(p.catCode)+'</span></div><div class="c-name">'+esc(p.name)+'</div><div class="c-label">'+esc(x.doneLabel||"終了")+'（全試合終了）</div><div class="past">'+pastText(x.past)+'</div></div>';
+      html+='<div class="card done"><span class="c-code">'+esc(p.catCode)+'</span><div class="c-name">'+esc(p.name)+'</div><div class="c-label">'+esc(x.doneLabel||"終了")+'（全試合終了）</div><div class="past">'+pastText(x.past)+"</div></div>";
+      return;
     }
     var n=x.node;
-    var cls = n.kind==="challenge" ? "card ch" : (n.kind==="final"||n.kind==="third") ? "card fin" : "card";
-    var html = '<div class="'+cls+'"><div class="c-top"><span class="c-time">'+esc(n.time)+'</span><span class="c-court">'+esc(n.court)+'コート</span><span class="c-code">'+esc(n.code)+'</span></div>'
+    html+='<div class="card current" id="card-'+p.id+'"><span class="c-code">'+esc(n.code)+'</span><span class="c-time">'+esc(n.time)+'</span><span class="c-court">'+esc(n.court)+'コート</span>'
       +'<div class="c-name">'+esc(p.name)+'<span class="c-cat">'+esc(p.cat)+'</span></div>'
-      +'<div class="c-opp">vs '+esc(n.opp||"相手未定")+'</div>'
-      +'<div class="c-label">'+esc(n.label)+'</div>'
-      + (x.past.length ? '<div class="past">'+pastText(x.past)+'</div>' : '');
+      +'<div class="c-opp">vs '+esc(n.opp||"相手未定")+'</div><div class="c-label">'+esc(n.label)+'</div>'
+      + (x.past.length ? '<div class="past">'+pastText(x.past)+"</div>" : "");
     if(App.role==="op"){
-      html += '<div class="btnrow"><button class="btn-win" data-pid="'+p.id+'" data-r="W" '+(App.ready?"":"disabled")+'>勝ち</button><button class="btn-lose" data-pid="'+p.id+'" data-r="L" '+(App.ready?"":"disabled")+'>負け</button></div>'
+      html+='<div class="btnrow"><button class="btn-win" data-pid="'+p.id+'" data-r="W" '+(App.ready?"":"disabled")+'>勝ち</button><button class="btn-lose" data-pid="'+p.id+'" data-r="L" '+(App.ready?"":"disabled")+'>負け</button></div>'
         + (App.ready ? "" : '<div class="c-opp">同期確認中…（数秒お待ちください）</div>');
     }
-    return html+"</div>";
-  }).join("");
+    html+="</div>";
+  });
+  return html+"</div>";
 }
 function viewPlayers(){
-  var html="", cats=[];
+  var q=query(), html='<div class="cards">', cats=[];
   DATA.players.forEach(function(p){ if(cats.indexOf(p.cat)<0) cats.push(p.cat); });
   cats.forEach(function(cat){
-    var rows = DATA.players.filter(function(p){ return p.cat===cat && matchQuery(p); });
+    var rows=DATA.players.filter(function(p){ return p.cat===cat && (!q || p.name.indexOf(q)>=0); });
     if(!rows.length) return;
-    html += '<div class="gtitle">'+esc(cat)+'</div>';
+    html+='<div class="gtitle">'+esc(cat)+"</div>";
     rows.forEach(function(p){
       var pr=playerProgress(p, App.state.entries);
-      var next = pr.current ? "<b>"+esc(pr.current.time)+" "+esc(pr.current.court)+"コート</b><br>"+esc(pr.current.code)+" "+esc(pr.current.label) : "<b>"+esc(pr.doneLabel||"終了")+"</b>";
-      html += '<div class="prow"><div><span class="pname">'+esc(p.name)+'</span><div class="past">'+pastText(pr.past)+'</div></div><div class="pnext">'+next+'</div></div>';
+      var next=pr.current ? "<b>"+esc(pr.current.time)+" "+esc(pr.current.court)+"コート</b><br>"+esc(pr.current.code)+" "+esc(pr.current.label) : "<b>"+esc(pr.doneLabel||"終了")+"</b>";
+      html+='<div class="prow"><div><span class="pname">'+esc(p.name)+'</span><div class="past">'+pastText(pr.past)+'</div></div><div class="pnext">'+next+"</div></div>";
     });
   });
-  return html || '<div class="empty">該当する選手がいません</div>';
+  return html+"</div>";
 }
 function viewHistory(){
-  if(!App.state.entries.length) return '<div class="empty">まだ結果が入っていません</div>';
+  if(!App.state.entries.length) return '<div class="cards"><div class="empty">まだ結果が入っていません</div></div>';
   var byId={}; DATA.players.forEach(function(p){ byId[p.id]=p; });
-  return App.state.entries.slice().reverse().map(function(e){
-    var p=byId[e.pid]; if(!p) return "";
-    return '<div class="hrow">'+esc(p.name)+'（'+esc(p.catCode)+'） '+esc(e.code)+' → '+(e.result==="W"?'<span class="w">勝ち</span>':'<span class="l">負け</span>')+'</div>';
-  }).join("");
+  var html='<div class="cards">';
+  App.state.entries.slice().reverse().forEach(function(e){
+    var p=byId[e.pid]; if(!p) return;
+    html+='<div class="hrow">'+esc(p.name)+'（'+esc(p.catCode)+'） '+esc(e.code)+' → '+(e.result==="W"?'<span class="w">勝ち</span>':'<span class="l">負け</span>')+"</div>";
+  });
+  return html+"</div>";
 }
-function bindCards(){
+function bindActions(){
   Array.prototype.forEach.call(document.querySelectorAll("[data-pid]"), function(b){
     b.addEventListener("click", function(){ App.record(b.getAttribute("data-pid"), b.getAttribute("data-r")); });
   });
+  Array.prototype.forEach.call(document.querySelectorAll("td.kz"), function(td){
+    td.addEventListener("click", function(){
+      var code=td.getAttribute("data-code");
+      var segs=ANN[code]||[];
+      var cur=segs.filter(function(s){ return segState(s, live())==="current"; });
+      if(cur.length){ App.tab="next"; App.focusPid=cur[0].pid; render(); }
+    });
+  });
 }
-
 $("btn-create").addEventListener("click", function(){
-  var room=randStr(10), key=randStr(16);
-  location.hash="r="+room+"&k="+key;
+  location.hash="r="+randStr(10)+"&k="+randStr(16);
   location.reload();
 });
 $("btn-local").addEventListener("click", function(){ location.hash="local=1"; location.reload(); });
@@ -371,16 +591,17 @@ $("btn-copy-viewer").addEventListener("click", function(){
   if(navigator.clipboard){ navigator.clipboard.writeText(link).then(function(){ toast("観戦用リンクをコピーしました"); }, function(){ prompt("観戦用リンク", link); }); }
   else prompt("観戦用リンク", link);
 });
-["next","players","history"].forEach(function(t){ $("tab-"+t).addEventListener("click", function(){ App.tab=t; render(); }); });
+Array.prototype.forEach.call(document.querySelectorAll("[data-tab]"), function(b){
+  b.addEventListener("click", function(){ App.tab=b.getAttribute("data-tab"); render(); });
+});
+$("btn-kara").addEventListener("click", function(){ App.karaOnly=!App.karaOnly; render(); });
+$("btn-font").addEventListener("click", function(){ document.body.classList.toggle("big"); });
 $("q").addEventListener("input", render);
-
 (function init(){
   var h=hashParams();
   if(h.local==="1"){
-    App.role="local"; App.room="local"; App.vhash="local";
+    App.role="op"; App.isLocal=true; App.room="local"; App.vhash="local";
     App.loadLocal(); App.ready=true; App.setConn("mid","ローカル（この端末だけ）");
-    // ローカルでは record の共有先がないため role を op 相当にする
-    App.role="op"; App.isLocal=true;
     render(); return;
   }
   if(h.r && h.k){
