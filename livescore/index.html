@@ -553,6 +553,25 @@ button.side:active .plus-badge{transform:scale(.93);}
   .board{padding:10px 10px 12px;}
   .controls .btn{min-height:50px;}
 }
+
+/* ---------- ロビー圧縮 ---------- */
+#view-lobby .card{padding:12px 14px; margin-bottom:10px;}
+#view-lobby .card h2{margin:0 0 8px;}
+#view-lobby .lead{margin:0 2px 10px; font-size:14px;}
+#view-lobby label.f{margin:6px 0 4px;}
+.duo{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+.duo label.f{margin-top:0;}
+.steps-line{font-size:12px; color:var(--ink2); text-align:center; margin:10px 0 2px; line-height:1.6;}
+.install-row{display:flex; align-items:center; gap:12px;}
+.install-txt{display:flex; flex-direction:column; gap:2px; flex:1; min-width:0;}
+.install-txt b{font-size:14px; letter-spacing:.04em;}
+#btn-install{flex:none; min-height:44px; padding:0 18px;}
+.join-row{display:flex; gap:8px;}
+.join-row input{flex:1; min-width:0;}
+.join-row .btn{flex:none; min-height:48px;}
+#view-lobby h3{margin:12px 0 6px; font-size:13px;}
+@media (display-mode: standalone){ #install-card{display:none;} }
+
 @media (prefers-reduced-motion: reduce){
   .arena-hero svg{animation:none;}
   .banner.win{animation:none;}
@@ -568,22 +587,24 @@ button.side:active .plus-badge{transform:scale(.93);}
 <main id="view-lobby" class="wrap hidden">
   <div class="brand-row"><svg width="27" height="27" viewBox="0 0 48 48" aria-hidden="true"><g stroke="#e9cd8f" stroke-width="2.6" fill="none" stroke-linecap="round"><path d="M24 29 L12.5 10"/><path d="M24 29 L18 6.5"/><path d="M24 29 L24 5.5"/><path d="M24 29 L30 6.5"/><path d="M24 29 L35.5 10"/><path d="M13.5 12.5 Q24 7.5 34.5 12.5"/></g><path d="M16.8 31.5 a7.2 7.2 0 0 0 14.4 0 z" fill="#f5efe3"/></svg><span class="brand-name">BADMINTON LIVE</span><span class="brand-tag">THE ARENA</span></div>
   
-  <p class="lead">会場でスコアをつける人と、家で見る人が、<b>リンク1つ</b>でつながるバドミントンのライブスコアです。試合ごとに部屋が分かれるので、<b>チームの他の家族もそれぞれ自分の試合を作って</b>使えます。観戦する側はアプリも登録もいりません。</p>
+  <p class="lead">会場のスコアが、家の家族にそのまま届くライブスコアです。観戦する側は<b>登録不要</b>、試合ごとに部屋が分かれます。</p>
   <section class="card" id="install-card">
-    <h2>ホーム画面に追加するとアプリみたいに使えます</h2>
-    <p class="small" style="margin-top:0;">追加しておくと、次からはアイコンをタップするだけで全画面で開けます。家族のスマホにも同じように追加してもらうと便利です。</p>
-    <div class="btnrow" style="margin-top:0;"><button class="btn primary hidden" id="btn-install">ホーム画面に追加する</button></div>
-    <p class="small" id="install-howto" style="margin-bottom:0;">iPhone: 共有ボタン →「ホーム画面に追加」／ Android: メニュー（︙）→「アプリをインストール」または「ホーム画面に追加」</p>
+    <div class="install-row">
+      <div class="install-txt"><b>ホーム画面に追加</b><span class="small">アイコンから全画面で開けます。iPhone: 共有 →「ホーム画面に追加」／ Android: メニュー（︙）→「アプリをインストール」</span></div>
+      <button class="btn primary hidden" id="btn-install">追加する</button>
+    </div>
+    <p class="small hidden" id="install-howto"></p>
   </section>
 
   <section class="card">
-    <h2>新しい試合を作る（スコアをつける人）</h2>
-    <p class="small" style="margin-top:0;">このツールでは選手名は入力しません。画面では「自選手」「相手選手」とだけ表示され、名前がネットワークに流れることはありません。</p>
-    <label class="f">コート番号 <span>（試合の区別用・任意）</span></label>
+    <h2>新しい試合を作る</h2>
+    <div class="duo"><div>
+    <label class="f">コート番号 <span>（任意）</span></label>
     <select id="f-court">
       <option value="">指定なし</option>
       <option value="1">1番コート</option><option value="2">2番コート</option><option value="3">3番コート</option><option value="4">4番コート</option><option value="5">5番コート</option><option value="6">6番コート</option><option value="7">7番コート</option><option value="8">8番コート</option><option value="9">9番コート</option><option value="10">10番コート</option><option value="11">11番コート</option><option value="12">12番コート</option><option value="13">13番コート</option><option value="14">14番コート</option><option value="15">15番コート</option><option value="16">16番コート</option><option value="17">17番コート</option><option value="18">18番コート</option><option value="19">19番コート</option><option value="20">20番コート</option>
     </select>
+    </div><div>
     <label class="f">試合形式</label>
     <select id="f-format">
       <option value="21x3">21点・3ゲーム（2ゲーム先取）</option>
@@ -591,27 +612,24 @@ button.side:active .plus-badge{transform:scale(.93);}
       <option value="21x1">21点・1ゲーム</option>
       <option value="15x1">15点・1ゲーム</option>
     </select>
+    </div></div>
     <div class="btnrow">
       <button class="btn primary" id="btn-create" style="flex:1;">試合を作って操作画面を開く</button>
     </div>
-    <div class="steps">
-      <div class="step"><span class="n">1</span> <b>試合を作る</b>この画面で試合形式とコート番号を選ぶだけです。</div>
-      <div class="step"><span class="n">2</span> <b>観戦リンクを送る</b>操作画面に出るリンクかQRを、LINEで家族に送ります。</div>
-      <div class="step"><span class="n">3</span> <b>タップで加点</b>ラリーが決まるたび点数をタップ。家族の画面にすぐ反映されます。</div>
-    </div>
+    <p class="steps-line">作る → 観戦リンクを家族に送る → タップで加点（選手名は入力しません。表示は「自選手」「相手選手」です）</p>
   </section>
 
   <section class="card">
     <h2>自分の試合リスト</h2>
-    <p class="small" style="margin-top:0;">この端末で作った試合・見た試合がここに残ります（他の人には見えません）。</p>
     <div id="my-list"><p class="small">まだ試合がありません。</p></div>
     <h3>観戦リンクから参加する</h3>
-    <p class="small" style="margin-top:0;">家族から届いた観戦リンクを貼ると、この端末のリストに加わります。</p>
-    <input type="text" id="f-join" placeholder="観戦リンクを貼り付け" />
-    <div class="btnrow"><button class="btn" id="btn-join">このリンクで観戦する</button></div>
+    <div class="join-row">
+      <input type="text" id="f-join" placeholder="観戦リンクを貼り付け" />
+      <button class="btn" id="btn-join">観戦する</button>
+    </div>
   </section>
 
-  <p class="notice">このツールでは選手名は表示されず、「自選手」「相手選手」とだけ表示されます。リンクを知っている人は観戦できます。スコアの操作は操作用リンクを持っている人だけができます。観戦用リンクは家族にだけ配ってください。</p>
+  <p class="notice">観戦リンクは家族にだけ配ってください。スコアを操作できるのは操作用リンクを持っている人だけです。</p>
 </main>
 
 <!-- ================= KEEPER ================= -->
