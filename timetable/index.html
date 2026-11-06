@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>共有タイムテーブル | 唐崎</title>
+<title>共有タイムテーブル</title>
 <style>
 *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
 body{font-family:"Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic",Meiryo,sans-serif; margin:0; color:#222; background:#fff; -webkit-text-size-adjust:100%;}
@@ -17,93 +17,83 @@ h1{font-size:17px; margin:0 0 2px; line-height:1.35;}
 .badge.op{border-color:#e65100; color:#bf360c; font-weight:bold;}
 .legend{display:flex; flex-wrap:wrap; gap:6px; margin:8px 12px 0; font-size:12px;}
 .legend span{padding:3px 8px; border-radius:6px; border:1px solid #bbb;}
-.lg-confirmed{background:#ffe082; font-weight:bold;}
-.lg-win{background:#dcedc8;}
-.lg-challenge{background:#ede7f6;}
-.lg-current{background:#fff3e0; border:2px solid #e65100 !important; font-weight:bold;}
+.lg-kz{background:#ffe082; font-weight:bold;}
+.lg-poss{background:#dcedc8;}
+.lg-decided{background:#eeeeee;}
 .toolbar{position:sticky; top:0; z-index:30; background:#fff; padding:6px 12px; border-bottom:1px solid #ddd; display:flex; gap:6px; flex-wrap:wrap; align-items:center;}
 .toolbar button{font-size:13.5px; padding:8px 11px; border-radius:8px; border:1.5px solid #305496; background:#fff; color:#305496; font-weight:bold; cursor:pointer; min-height:40px;}
 .toolbar button.on{background:#305496; color:#fff;}
-.search{flex:1 1 130px; padding:9px 10px; border-radius:8px; border:1.5px solid #bbb; font-size:15px; min-height:40px;}
+.toolbar select{font-size:14px; padding:8px 6px; border-radius:8px; border:1.5px solid #bbb; min-height:40px; background:#fff;}
+.search{flex:1 1 120px; padding:9px 10px; border-radius:8px; border:1.5px solid #bbb; font-size:15px; min-height:40px;}
 main{padding:0 0 34px;}
 /* ---- 表形式 ---- */
 .gridwrap{overflow:auto; -webkit-overflow-scrolling:touch; max-height:calc(100vh - 118px); border-bottom:2px solid #305496;}
-table.tt{border-collapse:separate; border-spacing:0; min-width:1480px; width:100%;}
-table.tt th, table.tt td{border-right:1px solid #bbb; border-bottom:1px solid #bbb; padding:5px 4px; vertical-align:top; min-width:76px;}
+table.tt{border-collapse:separate; border-spacing:0; min-width:1240px; width:100%;}
+table.tt th, table.tt td{border-right:1px solid #bbb; border-bottom:1px solid #bbb; padding:4px 3px; vertical-align:top; min-width:64px;}
 table.tt thead th{background:#305496; color:#fff; font-size:12px; position:sticky; top:0; z-index:3; text-align:center;}
-table.tt th.time{background:#5b7ec2; color:#fff; font-size:15px; font-weight:bold; text-align:center; min-width:54px; position:sticky; left:0; z-index:2; border-right:2px solid #305496;}
+table.tt th.time{background:#5b7ec2; color:#fff; font-size:14px; font-weight:bold; text-align:center; min-width:50px; position:sticky; left:0; z-index:2; border-right:2px solid #305496;}
 table.tt thead th.time{z-index:4;}
-td.plain{color:#aaa;}
-td .code{font-size:12px; font-weight:bold;}
-td.plain .code{font-weight:normal;}
-.cell-confirmed{background:#ffe082; box-shadow:inset 0 0 0 2px #e65100;}
-.cell-confirmed .code{font-size:13px; color:#bf360c;}
-.cell-win{background:#dcedc8;}
-.cell-win .code{color:#33691e;}
-.cell-challenge{background:#ede7f6;}
-.cell-challenge .code{color:#4527a0;}
-.cell-current{background:#fff3e0; box-shadow:inset 0 0 0 3px #e65100;}
-.cell-decided{background:#eeeeee;}
-.who{display:block; font-size:16px; font-weight:bold; color:#b71c1c; line-height:1.3;}
-.who2{display:block; font-size:13.5px; font-weight:bold; color:#33691e; line-height:1.3;}
-.who3{display:block; font-size:12.5px; font-weight:bold; color:#4527a0; line-height:1.3;}
-.vs{display:block; font-size:11.5px; color:#444; line-height:1.25;}
-.seg{margin-bottom:2px;}
-.seg.dead{opacity:.42; text-decoration:line-through;}
-.seg .res{font-size:11px; font-weight:bold; padding:0 5px; border-radius:5px; color:#fff; text-decoration:none; display:inline-block;}
-.res.w{background:#2e7d32;} .res.l{background:#8e24aa;}
-.seg .now{font-size:11px; font-weight:bold; color:#bf360c;}
-body.big .who{font-size:18.5px;} body.big .who2{font-size:15.5px;} body.big .vs{font-size:13px;}
-td.kz{cursor:pointer;}
+td .code{font-size:11.5px; font-weight:bold; color:#555;}
+td.kz{background:#ffe082; cursor:pointer;}
+td.poss{background:#eef6e6; cursor:pointer;}
+td.decided{background:#f0f0f0;}
+td .who{display:block; font-size:12.5px; font-weight:bold; line-height:1.3; color:#222;}
+td .who.win{color:#2e7d32;}
+td .who.lose{color:#999; text-decoration:line-through;}
+td .lbl{display:block; font-size:11px; color:#666; line-height:1.3;}
+td .tm{display:block; font-size:10px; color:#888;}
+td.kz .who{font-size:13.5px;}
 /* ---- リスト形式 ---- */
 .listwrap{padding:4px 10px 0; max-width:640px; margin:0 auto;}
 .thead{font-size:15px; font-weight:bold; color:#305496; margin:14px 0 6px; border-left:6px solid #305496; padding-left:8px;}
-.mcard{border:1.5px solid #bbb; border-radius:10px; padding:8px 10px; margin-bottom:8px; background:#fff;}
-.mcard.confirmed{background:#ffe082; border-color:#e65100;}
-.mcard.win{background:#eef6e6;}
-.mcard.challenge{background:#f3eefc;}
-.mcard.current{box-shadow:0 0 0 3px #e65100; background:#fff3e0;}
-.mcard.decided{background:#f2f2f2; opacity:.85;}
+.mcard{border:1.5px solid #bbb; border-radius:10px; padding:7px 9px; margin-bottom:7px; background:#fff;}
+.mcard.kz{background:#fff8e1; border-color:#e65100;}
+.mcard.poss{background:#f4f9ef;}
+.mcard.decided{background:#f4f4f4;}
 .m-top{display:flex; gap:8px; align-items:baseline;}
 .m-code{font-size:13px; font-weight:bold; color:#bf360c;}
+.m-phase{font-size:11px; color:#fff; background:#5b7ec2; border-radius:5px; padding:1px 6px; font-weight:bold;}
+.m-phase.u{background:#8e24aa;} .m-phase.w{background:#00838f;}
 .m-court{font-size:12.5px; color:#305496; font-weight:bold;}
 .m-time{margin-left:auto; font-size:12.5px; color:#555; font-variant-numeric:tabular-nums;}
-.chips{display:flex; flex-wrap:wrap; gap:4px; margin:2px 0 4px;}
-.chip{font-size:11px; color:#888; border:1px solid #ddd; border-radius:6px; padding:2px 6px; font-variant-numeric:tabular-nums;}
-.btnrow{display:flex; gap:8px; margin-top:8px;}
-.btn-win,.btn-lose{flex:1; height:52px; font-size:18px; font-weight:800; border-radius:10px; border:none; cursor:pointer;}
-.btn-win{background:#2fbf71; color:#06240f;}
-.btn-lose{background:#78909c; color:#fff;}
+.vsrow{display:flex; align-items:stretch; gap:6px; margin-top:6px;}
+.side{flex:1; border:1.5px solid #ccc; border-radius:9px; padding:8px 9px; background:#fff; text-align:left; font-family:inherit;}
+button.side{cursor:pointer;}
+button.side:active{background:#e3f2fd;}
+.side .nm{font-size:16.5px; font-weight:800; line-height:1.3; display:block;}
+.mcard.kz .side .nm{font-size:18px;}
+.side .tm{font-size:11px; color:#777; display:block; margin-top:1px;}
+.side .lbl{font-size:14px; font-weight:700; color:#666; display:block; line-height:1.35;}
+.side.win{border-color:#2e7d32; background:#e8f5e9;}
+.side.win .nm{color:#2e7d32;}
+.side.lose{opacity:.55;} .side.lose .nm{text-decoration:line-through;}
+.side .winmark{font-size:11px; font-weight:800; color:#fff; background:#2e7d32; border-radius:5px; padding:0 6px; margin-left:6px; vertical-align:2px;}
+.vsmid{align-self:center; font-size:12px; color:#999; font-weight:bold;}
+.tapnote{font-size:11px; color:#888; margin-top:5px;}
 .btn-undo{margin:8px 12px 0; padding:11px 14px; font-weight:700; border-radius:8px; border:1.5px solid #8e24aa; color:#8e24aa; background:#fff; cursor:pointer; width:calc(100% - 24px); max-width:616px;}
 .sharebox{margin:8px 12px 0; max-width:640px;}
 .sharebox button{width:100%; padding:13px; font-size:15px; font-weight:800; border:none; border-radius:10px; background:#e8c476; color:#231a05; cursor:pointer;}
-.linkbox{font-size:11.5px; word-break:break-all; background:#f7f7f7; border:1px dashed #bbb; border-radius:8px; padding:8px; margin-top:6px; color:#555;}
-/* ---- 入力カード / 選手別 / 履歴 ---- */
+/* ---- 順位 / 選手別 / 履歴 ---- */
 .cards{padding:10px 10px 0; max-width:640px; margin:0 auto;}
-.card{border:1.5px solid #bbb; border-radius:12px; padding:11px; margin-bottom:9px; background:#fff;}
-.card.current{box-shadow:0 0 0 3px #e65100; background:#fff8ec;}
-.card.done{opacity:.65;}
-.c-time{font-size:22px; font-weight:800; font-variant-numeric:tabular-nums;}
-.c-court{font-size:13px; color:#305496; font-weight:700; margin-left:6px;}
-.c-code{float:right; font-size:12px; color:#888;}
-.c-name{font-size:19px; font-weight:800; margin-top:2px;}
-.c-cat{font-size:11px; color:#555; border:1px solid #bbb; border-radius:999px; padding:0 7px; margin-left:6px; vertical-align:2px;}
-.c-opp{font-size:13px; color:#555; margin-top:2px;}
-.c-label{font-size:12px; color:#bf360c; font-weight:700; margin-top:3px;}
-.past{font-size:12px; color:#666; margin-top:2px;}
-.past .w{color:#2e7d32; font-weight:700;} .past .l{color:#8e24aa; font-weight:700;}
-.gtitle{font-size:13.5px; color:#305496; font-weight:800; margin:14px 0 6px;}
-.prow{display:flex; align-items:center; gap:8px; padding:10px; border:1px solid #bbb; border-radius:10px; margin-bottom:7px; background:#fff;}
-.prow .pname{font-weight:700; font-size:16px;}
-.prow .pnext{margin-left:auto; text-align:right; font-size:12px; color:#555;}
-.prow .pnext b{color:#222; font-size:13px;}
+.gtitle{font-size:14px; color:#305496; font-weight:800; margin:14px 0 6px;}
+table.st{border-collapse:collapse; width:100%; margin-bottom:6px; background:#fff;}
+table.st th, table.st td{border:1px solid #bbb; padding:5px 7px; font-size:13.5px;}
+table.st th{background:#eef2fa; font-size:12px; text-align:left;}
+table.st td.rk{font-weight:800; text-align:center; width:34px;}
+table.st tr.kz td{background:#fff3c4; font-weight:700;}
+table.st tr.zone-u td.rk{background:#ffe082;}
+table.st tr.zone-w td.rk{background:#d1c4e9;}
+table.st .wl{font-variant-numeric:tabular-nums; white-space:nowrap;}
+.blockmeta{font-size:11.5px; color:#777; margin:2px 0 8px;}
+.prow{border:1px solid #bbb; border-radius:10px; padding:9px 10px; margin-bottom:8px; background:#fff;}
+.prow.kz{border-color:#e65100; background:#fff8e1;}
+.prow .pname{font-weight:800; font-size:16.5px;}
+.prow .pmeta{font-size:11.5px; color:#555;}
+.prow .pm{font-size:12.5px; color:#444; margin-top:4px; line-height:1.55;}
+.prow .pm .w{color:#2e7d32; font-weight:800;} .prow .pm .l{color:#8e24aa; font-weight:800;}
 .hrow{font-size:13.5px; padding:9px 10px; border:1px solid #bbb; border-radius:9px; margin-bottom:6px; background:#fff;}
-.hrow .w{color:#2e7d32; font-weight:800;} .hrow .l{color:#8e24aa; font-weight:800;}
+.hrow .w{color:#2e7d32; font-weight:800;}
 .empty{color:#777; text-align:center; padding:26px 8px; font-size:14px;}
-.home{margin:16px 12px; border:1.5px solid #bbb; border-radius:12px; padding:16px 14px; max-width:640px;}
-.home p{font-size:14px; color:#555;}
-.home button{width:100%; margin-top:10px; padding:15px; font-size:16px; font-weight:800; border-radius:10px; border:1.5px solid #305496; background:#fff; color:#305496; cursor:pointer;}
-.home .primary{background:#305496; color:#fff;}
 .note{font-size:12px; color:#555; padding:10px 12px 0; line-height:1.6; max-width:900px;}
 #toast{position:fixed; left:50%; bottom:22px; transform:translateX(-50%) translateY(20px); background:#305496; color:#fff; padding:10px 16px; border-radius:999px; font-size:14px; opacity:0; pointer-events:none; transition:.25s; z-index:60; max-width:92vw; text-align:center;}
 #toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
@@ -118,95 +108,58 @@ td.kz{cursor:pointer;}
   <div class="sub" id="h-meta"></div>
   <div class="statusrow">
     <span class="dot" id="conn-dot"></span><span id="conn-text">未接続</span>
-    <span class="badge hidden" id="mode-badge"></span>
+    <span class="badge op" id="mode-badge">みんなで編集</span>
     <span class="badge hidden" id="count-badge"></span>
   </div>
 </header>
 
-<section id="view-home" class="hidden">
-  <div class="home">
-    <b>大会ルームを作る（操作する人）</b>
-    <p>ルームを作ると「操作用リンク」と「観戦用リンク」が発行されます。操作用は入力する担当だけに、観戦用は家族に渡してください。</p>
-    <button class="primary" id="btn-create">大会ルームを作る</button>
-    <button id="btn-local">ローカルで試す（この端末だけ・共有なし）</button>
-    <p>観戦・操作は、渡されたリンクを開くだけで始まります（この画面はリンクなしで開いたとき用です）。</p>
-  </div>
-</section>
-
-<section id="view-room" class="hidden">
+<section id="view-room">
   <div class="legend">
-    <span class="lg-confirmed">■ 唐崎の選手の試合（確定）</span>
-    <span class="lg-win">■ 勝てば唐崎の選手が入る試合</span>
-    <span class="lg-challenge">■ 負けたら入るチャレンジ初戦</span>
-    <span class="lg-current">■ いまの次の試合</span>
-    <span>■ その他（試合番号のみ）</span>
+    <span class="lg-kz">■ 唐崎ジュニアの試合</span>
+    <span class="lg-poss">■ 唐崎の選手が入る可能性のある試合</span>
+    <span class="lg-decided">■ 結果入力済み（勝者は緑）</span>
   </div>
-  <div class="sharebox hidden" id="share-box">
-    <button id="btn-copy-viewer">観戦用リンクをコピーする</button>
-    <div class="linkbox" id="viewer-link"></div>
+  <div class="sharebox">
+    <button id="btn-copy-url">このページのURLをコピーして共有する</button>
   </div>
   <div class="toolbar">
     <button data-tab="list" class="on">リスト</button>
     <button data-tab="grid">表形式</button>
-    <button data-tab="next">次の試合・入力</button>
-    <button data-tab="players">選手別</button>
+    <button data-tab="standings">リーグ順位</button>
+    <button data-tab="players">選手別（唐崎）</button>
     <button data-tab="history">履歴</button>
+    <select id="f-cls">
+      <option value="">全クラス</option>
+      <option value="A">Aクラス</option><option value="B">Bクラス</option>
+      <option value="C">Cクラス</option><option value="D">Dクラス</option>
+      <option value="E">Eクラス</option><option value="F">Fクラス</option>
+      <option value="G">Gクラス</option>
+    </select>
     <input class="search" id="q" type="search" placeholder="選手名・試合番号で探す" autocomplete="off" />
-    <button id="btn-kara" class="hidden">唐崎の時間だけ</button>
-    <button id="btn-font" class="hidden">文字を大きく</button>
+    <button id="btn-kara">唐崎の試合だけ</button>
   </div>
   <button class="btn-undo hidden" id="btn-undo">↩ 直前の入力を1つ取り消す</button>
   <main id="list"></main>
-  <p class="note">読み方：黄色は唐崎の選手が出る確定試合、緑は勝てば入る試合、紫は負けたら入るチャレンジ初戦です。結果を入れると、いまの次の試合がオレンジ枠で目立ち、終わった試合には勝ち／負けの印が付き、行かなくなった試合は取り消し線になります。時刻はタイムテーブルの目安です。</p>
+  <p class="note">使い方：試合の勝った選手の名前をタップすると、全員の画面に反映されます（間違えたら「履歴」か上の取り消しボタンで戻せます）。リーグ戦の結果がそろうと順位が自動で決まり、トーナメントの枠に名前が入ります。順位は勝ち数で計算します。同率で並んだ場合は枠に名前が入らないことがあります（公式順位は本部の発表で確認してください）。時刻はタイムスケジュールの目安で、当日はコールによる流し込み方式のため前後します。</p>
 </section>
 <div id="toast"></div>
 
-<script type="application/json" id="tournament-data">{"meta": {"title": "雪印メグミルク杯 第89回滋賀県小学生秋季バドミントンシングルス大会", "date": "2026-11-03", "venue": "プロシードアリーナHIKONE", "team": "唐崎", "shared": {"room": "tt-20261103-main", "key": "ohnt8n7jtvqpuro6"}}, "players": [{"id": "p01", "cat": "6年生女子（6G）", "catCode": "6G", "name": "野々垣 沙環", "main": [{"label": "初戦", "code": "6G-17", "time": "12:00", "court": "5", "opp": "平岡 ゆり愛（のとがわ）"}, {"label": "2試合目", "code": "6G-30", "time": "13:15", "court": "9", "opp": "16番の勝者"}, {"label": "3試合目", "code": "6G-37", "time": "14:30", "court": "6", "opp": "31番の勝者"}, {"label": "準決勝", "code": "6G-40", "time": "15:45", "court": "3", "opp": "36番の勝者"}], "final": {"label": "決勝", "code": "6G-決勝", "time": "16:35", "court": "8", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "6G-三決", "time": "16:35", "court": "7", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "6GZ-4", "time": "14:05", "court": "12", "opp": "(10敗者)"}, null]}, {"id": "p02", "cat": "6年生女子（6G）", "catCode": "6G", "name": "上坂 実結", "main": [{"label": "初戦", "code": "6G-23", "time": "12:00", "court": "11", "opp": "8番の勝者（篠澤 心春・市橋 瑠花）"}, {"label": "2試合目", "code": "6G-33", "time": "13:15", "court": "12", "opp": "22番の勝者"}, {"label": "3試合目", "code": "6G-38", "time": "14:30", "court": "7", "opp": "32番の勝者"}, {"label": "準決勝", "code": "6G-41", "time": "15:45", "court": "4", "opp": "39番の勝者"}], "final": {"label": "決勝", "code": "6G-決勝", "time": "16:35", "court": "8", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "6G-三決", "time": "16:35", "court": "7", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "6GZ-8", "time": "14:05", "court": "16", "opp": "(3敗者)"}, null]}, {"id": "p03", "cat": "5年生女子（5G）", "catCode": "5G", "name": "岸上 暖杏", "main": [{"label": "初戦", "code": "5G-1", "time": "09:30", "court": "3", "opp": "松田 奏来（瀬田北）"}, {"label": "2試合目", "code": "5G-11", "time": "11:35", "court": "3", "opp": "南田 紗希（FANATIC）"}, {"label": "3試合目", "code": "5G-27", "time": "12:50", "court": "18", "opp": "12番の勝者"}, {"label": "4試合目", "code": "5G-35", "time": "14:30", "court": "1", "opp": "28番の勝者"}, {"label": "準決勝", "code": "5G-39", "time": "15:45", "court": "1", "opp": "36番の勝者"}], "final": {"label": "決勝", "code": "5G-決勝", "time": "16:35", "court": "6", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "5G-三決", "time": "16:35", "court": "5", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "5GZ-6", "time": "14:17", "court": "14", "opp": "(20敗者)"}, {"code": "5GZ-11", "time": "15:07", "court": "15", "opp": "5GZ-1の勝者"}]}, {"id": "p04", "cat": "5年生女子（5G）", "catCode": "5G", "name": "春本 凛", "main": [{"label": "初戦", "code": "5G-15", "time": "11:35", "court": "7", "opp": "4番の勝者（籠谷 律花・梅田 心向）"}, {"label": "2試合目", "code": "5G-29", "time": "13:15", "court": "1", "opp": "16番の勝者"}, {"label": "3試合目", "code": "5G-36", "time": "14:30", "court": "2", "opp": "30番の勝者"}, {"label": "準決勝", "code": "5G-39", "time": "15:45", "court": "1", "opp": "35番の勝者"}], "final": {"label": "決勝", "code": "5G-決勝", "time": "16:35", "court": "6", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "5G-三決", "time": "16:35", "court": "5", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "5GZ-13", "time": "15:07", "court": "17", "opp": "5GZ-4の勝者"}, null]}, {"id": "p05", "cat": "5年生女子（5G）", "catCode": "5G", "name": "伊賀上 藍", "main": [{"label": "初戦", "code": "5G-7", "time": "09:30", "court": "9", "opp": "飯田 絢心（ベイシック）"}, {"label": "2試合目", "code": "5G-22", "time": "11:35", "court": "14", "opp": "岡本 雫（仰木の里）"}, {"label": "3試合目", "code": "5G-32", "time": "13:15", "court": "4", "opp": "21番の勝者"}, {"label": "4試合目", "code": "5G-37", "time": "14:30", "court": "3", "opp": "31番の勝者"}, {"label": "準決勝", "code": "5G-40", "time": "15:45", "court": "2", "opp": "38番の勝者"}], "final": {"label": "決勝", "code": "5G-決勝", "time": "16:35", "court": "6", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "5G-三決", "time": "16:35", "court": "5", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "5GZ-2", "time": "14:17", "court": "10", "opp": "(13敗者)"}, {"code": "5GZ-16", "time": "15:20", "court": "9", "opp": "5GZ-7の勝者"}]}, {"id": "p06", "cat": "5年生女子（5G）", "catCode": "5G", "name": "川西 彩陽", "main": [{"label": "初戦", "code": "5G-23", "time": "11:35", "court": "15", "opp": "8番の勝者（井口 裕莉・ニツ谷 恵麻）"}, {"label": "2試合目", "code": "5G-33", "time": "13:15", "court": "5", "opp": "24番の勝者"}, {"label": "3試合目", "code": "5G-38", "time": "14:30", "court": "4", "opp": "34番の勝者"}, {"label": "準決勝", "code": "5G-40", "time": "15:45", "court": "2", "opp": "37番の勝者"}], "final": {"label": "決勝", "code": "5G-決勝", "time": "16:35", "court": "6", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "5G-三決", "time": "16:35", "court": "5", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "5GZ-8", "time": "14:17", "court": "16", "opp": "(3敗者)"}, null]}, {"id": "p07", "cat": "4年生女子（4G）", "catCode": "4G", "name": "島田 虹奈", "main": [{"label": "初戦", "code": "4G-3", "time": "09:55", "court": "7", "opp": "二井家 彩桜（仰木の里）"}, {"label": "2試合目", "code": "4G-12", "time": "12:00", "court": "17", "opp": "2番の勝者"}, {"label": "3試合目", "code": "4G-19", "time": "13:40", "court": "8", "opp": "11番の勝者"}, {"label": "準決勝", "code": "4G-23", "time": "14:55", "court": "7", "opp": "20番の勝者"}], "final": {"label": "決勝", "code": "4G-決勝", "time": "16:10", "court": "4", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "4G-三決", "time": "16:10", "court": "3", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "4GZ-9", "time": "15:32", "court": "15", "opp": "(17敗者)"}, {"code": "4GZ-4", "time": "15:32", "court": "10", "opp": "(8敗者)"}]}, {"id": "p08", "cat": "4年生女子（4G）", "catCode": "4G", "name": "高阪 結夏", "main": [{"label": "初戦", "code": "4G-13", "time": "12:00", "court": "18", "opp": "4番の勝者（奥野 聖・三嶋 乃々葉）"}, {"label": "2試合目", "code": "4G-20", "time": "13:40", "court": "9", "opp": "14番の勝者"}, {"label": "準決勝", "code": "4G-23", "time": "14:55", "court": "7", "opp": "19番の勝者"}], "final": {"label": "決勝", "code": "4G-決勝", "time": "16:10", "court": "4", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "4G-三決", "time": "16:10", "court": "3", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "4GZ-5", "time": "15:32", "court": "11", "opp": "(9敗者)"}, null]}, {"id": "p09", "cat": "4年生女子（4G）", "catCode": "4G", "name": "大谷 珠凰", "main": [{"label": "初戦", "code": "4G-15", "time": "12:25", "court": "1", "opp": "6番の勝者（木村 藍子・城尾 笑里）"}, {"label": "2試合目", "code": "4G-21", "time": "13:40", "court": "10", "opp": "16番の勝者"}, {"label": "準決勝", "code": "4G-24", "time": "14:55", "court": "8", "opp": "22番の勝者"}], "final": {"label": "決勝", "code": "4G-決勝", "time": "16:10", "court": "4", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "4G-三決", "time": "16:10", "court": "3", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "4GZ-7", "time": "15:32", "court": "13", "opp": "(1敗者)"}, null]}, {"id": "p10", "cat": "3年生女子（3G）", "catCode": "3G", "name": "古谷 莉歩", "main": [{"label": "初戦", "code": "3G-4", "time": "11:10", "court": "7", "opp": "片岡 ひま（ベイシック）"}, {"label": "2試合目", "code": "3G-19", "time": "12:50", "court": "10", "opp": "3番の勝者"}, {"label": "3試合目", "code": "3G-27", "time": "14:05", "court": "5", "opp": "20番の勝者"}, {"label": "準決勝", "code": "3G-31", "time": "15:20", "court": "7", "opp": "28番の勝者"}], "final": {"label": "決勝", "code": "3G-決勝", "time": "16:35", "court": "4", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "3G-三決", "time": "16:35", "court": "3", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "3GZ-1", "time": "14:30", "court": "13", "opp": "(2敗者)"}, null]}, {"id": "p11", "cat": "3年生女子（3G）", "catCode": "3G", "name": "伊賀上 華", "main": [{"label": "初戦", "code": "3G-9", "time": "11:10", "court": "12", "opp": "杉江 咲希（SEPT）"}, {"label": "2試合目", "code": "3G-22", "time": "12:50", "court": "13", "opp": "10番の勝者"}, {"label": "3試合目", "code": "3G-28", "time": "14:05", "court": "6", "opp": "21番の勝者"}, {"label": "準決勝", "code": "3G-31", "time": "15:20", "court": "7", "opp": "27番の勝者"}], "final": {"label": "決勝", "code": "3G-決勝", "time": "16:35", "court": "4", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "3G-三決", "time": "16:35", "court": "3", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "3GZ-6", "time": "15:45", "court": "9", "opp": "(10敗者)"}, null]}, {"id": "p12", "cat": "3年生女子（3G）", "catCode": "3G", "name": "春田 菜花", "main": [{"label": "初戦", "code": "3G-16", "time": "11:10", "court": "19", "opp": "山本 杏波（瀬田北）"}, {"label": "2試合目", "code": "3G-25", "time": "12:50", "court": "16", "opp": "15番の勝者"}, {"label": "3試合目", "code": "3G-30", "time": "14:05", "court": "8", "opp": "26番の勝者"}, {"label": "準決勝", "code": "3G-32", "time": "15:20", "court": "8", "opp": "29番の勝者"}], "final": {"label": "決勝", "code": "3G-決勝", "time": "16:35", "court": "4", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "3G-三決", "time": "16:35", "court": "3", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "3GZ-9", "time": "15:45", "court": "12", "opp": "(15敗者)"}, null]}, {"id": "p13", "cat": "2年生以下女子（2G）", "catCode": "2G", "name": "香西 春瑠", "main": [{"label": "初戦", "code": "2G-1", "time": "10:45", "court": "18", "opp": "宇野 文乃①（ミナクサ会）"}, {"label": "2試合目", "code": "2G-8", "time": "13:40", "court": "4", "opp": "植田 愛梨（FANATIC）"}, {"label": "準決勝", "code": "2G-12", "time": "14:55", "court": "5", "opp": "9番の勝者"}], "final": {"label": "決勝", "code": "2G-決勝", "time": "16:10", "court": "2", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "2G-三決", "time": "16:10", "court": "1", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "2GZ-2", "time": "14:55", "court": "13", "opp": "(2敗者)"}, {"code": "2GZ-4", "time": "15:57", "court": "15", "opp": "2GZ-1の勝者"}]}, {"id": "p14", "cat": "2年生以下女子（2G）", "catCode": "2G", "name": "西川 椛", "main": [{"label": "初戦", "code": "2G-2", "time": "10:45", "court": "19", "opp": "堀 真佑花（仰木の里）"}, {"label": "2試合目", "code": "2G-9", "time": "13:40", "court": "5", "opp": "3番の勝者"}, {"label": "準決勝", "code": "2G-12", "time": "14:55", "court": "5", "opp": "8番の勝者"}], "final": {"label": "決勝", "code": "2G-決勝", "time": "16:10", "court": "2", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "2G-三決", "time": "16:10", "court": "1", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "2GZ-2", "time": "14:55", "court": "13", "opp": "(1敗者)"}, {"code": "2GZ-5", "time": "15:57", "court": "16", "opp": "(7敗者)"}]}, {"id": "p15", "cat": "2年生以下女子（2G）", "catCode": "2G", "name": "春本 一華", "main": [{"label": "初戦", "code": "2G-4", "time": "11:10", "court": "2", "opp": "工藤 朱々那（ベイシック）"}, {"label": "2試合目", "code": "2G-10", "time": "13:40", "court": "6", "opp": "5番の勝者"}, {"label": "準決勝", "code": "2G-13", "time": "14:55", "court": "6", "opp": "11番の勝者"}], "final": {"label": "決勝", "code": "2G-決勝", "time": "16:10", "court": "2", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "2G-三決", "time": "16:10", "court": "1", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "2GZ-3", "time": "14:55", "court": "14", "opp": "(3敗者)"}, {"code": "2GZ-6", "time": "15:57", "court": "17", "opp": "2GZ-2の勝者"}]}, {"id": "p16", "cat": "2年生以下女子（2G）", "catCode": "2G", "name": "高阪 遥夏", "main": [{"label": "初戦", "code": "2G-7", "time": "11:10", "court": "5", "opp": "今井 美緒（FANATIC）"}, {"label": "2試合目", "code": "2G-11", "time": "13:40", "court": "7", "opp": "6番の勝者"}, {"label": "準決勝", "code": "2G-13", "time": "14:55", "court": "6", "opp": "10番の勝者"}], "final": {"label": "決勝", "code": "2G-決勝", "time": "16:10", "court": "2", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "2G-三決", "time": "16:10", "court": "1", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "2GZ-5", "time": "15:57", "court": "16", "opp": "(9敗者)"}, {"code": "2GZ-7", "time": "15:57", "court": "18", "opp": "2GZ-3の勝者"}]}, {"id": "p17", "cat": "6年生男子（6B）", "catCode": "6B", "name": "拾井 陽向", "main": [{"label": "初戦", "code": "6B-2", "time": "09:55", "court": "16", "opp": "小林 亮介（瀬田北）"}, {"label": "2試合目", "code": "6B-10", "time": "12:25", "court": "6", "opp": "中嶋 勇喜（仰木の里）"}, {"label": "3試合目", "code": "6B-17", "time": "13:40", "court": "12", "opp": "9番の勝者"}, {"label": "準決勝", "code": "6B-21", "time": "15:20", "court": "1", "opp": "18番の勝者"}], "final": {"label": "決勝", "code": "6B-決勝", "time": "16:10", "court": "6", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "6B-三決", "time": "16:10", "court": "5", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "6BZ-6", "time": "14:42", "court": "9", "opp": "(14敗者)"}, {"code": "6BZ-2", "time": "14:30", "court": "16", "opp": "(6敗者)"}]}, {"id": "p18", "cat": "6年生男子（6B）", "catCode": "6B", "name": "木下 麗翔", "main": [{"label": "初戦", "code": "6B-6", "time": "10:20", "court": "1", "opp": "松ヶ枝 晃貴（SEPT）"}, {"label": "2試合目", "code": "6B-14", "time": "12:25", "court": "10", "opp": "進藤 匠真（仰木の里）"}, {"label": "3試合目", "code": "6B-19", "time": "13:40", "court": "14", "opp": "13番の勝者"}, {"label": "準決勝", "code": "6B-22", "time": "15:20", "court": "2", "opp": "20番の勝者"}], "final": {"label": "決勝", "code": "6B-決勝", "time": "16:10", "court": "6", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "6B-三決", "time": "16:10", "court": "5", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "6BZ-2", "time": "14:30", "court": "16", "opp": "(10敗者)"}, {"code": "6BZ-6", "time": "14:42", "court": "9", "opp": "(2敗者)"}]}, {"id": "p19", "cat": "5年生男子（5B）", "catCode": "5B", "name": "香西 信ノ輔", "main": [{"label": "初戦", "code": "5B-2", "time": "10:20", "court": "5", "opp": "藤本 弘文（仰木の里）"}, {"label": "2試合目", "code": "5B-13", "time": "12:25", "court": "14", "opp": "3番の勝者"}, {"label": "3試合目", "code": "5B-20", "time": "13:40", "court": "16", "opp": "12番の勝者"}, {"label": "準決勝", "code": "5B-24", "time": "15:20", "court": "3", "opp": "21番の勝者"}], "final": {"label": "決勝", "code": "5B-決勝", "time": "16:10", "court": "8", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "5B-三決", "time": "16:10", "court": "7", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "5BZ-2", "time": "14:30", "court": "9", "opp": "(1敗者)"}, {"code": "5BZ-5", "time": "15:20", "court": "13", "opp": "(9敗者)"}]}, {"id": "p20", "cat": "5年生男子（5B）", "catCode": "5B", "name": "小林 鈴空", "main": [{"label": "初戦", "code": "5B-7", "time": "10:20", "court": "10", "opp": "山﨑 颯仁（ベイシック）"}, {"label": "2試合目", "code": "5B-17", "time": "12:25", "court": "18", "opp": "8番の勝者"}, {"label": "3試合目", "code": "5B-22", "time": "13:40", "court": "18", "opp": "16番の勝者"}, {"label": "準決勝", "code": "5B-25", "time": "15:20", "court": "4", "opp": "23番の勝者"}], "final": {"label": "決勝", "code": "5B-決勝", "time": "16:10", "court": "8", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "5B-三決", "time": "16:10", "court": "7", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "5BZ-1", "time": "14:17", "court": "19", "opp": "(8敗者)"}, {"code": "5BZ-9", "time": "15:20", "court": "17", "opp": "(3敗者)"}]}, {"id": "p21", "cat": "4年生男子（4B）", "catCode": "4B", "name": "辻 琉希", "main": [{"label": "初戦", "code": "4B-2", "time": "10:20", "court": "16", "opp": "西田 陽真（ベイシック）"}, {"label": "2試合目", "code": "4B-9", "time": "13:15", "court": "15", "opp": "1番の勝者"}, {"label": "準決勝", "code": "4B-13", "time": "14:55", "court": "1", "opp": "10番の勝者"}], "final": {"label": "決勝", "code": "4B-決勝", "time": "15:45", "court": "6", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "4B-三決", "time": "15:45", "court": "5", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "4BZ-3", "time": "14:55", "court": "10", "opp": "(1敗者)"}, {"code": "4BZ-5", "time": "15:57", "court": "11", "opp": "4BZ-1の勝者"}]}, {"id": "p22", "cat": "4年生男子（4B）", "catCode": "4B", "name": "西岡 大翔", "main": [{"label": "初戦", "code": "4B-4", "time": "10:20", "court": "18", "opp": "山田 莉久翔（SEPT）"}, {"label": "2試合目", "code": "4B-10", "time": "13:15", "court": "16", "opp": "3番の勝者"}, {"label": "準決勝", "code": "4B-13", "time": "14:55", "court": "1", "opp": "9番の勝者"}], "final": {"label": "決勝", "code": "4B-決勝", "time": "15:45", "court": "6", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "4B-三決", "time": "15:45", "court": "5", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "4BZ-4", "time": "14:55", "court": "11", "opp": "(3敗者)"}, {"code": "4BZ-6", "time": "15:57", "court": "12", "opp": "4BZ-2の勝者"}]}, {"id": "p23", "cat": "4年生男子（4B）", "catCode": "4B", "name": "上坂 拓実", "main": [{"label": "初戦", "code": "4B-5", "time": "10:20", "court": "19", "opp": "井上 大登（MBJ）"}, {"label": "2試合目", "code": "4B-11", "time": "13:15", "court": "17", "opp": "6番の勝者"}, {"label": "準決勝", "code": "4B-14", "time": "14:55", "court": "2", "opp": "12番の勝者"}], "final": {"label": "決勝", "code": "4B-決勝", "time": "15:45", "court": "6", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "4B-三決", "time": "15:45", "court": "5", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "4BZ-1", "time": "14:42", "court": "19", "opp": "(6敗者)"}, {"code": "4BZ-7", "time": "15:57", "court": "13", "opp": "4BZ-3の勝者"}]}, {"id": "p24", "cat": "4年生男子（4B）", "catCode": "4B", "name": "西川 一燈", "main": [{"label": "初戦", "code": "4B-6", "time": "10:45", "court": "1", "opp": "竹端 郷（仰木の里）"}, {"label": "2試合目", "code": "4B-11", "time": "13:15", "court": "17", "opp": "5番の勝者"}, {"label": "準決勝", "code": "4B-14", "time": "14:55", "court": "2", "opp": "12番の勝者"}], "final": {"label": "決勝", "code": "4B-決勝", "time": "15:45", "court": "6", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "4B-三決", "time": "15:45", "court": "5", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "4BZ-1", "time": "14:42", "court": "19", "opp": "(5敗者)"}, {"code": "4BZ-7", "time": "15:57", "court": "13", "opp": "4BZ-3の勝者"}]}, {"id": "p25", "cat": "3年生男子（3B）", "catCode": "3B", "name": "岸上 楓向", "main": [{"label": "初戦", "code": "3B-4", "time": "10:45", "court": "7", "opp": "保田 蒼太（仰木の里）"}, {"label": "2試合目", "code": "3B-12", "time": "12:50", "court": "6", "opp": "谷口 琥珀（瀬田北）"}, {"label": "3試合目", "code": "3B-18", "time": "14:05", "court": "3", "opp": "13番の勝者"}, {"label": "準決勝", "code": "3B-21", "time": "15:20", "court": "6", "opp": "19番の勝者"}], "final": {"label": "決勝", "code": "3B-決勝", "time": "16:35", "court": "2", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "3B-三決", "time": "16:35", "court": "1", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "3BZ-7", "time": "14:42", "court": "18", "opp": "(15敗者)"}, {"code": "3BZ-4", "time": "14:42", "court": "15", "opp": "(1敗者)"}]}, {"id": "p26", "cat": "2年生以下男子（2B）", "catCode": "2B", "name": "島田 琉空", "main": [{"label": "初戦", "code": "2B-5", "time": "10:45", "court": "15", "opp": "進藤 海沙（仰木の里）"}, {"label": "2試合目", "code": "2B-10", "time": "13:40", "court": "2", "opp": "4番の勝者"}, {"label": "準決勝", "code": "2B-13", "time": "14:55", "court": "4", "opp": "11番の勝者"}], "final": {"label": "決勝", "code": "2B-決勝", "time": "15:45", "court": "8", "opp": "もう一方の準決勝の勝者"}, "third": {"label": "3位決定戦（準決勝で負けた場合）", "code": "2B-三決", "time": "15:45", "court": "7", "opp": "もう一方の準決勝の敗者"}, "challenge": [{"code": "2BZ-1", "time": "14:55", "court": "15", "opp": "(6敗者)"}, {"code": "2BZ-6", "time": "16:10", "court": "10", "opp": "2BZ-2の勝者"}]}], "grid": {"2B-1": ["10:45", 11], "2B-10": ["13:40", 2], "2B-11": ["13:40", 3], "2B-12": ["14:55", 3], "2B-13": ["14:55", 4], "2B-2": ["10:45", 12], "2B-3": ["10:45", 13], "2B-4": ["10:45", 14], "2B-5": ["10:45", 15], "2B-6": ["10:45", 16], "2B-7": ["10:45", 17], "2B-8": ["13:15", 19], "2B-9": ["13:40", 1], "2B-三決": ["15:45", 7], "2B-決勝": ["15:45", 8], "2BZ-1": ["14:55", 15], "2BZ-2": ["14:55", 16], "2BZ-3": ["14:55", 17], "2BZ-4": ["15:57", 19], "2BZ-5": ["16:10", 9], "2BZ-6": ["16:10", 10], "2BZ-7": ["16:10", 11], "2BZ-8": ["16:35", 18], "2BZ-9": ["16:35", 19], "2BZ-決勝": ["17:00", 13], "2G-1": ["10:45", 18], "2G-10": ["13:40", 6], "2G-11": ["13:40", 7], "2G-12": ["14:55", 5], "2G-13": ["14:55", 6], "2G-2": ["10:45", 19], "2G-3": ["11:10", 1], "2G-4": ["11:10", 2], "2G-5": ["11:10", 3], "2G-6": ["11:10", 4], "2G-7": ["11:10", 5], "2G-8": ["13:40", 4], "2G-9": ["13:40", 5], "2G-三決": ["16:10", 1], "2G-決勝": ["16:10", 2], "2GZ-1": ["14:55", 12], "2GZ-2": ["14:55", 13], "2GZ-3": ["14:55", 14], "2GZ-4": ["15:57", 15], "2GZ-5": ["15:57", 16], "2GZ-6": ["15:57", 17], "2GZ-7": ["15:57", 18], "2GZ-8": ["16:35", 16], "2GZ-9": ["16:35", 17], "2GZ-決勝": ["17:00", 12], "3B-1": ["10:45", 4], "3B-10": ["12:50", 4], "3B-11": ["12:50", 5], "3B-12": ["12:50", 6], "3B-13": ["12:50", 7], "3B-14": ["12:50", 8], "3B-15": ["12:50", 9], "3B-16": ["14:05", 1], "3B-17": ["14:05", 2], "3B-18": ["14:05", 3], "3B-19": ["14:05", 4], "3B-2": ["10:45", 5], "3B-20": ["15:20", 5], "3B-21": ["15:20", 6], "3B-3": ["10:45", 6], "3B-4": ["10:45", 7], "3B-5": ["10:45", 8], "3B-6": ["10:45", 9], "3B-7": ["10:45", 10], "3B-8": ["12:50", 2], "3B-9": ["12:50", 3], "3B-三決": ["16:35", 1], "3B-決勝": ["16:35", 2], "3BZ-1": ["14:42", 12], "3BZ-10": ["15:57", 9], "3BZ-11": ["15:57", 10], "3BZ-12": ["16:35", 12], "3BZ-13": ["16:35", 13], "3BZ-2": ["14:42", 13], "3BZ-3": ["14:42", 14], "3BZ-4": ["14:42", 15], "3BZ-5": ["14:42", 16], "3BZ-6": ["14:42", 17], "3BZ-7": ["14:42", 18], "3BZ-8": ["15:45", 18], "3BZ-9": ["15:45", 19], "3BZ-決勝": ["17:00", 10], "3G-1": ["09:30", 1], "3G-10": ["11:10", 13], "3G-11": ["11:10", 14], "3G-12": ["11:10", 15], "3G-13": ["11:10", 16], "3G-14": ["11:10", 17], "3G-15": ["11:10", 18], "3G-16": ["11:10", 19], "3G-17": ["11:35", 1], "3G-18": ["11:35", 2], "3G-19": ["12:50", 10], "3G-2": ["09:30", 2], "3G-20": ["12:50", 11], "3G-21": ["12:50", 12], "3G-22": ["12:50", 13], "3G-23": ["12:50", 14], "3G-24": ["12:50", 15], "3G-25": ["12:50", 16], "3G-26": ["12:50", 17], "3G-27": ["14:05", 5], "3G-28": ["14:05", 6], "3G-29": ["14:05", 7], "3G-3": ["11:10", 6], "3G-30": ["14:05", 8], "3G-31": ["15:20", 7], "3G-32": ["15:20", 8], "3G-4": ["11:10", 7], "3G-5": ["11:10", 8], "3G-6": ["11:10", 9], "3G-7": ["11:10", 10], "3G-8": ["11:10", 11], "3G-9": ["11:10", 12], "3G-三決": ["16:35", 3], "3G-決勝": ["16:35", 4], "3GZ-1": ["14:30", 13], "3GZ-10": ["15:45", 13], "3GZ-11": ["16:22", 17], "3GZ-12": ["16:22", 18], "3GZ-13": ["16:22", 19], "3GZ-14": ["16:35", 9], "3GZ-15": ["16:47", 17], "3GZ-16": ["16:47", 18], "3GZ-2": ["14:30", 14], "3GZ-3": ["15:32", 17], "3GZ-4": ["15:32", 18], "3GZ-5": ["15:32", 19], "3GZ-6": ["15:45", 9], "3GZ-7": ["15:45", 10], "3GZ-8": ["15:45", 11], "3GZ-9": ["15:45", 12], "3GZ-決勝": ["17:00", 18], "4B-1": ["10:20", 15], "4B-10": ["13:15", 16], "4B-11": ["13:15", 17], "4B-12": ["13:15", 18], "4B-13": ["14:55", 1], "4B-14": ["14:55", 2], "4B-2": ["10:20", 16], "4B-3": ["10:20", 17], "4B-4": ["10:20", 18], "4B-5": ["10:20", 19], "4B-6": ["10:45", 1], "4B-7": ["10:45", 2], "4B-8": ["10:45", 3], "4B-9": ["13:15", 15], "4B-三決": ["15:45", 5], "4B-決勝": ["15:45", 6], "4BZ-1": ["14:42", 19], "4BZ-10": ["16:35", 15], "4BZ-2": ["14:55", 9], "4BZ-3": ["14:55", 10], "4BZ-4": ["14:55", 11], "4BZ-5": ["15:57", 11], "4BZ-6": ["15:57", 12], "4BZ-7": ["15:57", 13], "4BZ-8": ["15:57", 14], "4BZ-9": ["16:35", 14], "4BZ-決勝": ["17:00", 11], "4G-1": ["09:55", 5], "4G-10": ["09:55", 14], "4G-11": ["12:00", 16], "4G-12": ["12:00", 17], "4G-13": ["12:00", 18], "4G-14": ["12:00", 19], "4G-15": ["12:25", 1], "4G-16": ["12:25", 2], "4G-17": ["12:25", 3], "4G-18": ["12:25", 4], "4G-19": ["13:40", 8], "4G-2": ["09:55", 6], "4G-20": ["13:40", 9], "4G-21": ["13:40", 10], "4G-22": ["13:40", 11], "4G-23": ["14:55", 7], "4G-24": ["14:55", 8], "4G-3": ["09:55", 7], "4G-4": ["09:55", 8], "4G-5": ["09:55", 9], "4G-6": ["09:55", 10], "4G-7": ["09:55", 11], "4G-8": ["09:55", 12], "4G-9": ["09:55", 13], "4G-三決": ["16:10", 3], "4G-決勝": ["16:10", 4], "4GZ-1": ["14:30", 11], "4GZ-10": ["15:32", 16], "4GZ-11": ["16:22", 13], "4GZ-12": ["16:22", 14], "4GZ-13": ["16:22", 15], "4GZ-14": ["16:22", 16], "4GZ-15": ["16:47", 15], "4GZ-16": ["16:47", 16], "4GZ-2": ["14:30", 12], "4GZ-3": ["15:32", 9], "4GZ-4": ["15:32", 10], "4GZ-5": ["15:32", 11], "4GZ-6": ["15:32", 12], "4GZ-7": ["15:32", 13], "4GZ-8": ["15:32", 14], "4GZ-9": ["15:32", 15], "4GZ-決勝": ["17:00", 17], "5B-1": ["10:20", 4], "5B-10": ["10:20", 13], "5B-11": ["10:20", 14], "5B-12": ["12:25", 13], "5B-13": ["12:25", 14], "5B-14": ["12:25", 15], "5B-15": ["12:25", 16], "5B-16": ["12:25", 17], "5B-17": ["12:25", 18], "5B-18": ["12:25", 19], "5B-19": ["12:50", 1], "5B-2": ["10:20", 5], "5B-20": ["13:40", 16], "5B-21": ["13:40", 17], "5B-22": ["13:40", 18], "5B-23": ["13:40", 19], "5B-24": ["15:20", 3], "5B-25": ["15:20", 4], "5B-3": ["10:20", 6], "5B-4": ["10:20", 7], "5B-5": ["10:20", 8], "5B-6": ["10:20", 9], "5B-7": ["10:20", 10], "5B-8": ["10:20", 11], "5B-9": ["10:20", 12], "5B-三決": ["16:10", 7], "5B-決勝": ["16:10", 8], "5BZ-1": ["14:17", 19], "5BZ-10": ["15:20", 18], "5BZ-11": ["15:20", 19], "5BZ-12": ["16:22", 9], "5BZ-13": ["16:22", 10], "5BZ-14": ["16:22", 11], "5BZ-15": ["16:22", 12], "5BZ-16": ["16:47", 13], "5BZ-17": ["16:47", 14], "5BZ-2": ["14:30", 9], "5BZ-3": ["14:30", 10], "5BZ-4": ["15:20", 12], "5BZ-5": ["15:20", 13], "5BZ-6": ["15:20", 14], "5BZ-7": ["15:20", 15], "5BZ-8": ["15:20", 16], "5BZ-9": ["15:20", 17], "5BZ-決勝": ["17:00", 16], "5G-1": ["09:30", 3], "5G-10": ["09:30", 12], "5G-11": ["11:35", 3], "5G-12": ["11:35", 4], "5G-13": ["11:35", 5], "5G-14": ["11:35", 6], "5G-15": ["11:35", 7], "5G-16": ["11:35", 8], "5G-17": ["11:35", 9], "5G-18": ["11:35", 10], "5G-19": ["11:35", 11], "5G-2": ["09:30", 4], "5G-20": ["11:35", 12], "5G-21": ["11:35", 13], "5G-22": ["11:35", 14], "5G-23": ["11:35", 15], "5G-24": ["11:35", 16], "5G-25": ["11:35", 17], "5G-26": ["11:35", 18], "5G-27": ["12:50", 18], "5G-28": ["12:50", 19], "5G-29": ["13:15", 1], "5G-3": ["09:30", 5], "5G-30": ["13:15", 2], "5G-31": ["13:15", 3], "5G-32": ["13:15", 4], "5G-33": ["13:15", 5], "5G-34": ["13:15", 6], "5G-35": ["14:30", 1], "5G-36": ["14:30", 2], "5G-37": ["14:30", 3], "5G-38": ["14:30", 4], "5G-39": ["15:45", 1], "5G-4": ["09:30", 6], "5G-40": ["15:45", 2], "5G-5": ["09:30", 7], "5G-6": ["09:30", 8], "5G-7": ["09:30", 9], "5G-8": ["09:30", 10], "5G-9": ["09:30", 11], "5G-三決": ["16:35", 5], "5G-決勝": ["16:35", 6], "5GZ-1": ["14:17", 9], "5GZ-10": ["14:17", 18], "5GZ-11": ["15:07", 15], "5GZ-12": ["15:07", 16], "5GZ-13": ["15:07", 17], "5GZ-14": ["15:07", 18], "5GZ-15": ["15:07", 19], "5GZ-16": ["15:20", 9], "5GZ-17": ["15:20", 10], "5GZ-18": ["15:20", 11], "5GZ-19": ["16:10", 16], "5GZ-2": ["14:17", 10], "5GZ-20": ["16:10", 17], "5GZ-21": ["16:10", 18], "5GZ-22": ["16:10", 19], "5GZ-23": ["16:47", 11], "5GZ-24": ["16:47", 12], "5GZ-3": ["14:17", 11], "5GZ-4": ["14:17", 12], "5GZ-5": ["14:17", 13], "5GZ-6": ["14:17", 14], "5GZ-7": ["14:17", 15], "5GZ-8": ["14:17", 16], "5GZ-9": ["14:17", 17], "5GZ-決勝": ["17:00", 15], "6B-1": ["09:55", 15], "6B-10": ["12:25", 6], "6B-11": ["12:25", 7], "6B-12": ["12:25", 8], "6B-13": ["12:25", 9], "6B-14": ["12:25", 10], "6B-15": ["12:25", 11], "6B-16": ["12:25", 12], "6B-17": ["13:40", 12], "6B-18": ["13:40", 13], "6B-19": ["13:40", 14], "6B-2": ["09:55", 16], "6B-20": ["13:40", 15], "6B-21": ["15:20", 1], "6B-22": ["15:20", 2], "6B-3": ["09:55", 17], "6B-4": ["09:55", 18], "6B-5": ["09:55", 19], "6B-6": ["10:20", 1], "6B-7": ["10:20", 2], "6B-8": ["10:20", 3], "6B-9": ["12:25", 5], "6B-三決": ["16:10", 5], "6B-決勝": ["16:10", 6], "6BZ-1": ["14:30", 15], "6BZ-10": ["15:45", 15], "6BZ-11": ["15:45", 16], "6BZ-12": ["15:45", 17], "6BZ-13": ["16:35", 10], "6BZ-14": ["16:35", 11], "6BZ-2": ["14:30", 16], "6BZ-3": ["14:30", 17], "6BZ-4": ["14:30", 18], "6BZ-5": ["14:30", 19], "6BZ-6": ["14:42", 9], "6BZ-7": ["14:42", 10], "6BZ-8": ["14:42", 11], "6BZ-9": ["15:45", 14], "6BZ-決勝": ["17:00", 9], "6G-1": ["09:30", 13], "6G-10": ["09:55", 3], "6G-11": ["09:55", 4], "6G-12": ["11:35", 19], "6G-13": ["12:00", 1], "6G-14": ["12:00", 2], "6G-15": ["12:00", 3], "6G-16": ["12:00", 4], "6G-17": ["12:00", 5], "6G-18": ["12:00", 6], "6G-19": ["12:00", 7], "6G-2": ["09:30", 14], "6G-20": ["12:00", 8], "6G-21": ["12:00", 9], "6G-22": ["12:00", 10], "6G-23": ["12:00", 11], "6G-24": ["12:00", 12], "6G-25": ["12:00", 13], "6G-26": ["12:00", 14], "6G-27": ["12:00", 15], "6G-28": ["13:15", 7], "6G-29": ["13:15", 8], "6G-3": ["09:30", 15], "6G-30": ["13:15", 9], "6G-31": ["13:15", 10], "6G-32": ["13:15", 11], "6G-33": ["13:15", 12], "6G-34": ["13:15", 13], "6G-35": ["13:15", 14], "6G-36": ["14:30", 5], "6G-37": ["14:30", 6], "6G-38": ["14:30", 7], "6G-39": ["14:30", 8], "6G-4": ["09:30", 16], "6G-40": ["15:45", 3], "6G-41": ["15:45", 4], "6G-5": ["09:30", 17], "6G-6": ["09:30", 18], "6G-7": ["09:30", 19], "6G-8": ["09:55", 1], "6G-9": ["09:55", 2], "6G-三決": ["16:35", 7], "6G-決勝": ["16:35", 8], "6GZ-1": ["14:05", 9], "6GZ-10": ["14:05", 18], "6GZ-11": ["14:05", 19], "6GZ-12": ["14:55", 18], "6GZ-13": ["14:55", 19], "6GZ-14": ["15:07", 9], "6GZ-15": ["15:07", 10], "6GZ-16": ["15:07", 11], "6GZ-17": ["15:07", 12], "6GZ-18": ["15:07", 13], "6GZ-19": ["15:07", 14], "6GZ-2": ["14:05", 10], "6GZ-20": ["16:10", 12], "6GZ-21": ["16:10", 13], "6GZ-22": ["16:10", 14], "6GZ-23": ["16:10", 15], "6GZ-24": ["16:47", 9], "6GZ-25": ["16:47", 10], "6GZ-3": ["14:05", 11], "6GZ-4": ["14:05", 12], "6GZ-5": ["14:05", 13], "6GZ-6": ["14:05", 14], "6GZ-7": ["14:05", 15], "6GZ-8": ["14:05", 16], "6GZ-9": ["14:05", 17], "6GZ-決勝": ["17:00", 14]}}</script>
+<script type="application/json" id="tournament-data">{"meta": {"title": "びわこジュニアカップ", "date": "2026-11-07", "dateLabel": "2026年11月7日（土）", "venue": "草津市立総合体育館", "team": "唐崎ジュニア", "format": "v2", "shared": {"room": "tt-20261107-main", "key": "xdcdyuum29hglwgo"}}, "matches": [{"code": "C-A-1", "time": "09:45", "court": 1, "cls": "C", "phase": "L", "block": "A", "slots": [["p", "小寺葵陽", "Ｄｒｅａｍ．Ｊｒ"], ["p", "松田奏来", "瀬田北スポ少"]]}, {"code": "C-A-2", "time": "09:45", "court": 2, "cls": "C", "phase": "L", "block": "A", "slots": [["p", "山本健慎", "ぐるぐるパンチ"], ["p", "小林鈴空", "唐崎ジュニア"]]}, {"code": "C-B-1", "time": "09:45", "court": 3, "cls": "C", "phase": "L", "block": "B", "slots": [["p", "西村佳悟", "瀬田北スポ少"], ["p", "宮﨑煌人", "ミナクサ会"]]}, {"code": "C-B-2", "time": "09:45", "court": 4, "cls": "C", "phase": "L", "block": "B", "slots": [["p", "森創一郎", "各務原Ｊｒ"], ["p", "吉田桜翔", "富雄南ジュニア"]]}, {"code": "C-C-1", "time": "09:45", "court": 5, "cls": "C", "phase": "L", "block": "C", "slots": [["p", "大倉直", "瀬田北スポ少"], ["p", "辻琉希", "唐崎ジュニア"]]}, {"code": "C-C-2", "time": "09:45", "court": 6, "cls": "C", "phase": "L", "block": "C", "slots": [["p", "洲脇由茉", "草津ジュニア"], ["p", "石田夏煌", "Ｄｒｅａｍ．Ｊｒ"]]}, {"code": "C-D-1", "time": "09:45", "court": 7, "cls": "C", "phase": "L", "block": "D", "slots": [["p", "西村楓真", "ミナクサ会"], ["p", "山階紬希", "ＣＳジュニア"]]}, {"code": "C-D-2", "time": "09:45", "court": 8, "cls": "C", "phase": "L", "block": "D", "slots": [["p", "上松蒼介", "瀬田北スポ少"], ["p", "水野未優", "松本ジュニア"]]}, {"code": "C-E-1", "time": "09:45", "court": 9, "cls": "C", "phase": "L", "block": "E", "slots": [["p", "倉内瑛大", "草津ジュニア"], ["p", "千木良ゆず", "富雄南ジュニア"]]}, {"code": "C-E-2", "time": "09:45", "court": 10, "cls": "C", "phase": "L", "block": "E", "slots": [["p", "稲垣絢斗", "各務原Ｊｒ"], ["p", "高阪結夏", "唐崎ジュニア"]]}, {"code": "C-F-1", "time": "09:45", "court": 11, "cls": "C", "phase": "L", "block": "F", "slots": [["p", "小川愛菜", "各務原Ｊｒ"], ["p", "内川鈴菜", "ミナクサ会"]]}, {"code": "C-F-2", "time": "09:45", "court": 12, "cls": "C", "phase": "L", "block": "F", "slots": [["p", "野々村翔", "Ｔｅａｍ３２８"], ["p", "大江宏輝", "瀬田東スポ少"]]}, {"code": "C-G-1", "time": "09:55", "court": 1, "cls": "C", "phase": "L", "block": "G", "slots": [["p", "谷村大翔", "Ｄｒｅａｍ．Ｊｒ"], ["p", "臼田一華", "たんぽぽＢ．Ｃ"]]}, {"code": "C-G-2", "time": "09:55", "court": 2, "cls": "C", "phase": "L", "block": "G", "slots": [["p", "中村日南", "草津ジュニア"], ["p", "香西信ノ輔", "唐崎ジュニア"]]}, {"code": "C-H-1", "time": "09:55", "court": 3, "cls": "C", "phase": "L", "block": "H", "slots": [["p", "長谷川愛那", "ぐるぐるパンチ"], ["p", "佃瑛万莉", "ミナクサ会"]]}, {"code": "E-A-1", "time": "09:55", "court": 4, "cls": "E", "phase": "L", "block": "A", "slots": [["p", "足立茉奏", "各務原Ｊｒ"], ["p", "寺尾和也", "Ｏ．Ｂ．ＣＬＵＢ"]]}, {"code": "E-A-2", "time": "09:55", "court": 5, "cls": "E", "phase": "L", "block": "A", "slots": [["p", "袖岡雛乃", "草津ジュニア"], ["p", "島田琉空", "唐崎ジュニア"]]}, {"code": "E-B-1", "time": "09:55", "court": 6, "cls": "E", "phase": "L", "block": "B", "slots": [["p", "松田湊緒", "瀬田北スポ少"], ["p", "岡本爽佑", "京都ジュニア"]]}, {"code": "E-B-2", "time": "09:55", "court": 7, "cls": "E", "phase": "L", "block": "B", "slots": [["p", "西川椛", "唐崎ジュニア"], ["p", "森下朝陽", "ＣＳジュニア"]]}, {"code": "E-C-1", "time": "09:55", "court": 8, "cls": "E", "phase": "L", "block": "C", "slots": [["p", "森下湊翔", "ＣＳジュニア"], ["p", "畑尾知依", "草津ジュニア"]]}, {"code": "E-C-2", "time": "09:55", "court": 9, "cls": "E", "phase": "L", "block": "C", "slots": [["p", "鈴木蒼馬", "各務原Ｊｒ"], ["p", "萩崎遥太", "坂本倶楽部"]]}, {"code": "E-D-1", "time": "09:55", "court": 10, "cls": "E", "phase": "L", "block": "D", "slots": [["p", "宮﨑匠人", "ミナクサ会"], ["p", "宇野樹希", "草津ジュニア"]]}, {"code": "E-D-2", "time": "09:55", "court": 11, "cls": "E", "phase": "L", "block": "D", "slots": [["p", "大倉知", "瀬田北スポ少"], ["p", "佐藤優吏", "京都ジュニア"]]}, {"code": "E-E-1", "time": "09:55", "court": 12, "cls": "E", "phase": "L", "block": "E", "slots": [["p", "牧栞愛", "伊丹スピリッツ"], ["p", "久野蒼真", "ＣＳジュニア"]]}, {"code": "E-E-2", "time": "10:05", "court": 1, "cls": "E", "phase": "L", "block": "E", "slots": [["p", "福本雄大", "各務原Ｊｒ"], ["p", "香西春瑠", "唐崎ジュニア"]]}, {"code": "E-F-1", "time": "10:05", "court": 2, "cls": "E", "phase": "L", "block": "F", "slots": [["p", "伊賀上華", "唐崎ジュニア"], ["p", "岡本望鈴", "京都ジュニア"]]}, {"code": "E-F-2", "time": "10:05", "court": 3, "cls": "E", "phase": "L", "block": "F", "slots": [["p", "榊原可惟", "各務原Ｊｒ"], ["p", "松本心陽", "草津ジュニア"]]}, {"code": "E-G-1", "time": "10:05", "court": 4, "cls": "E", "phase": "L", "block": "G", "slots": [["p", "森晴志郎", "各務原Ｊｒ"], ["p", "釜淵紬", "草津ジュニア"]]}, {"code": "E-G-2", "time": "10:05", "court": 5, "cls": "E", "phase": "L", "block": "G", "slots": [["p", "内川聖菜", "ミナクサ会"], ["p", "萩原悠", "Ｏ．Ｂ．ＣＬＵＢ"]]}, {"code": "E-H-1", "time": "10:05", "court": 6, "cls": "E", "phase": "L", "block": "H", "slots": [["p", "郷原文心", "草津ジュニア"], ["p", "竹中結音", "瀬田北スポ少"]]}, {"code": "B-A-1", "time": "10:05", "court": 7, "cls": "B", "phase": "L", "block": "A", "slots": [["p", "竹下修史", "Ｄｒｅａｍ．Ｊｒ"], ["p", "上坂拓実", "唐崎ジュニア"]]}, {"code": "B-A-2", "time": "10:05", "court": 8, "cls": "B", "phase": "L", "block": "A", "slots": [["p", "小川統大", "瀬田東スポ少"], ["p", "櫻井絆日翔", "美翔団ジュニア"]]}, {"code": "B-B-1", "time": "10:05", "court": 9, "cls": "B", "phase": "L", "block": "B", "slots": [["p", "山田美彩紀", "各務原Ｊｒ"], ["p", "野瀬夏葉", "瀬田東スポ少"]]}, {"code": "B-B-2", "time": "10:05", "court": 10, "cls": "B", "phase": "L", "block": "B", "slots": [["p", "溝口慶次", "美翔団ジュニア"], ["p", "渡邉稜", "瀬田北スポ少"]]}, {"code": "B-C-1", "time": "10:05", "court": 11, "cls": "B", "phase": "L", "block": "C", "slots": [["p", "東方杏実", "たんぽぽＢ．Ｃ"], ["p", "西川一燈", "唐崎ジュニア"]]}, {"code": "B-C-2", "time": "10:05", "court": 12, "cls": "B", "phase": "L", "block": "C", "slots": [["p", "小寺愛琉", "Ｄｒｅａｍ．Ｊｒ"], ["p", "石本祥梧", "坂本倶楽部"]]}, {"code": "B-D-1", "time": "10:15", "court": 1, "cls": "B", "phase": "L", "block": "D", "slots": [["p", "真下結也", "瀬田北スポ少"], ["p", "籠谷律花", "坂本倶楽部"]]}, {"code": "B-D-2", "time": "10:15", "court": 2, "cls": "B", "phase": "L", "block": "D", "slots": [["p", "武内佑晟", "Ｄｒｅａｍ．Ｊｒ"], ["p", "大谷珠凰", "唐崎ジュニア"]]}, {"code": "B-E-1", "time": "10:15", "court": 3, "cls": "B", "phase": "L", "block": "E", "slots": [["p", "佐藤ひかり", "富雄南ジュニア"], ["p", "前田理仁", "瀬田北スポ少"]]}, {"code": "B-E-2", "time": "10:15", "court": 4, "cls": "B", "phase": "L", "block": "E", "slots": [["p", "奥村華奈", "各務原Ｊｒ"], ["p", "野々村柚希", "Ｔｅａｍ３２８"]]}, {"code": "B-F-1", "time": "10:15", "court": 5, "cls": "B", "phase": "L", "block": "F", "slots": [["p", "深田圭", "瀬田北スポ少"], ["p", "千木良柊", "富雄南ジュニア"]]}, {"code": "B-F-2", "time": "10:15", "court": 6, "cls": "B", "phase": "L", "block": "F", "slots": [["p", "萩原聖太", "Ｏ．Ｂ．ＣＬＵＢ"], ["p", "冨岡あお", "京都ジュニア"]]}, {"code": "B-G-1", "time": "10:15", "court": 7, "cls": "B", "phase": "L", "block": "G", "slots": [["p", "吉江姫依", "Ｏ．Ｂ．ＣＬＵＢ"], ["p", "内川新菜", "ミナクサ会"]]}, {"code": "B-H-1", "time": "10:15", "court": 8, "cls": "B", "phase": "L", "block": "H", "slots": [["p", "田中藤真", "瀬田北スポ少"], ["p", "井上道仁", "各務原Ｊｒ"]]}, {"code": "A-A-1", "time": "10:15", "court": 9, "cls": "A", "phase": "L", "block": "A", "slots": [["p", "竹井瑛太", "伊丹スピリッツ"], ["p", "上坂実結", "唐崎ジュニア"]]}, {"code": "A-A-2", "time": "10:15", "court": 10, "cls": "A", "phase": "L", "block": "A", "slots": [["p", "中居楓菜", "各務原Ｊｒ"], ["p", "稲葉莉子", "ＴＥＡＭ升"]]}, {"code": "A-B-1", "time": "10:15", "court": 11, "cls": "A", "phase": "L", "block": "B", "slots": [["p", "米田麻莉", "ＣＳジュニア"], ["p", "丹原幸咲", "ミナクサ会"]]}, {"code": "A-B-2", "time": "10:15", "court": 12, "cls": "A", "phase": "L", "block": "B", "slots": [["p", "井上友陽奈", "各務原Ｊｒ"], ["p", "小西旺佑", "Ｄｒｅａｍ．Ｊｒ"]]}, {"code": "A-C-1", "time": "10:25", "court": 1, "cls": "A", "phase": "L", "block": "C", "slots": [["p", "神農叶愛", "伊丹スピリッツ"], ["p", "垣見空汰", "各務原Ｊｒ"]]}, {"code": "A-C-2", "time": "10:25", "court": 2, "cls": "A", "phase": "L", "block": "C", "slots": [["p", "大澤結翔", "ミナクサ会"], ["p", "橋本玲衣", "Ｏ．Ｂ．ＣＬＵＢ"]]}, {"code": "A-D-1", "time": "10:25", "court": 3, "cls": "A", "phase": "L", "block": "D", "slots": [["p", "八代啓士朗", "ミナクサ会"], ["p", "臼井星来", "たんぽぽＢ．Ｃ"]]}, {"code": "A-D-2", "time": "10:25", "court": 4, "cls": "A", "phase": "L", "block": "D", "slots": [["p", "早川蓮", "Ｄｒｅａｍ．Ｊｒ"], ["p", "井上美結", "各務原Ｊｒ"]]}, {"code": "A-E-1", "time": "10:25", "court": 5, "cls": "A", "phase": "L", "block": "E", "slots": [["p", "宇野功基", "松本ジュニア"], ["p", "佐藤智哉", "富雄南ジュニア"]]}, {"code": "A-E-2", "time": "10:25", "court": 6, "cls": "A", "phase": "L", "block": "E", "slots": [["p", "吉江虹海", "Ｏ．Ｂ．ＣＬＵＢ"], ["p", "川西彩陽", "唐崎ジュニア"]]}, {"code": "A-F-1", "time": "10:25", "court": 7, "cls": "A", "phase": "L", "block": "F", "slots": [["p", "春本凛", "唐崎ジュニア"], ["p", "北山結翔", "ＴＥＡＭ升"]]}, {"code": "A-G-1", "time": "10:25", "court": 8, "cls": "A", "phase": "L", "block": "G", "slots": [["p", "櫻井月渚", "美翔団ジュニア"], ["p", "野々垣沙環", "唐崎ジュニア"]]}, {"code": "D-A-1", "time": "10:25", "court": 9, "cls": "D", "phase": "L", "block": "A", "slots": [["p", "古谷莉歩", "唐崎ジュニア"], ["p", "阿形茅音", "草津ジュニア"]]}, {"code": "D-A-2", "time": "10:25", "court": 10, "cls": "D", "phase": "L", "block": "A", "slots": [["p", "小林亜香梨", "瀬田北スポ少"], ["p", "灰野楓七", "瀬田東スポ少"]]}, {"code": "D-B-1", "time": "10:25", "court": 11, "cls": "D", "phase": "L", "block": "B", "slots": [["p", "黒田涼那", "瀬田東スポ少"], ["p", "玉川碧衣", "瀬田北スポ少"]]}, {"code": "D-B-2", "time": "10:25", "court": 12, "cls": "D", "phase": "L", "block": "B", "slots": [["p", "春本一華", "唐崎ジュニア"], ["p", "榊原衣織", "各務原Ｊｒ"]]}, {"code": "D-C-1", "time": "10:35", "court": 1, "cls": "D", "phase": "L", "block": "C", "slots": [["p", "森岡大雅", "Ｄｒｅａｍ．Ｊｒ"], ["p", "春田菜花", "唐崎ジュニア"]]}, {"code": "D-C-2", "time": "10:35", "court": 2, "cls": "D", "phase": "L", "block": "C", "slots": [["p", "大江千煌", "瀬田東スポ少"], ["p", "田中達稀", "瀬田北スポ少"]]}, {"code": "D-D-1", "time": "10:35", "court": 3, "cls": "D", "phase": "L", "block": "D", "slots": [["p", "寺田琴音", "瀬田東スポ少"], ["p", "中野愛彩", "田上スポーツ少年団"]]}, {"code": "D-D-2", "time": "10:35", "court": 4, "cls": "D", "phase": "L", "block": "D", "slots": [["p", "島田虹奈", "唐崎ジュニア"], ["p", "山口葵翔", "Ｐｒｏｃｅｅｄ"]]}, {"code": "D-E-1", "time": "10:35", "court": 5, "cls": "D", "phase": "L", "block": "E", "slots": [["p", "林奈槻", "富雄南ジュニア"], ["p", "葛野花", "ぐるぐるパンチ"]]}, {"code": "D-F-1", "time": "10:35", "court": 6, "cls": "D", "phase": "L", "block": "F", "slots": [["p", "義元鈴珠", "松本ジュニア"], ["p", "高阪遥夏", "唐崎ジュニア"]]}, {"code": "D-G-1", "time": "10:35", "court": 7, "cls": "D", "phase": "L", "block": "G", "slots": [["p", "田中芙実", "ぐるぐるパンチ"], ["p", "古関霞", "草津ジュニア"]]}, {"code": "G-A-1", "time": "10:35", "court": 8, "cls": "G", "phase": "L", "block": "A", "slots": [["p", "野々村菜希", "Ｔｅａｍ３２８"], ["p", "西川藍", "唐崎ジュニア"]]}, {"code": "G-A-2", "time": "10:35", "court": 9, "cls": "G", "phase": "L", "block": "A", "slots": [["p", "藤本寛栞", "瀬田東スポ少"], ["p", "正野愛茉", "瀬田北スポ少"]]}, {"code": "G-B-1", "time": "10:35", "court": 10, "cls": "G", "phase": "L", "block": "B", "slots": [["p", "中原理太", "坂本倶楽部"], ["p", "三谷栞瑳", "唐崎ジュニア"]]}, {"code": "G-B-2", "time": "10:35", "court": 11, "cls": "G", "phase": "L", "block": "B", "slots": [["p", "八代脩吾", "ミナクサ会"], ["p", "中居眞太郎", "各務原Ｊｒ"]]}, {"code": "G-C-1", "time": "10:35", "court": 12, "cls": "G", "phase": "L", "block": "C", "slots": [["p", "東由紀乃", "瀬田東スポ少"], ["p", "武内瑛亮", "松本ジュニア"]]}, {"code": "G-C-2", "time": "10:45", "court": 1, "cls": "G", "phase": "L", "block": "C", "slots": [["p", "渡邉葵", "瀬田北スポ少"], ["p", "伊藤玄笑", "坂本倶楽部"]]}, {"code": "G-D-1", "time": "10:45", "court": 2, "cls": "G", "phase": "L", "block": "D", "slots": [["p", "田中来実", "ＮＯＣＫ"], ["p", "萩崎颯太", "坂本倶楽部"]]}, {"code": "G-D-2", "time": "10:45", "court": 3, "cls": "G", "phase": "L", "block": "D", "slots": [["p", "宇野文乃", "ミナクサ会"], ["p", "岸上桜梛", "唐崎ジュニア"]]}, {"code": "G-E-1", "time": "10:45", "court": 4, "cls": "G", "phase": "L", "block": "E", "slots": [["p", "清水端凌", "Ｏ．Ｂ．ＣＬＵＢ"], ["p", "春田椛月", "唐崎ジュニア"]]}, {"code": "G-E-2", "time": "10:45", "court": 5, "cls": "G", "phase": "L", "block": "E", "slots": [["p", "西村律希", "瀬田北スポ少"], ["p", "黒田和樹", "Ｐｒｏｃｅｅｄ"]]}, {"code": "G-F-1", "time": "10:45", "court": 6, "cls": "G", "phase": "L", "block": "F", "slots": [["p", "松浦奈瑚", "草津ジュニア"], ["p", "福田紗奈", "富雄南ジュニア"]]}, {"code": "F-A-1", "time": "10:45", "court": 7, "cls": "F", "phase": "L", "block": "A", "slots": [["p", "松浦優奈", "草津ジュニア"], ["p", "桂川新大", "京都ジュニア"]]}, {"code": "F-A-2", "time": "10:45", "court": 8, "cls": "F", "phase": "L", "block": "A", "slots": [["p", "拾井陽向", "唐崎ジュニア"], ["p", "久野結菜", "ＣＳジュニア"]]}, {"code": "F-B-1", "time": "10:45", "court": 9, "cls": "F", "phase": "L", "block": "B", "slots": [["p", "木下麗翔", "唐崎ジュニア"], ["p", "森下陽愛", "ＣＳジュニア"]]}, {"code": "F-B-2", "time": "10:45", "court": 10, "cls": "F", "phase": "L", "block": "B", "slots": [["p", "椚座颯太", "坂本倶楽部"], ["p", "安達咲心", "草津ジュニア"]]}, {"code": "F-C-1", "time": "10:45", "court": 11, "cls": "F", "phase": "L", "block": "C", "slots": [["p", "荒井茉莉", "京都ジュニア"], ["p", "安達陸", "草津ジュニア"]]}, {"code": "F-C-2", "time": "10:45", "court": 12, "cls": "F", "phase": "L", "block": "C", "slots": [["p", "伊賀上藍", "唐崎ジュニア"], ["p", "足立るる", "伊丹スピリッツ"]]}, {"code": "F-D-1", "time": "10:55", "court": 1, "cls": "F", "phase": "L", "block": "D", "slots": [["p", "足立ねね", "伊丹スピリッツ"], ["p", "森口七穂", "草津ジュニア"]]}, {"code": "F-E-1", "time": "10:55", "court": 2, "cls": "F", "phase": "L", "block": "E", "slots": [["p", "岸上暖杏", "唐崎ジュニア"], ["p", "大森美月來", "ＣＳジュニア"]]}, {"code": "C-A-3", "time": "10:55", "court": 3, "cls": "C", "phase": "L", "block": "A", "slots": [["p", "小寺葵陽", "Ｄｒｅａｍ．Ｊｒ"], ["p", "小林鈴空", "唐崎ジュニア"]]}, {"code": "C-A-4", "time": "10:55", "court": 4, "cls": "C", "phase": "L", "block": "A", "slots": [["p", "山本健慎", "ぐるぐるパンチ"], ["p", "松田奏来", "瀬田北スポ少"]]}, {"code": "C-B-3", "time": "10:55", "court": 5, "cls": "C", "phase": "L", "block": "B", "slots": [["p", "西村佳悟", "瀬田北スポ少"], ["p", "吉田桜翔", "富雄南ジュニア"]]}, {"code": "C-B-4", "time": "10:55", "court": 6, "cls": "C", "phase": "L", "block": "B", "slots": [["p", "森創一郎", "各務原Ｊｒ"], ["p", "宮﨑煌人", "ミナクサ会"]]}, {"code": "C-C-3", "time": "10:55", "court": 7, "cls": "C", "phase": "L", "block": "C", "slots": [["p", "大倉直", "瀬田北スポ少"], ["p", "石田夏煌", "Ｄｒｅａｍ．Ｊｒ"]]}, {"code": "C-C-4", "time": "10:55", "court": 8, "cls": "C", "phase": "L", "block": "C", "slots": [["p", "洲脇由茉", "草津ジュニア"], ["p", "辻琉希", "唐崎ジュニア"]]}, {"code": "C-D-3", "time": "10:55", "court": 9, "cls": "C", "phase": "L", "block": "D", "slots": [["p", "西村楓真", "ミナクサ会"], ["p", "水野未優", "松本ジュニア"]]}, {"code": "C-D-4", "time": "10:55", "court": 10, "cls": "C", "phase": "L", "block": "D", "slots": [["p", "上松蒼介", "瀬田北スポ少"], ["p", "山階紬希", "ＣＳジュニア"]]}, {"code": "C-E-3", "time": "10:55", "court": 11, "cls": "C", "phase": "L", "block": "E", "slots": [["p", "倉内瑛大", "草津ジュニア"], ["p", "高阪結夏", "唐崎ジュニア"]]}, {"code": "C-E-4", "time": "10:55", "court": 12, "cls": "C", "phase": "L", "block": "E", "slots": [["p", "稲垣絢斗", "各務原Ｊｒ"], ["p", "千木良ゆず", "富雄南ジュニア"]]}, {"code": "C-F-3", "time": "11:05", "court": 1, "cls": "C", "phase": "L", "block": "F", "slots": [["p", "小川愛菜", "各務原Ｊｒ"], ["p", "大江宏輝", "瀬田東スポ少"]]}, {"code": "C-F-4", "time": "11:05", "court": 2, "cls": "C", "phase": "L", "block": "F", "slots": [["p", "野々村翔", "Ｔｅａｍ３２８"], ["p", "内川鈴菜", "ミナクサ会"]]}, {"code": "C-G-3", "time": "11:05", "court": 3, "cls": "C", "phase": "L", "block": "G", "slots": [["p", "谷村大翔", "Ｄｒｅａｍ．Ｊｒ"], ["p", "香西信ノ輔", "唐崎ジュニア"]]}, {"code": "C-G-4", "time": "11:05", "court": 4, "cls": "C", "phase": "L", "block": "G", "slots": [["p", "中村日南", "草津ジュニア"], ["p", "臼田一華", "たんぽぽＢ．Ｃ"]]}, {"code": "C-H-2", "time": "11:05", "court": 5, "cls": "C", "phase": "L", "block": "H", "slots": [["p", "佃瑛万莉", "ミナクサ会"], ["p", "宮田彩葉", "各務原Ｊｒ"]]}, {"code": "E-A-3", "time": "11:05", "court": 6, "cls": "E", "phase": "L", "block": "A", "slots": [["p", "足立茉奏", "各務原Ｊｒ"], ["p", "島田琉空", "唐崎ジュニア"]]}, {"code": "E-A-4", "time": "11:05", "court": 7, "cls": "E", "phase": "L", "block": "A", "slots": [["p", "袖岡雛乃", "草津ジュニア"], ["p", "寺尾和也", "Ｏ．Ｂ．ＣＬＵＢ"]]}, {"code": "E-B-3", "time": "11:05", "court": 8, "cls": "E", "phase": "L", "block": "B", "slots": [["p", "松田湊緒", "瀬田北スポ少"], ["p", "森下朝陽", "ＣＳジュニア"]]}, {"code": "E-B-4", "time": "11:05", "court": 9, "cls": "E", "phase": "L", "block": "B", "slots": [["p", "西川椛", "唐崎ジュニア"], ["p", "岡本爽佑", "京都ジュニア"]]}, {"code": "E-C-3", "time": "11:05", "court": 10, "cls": "E", "phase": "L", "block": "C", "slots": [["p", "森下湊翔", "ＣＳジュニア"], ["p", "萩崎遥太", "坂本倶楽部"]]}, {"code": "E-C-4", "time": "11:05", "court": 11, "cls": "E", "phase": "L", "block": "C", "slots": [["p", "鈴木蒼馬", "各務原Ｊｒ"], ["p", "畑尾知依", "草津ジュニア"]]}, {"code": "E-D-3", "time": "11:05", "court": 12, "cls": "E", "phase": "L", "block": "D", "slots": [["p", "宮﨑匠人", "ミナクサ会"], ["p", "佐藤優吏", "京都ジュニア"]]}, {"code": "E-D-4", "time": "11:15", "court": 1, "cls": "E", "phase": "L", "block": "D", "slots": [["p", "大倉知", "瀬田北スポ少"], ["p", "宇野樹希", "草津ジュニア"]]}, {"code": "E-E-3", "time": "11:15", "court": 2, "cls": "E", "phase": "L", "block": "E", "slots": [["p", "牧栞愛", "伊丹スピリッツ"], ["p", "香西春瑠", "唐崎ジュニア"]]}, {"code": "E-E-4", "time": "11:15", "court": 3, "cls": "E", "phase": "L", "block": "E", "slots": [["p", "福本雄大", "各務原Ｊｒ"], ["p", "久野蒼真", "ＣＳジュニア"]]}, {"code": "E-F-3", "time": "11:15", "court": 4, "cls": "E", "phase": "L", "block": "F", "slots": [["p", "伊賀上華", "唐崎ジュニア"], ["p", "松本心陽", "草津ジュニア"]]}, {"code": "E-F-4", "time": "11:15", "court": 5, "cls": "E", "phase": "L", "block": "F", "slots": [["p", "榊原可惟", "各務原Ｊｒ"], ["p", "岡本望鈴", "京都ジュニア"]]}, {"code": "E-G-3", "time": "11:15", "court": 6, "cls": "E", "phase": "L", "block": "G", "slots": [["p", "森晴志郎", "各務原Ｊｒ"], ["p", "萩原悠", "Ｏ．Ｂ．ＣＬＵＢ"]]}, {"code": "E-G-4", "time": "11:15", "court": 7, "cls": "E", "phase": "L", "block": "G", "slots": [["p", "内川聖菜", "ミナクサ会"], ["p", "釜淵紬", "草津ジュニア"]]}, {"code": "E-H-2", "time": "11:15", "court": 8, "cls": "E", "phase": "L", "block": "H", "slots": [["p", "竹中結音", "瀬田北スポ少"], ["p", "横山絢音", "各務原Ｊｒ"]]}, {"code": "B-A-3", "time": "11:15", "court": 9, "cls": "B", "phase": "L", "block": "A", "slots": [["p", "竹下修史", "Ｄｒｅａｍ．Ｊｒ"], ["p", "櫻井絆日翔", "美翔団ジュニア"]]}, {"code": "B-A-4", "time": "11:15", "court": 10, "cls": "B", "phase": "L", "block": "A", "slots": [["p", "小川統大", "瀬田東スポ少"], ["p", "上坂拓実", "唐崎ジュニア"]]}, {"code": "B-B-3", "time": "11:15", "court": 11, "cls": "B", "phase": "L", "block": "B", "slots": [["p", "山田美彩紀", "各務原Ｊｒ"], ["p", "渡邉稜", "瀬田北スポ少"]]}, {"code": "B-B-4", "time": "11:15", "court": 12, "cls": "B", "phase": "L", "block": "B", "slots": [["p", "溝口慶次", "美翔団ジュニア"], ["p", "野瀬夏葉", "瀬田東スポ少"]]}, {"code": "B-C-3", "time": "11:25", "court": 1, "cls": "B", "phase": "L", "block": "C", "slots": [["p", "東方杏実", "たんぽぽＢ．Ｃ"], ["p", "石本祥梧", "坂本倶楽部"]]}, {"code": "B-C-4", "time": "11:25", "court": 2, "cls": "B", "phase": "L", "block": "C", "slots": [["p", "小寺愛琉", "Ｄｒｅａｍ．Ｊｒ"], ["p", "西川一燈", "唐崎ジュニア"]]}, {"code": "B-D-3", "time": "11:25", "court": 3, "cls": "B", "phase": "L", "block": "D", "slots": [["p", "真下結也", "瀬田北スポ少"], ["p", "大谷珠凰", "唐崎ジュニア"]]}, {"code": "B-D-4", "time": "11:25", "court": 4, "cls": "B", "phase": "L", "block": "D", "slots": [["p", "武内佑晟", "Ｄｒｅａｍ．Ｊｒ"], ["p", "籠谷律花", "坂本倶楽部"]]}, {"code": "B-E-3", "time": "11:25", "court": 5, "cls": "B", "phase": "L", "block": "E", "slots": [["p", "佐藤ひかり", "富雄南ジュニア"], ["p", "野々村柚希", "Ｔｅａｍ３２８"]]}, {"code": "B-E-4", "time": "11:25", "court": 6, "cls": "B", "phase": "L", "block": "E", "slots": [["p", "奥村華奈", "各務原Ｊｒ"], ["p", "前田理仁", "瀬田北スポ少"]]}, {"code": "B-F-3", "time": "11:25", "court": 7, "cls": "B", "phase": "L", "block": "F", "slots": [["p", "深田圭", "瀬田北スポ少"], ["p", "冨岡あお", "京都ジュニア"]]}, {"code": "B-F-4", "time": "11:25", "court": 8, "cls": "B", "phase": "L", "block": "F", "slots": [["p", "萩原聖太", "Ｏ．Ｂ．ＣＬＵＢ"], ["p", "千木良柊", "富雄南ジュニア"]]}, {"code": "B-G-2", "time": "11:25", "court": 9, "cls": "B", "phase": "L", "block": "G", "slots": [["p", "内川新菜", "ミナクサ会"], ["p", "桂川大知", "京都ジュニア"]]}, {"code": "B-H-2", "time": "11:25", "court": 10, "cls": "B", "phase": "L", "block": "H", "slots": [["p", "井上道仁", "各務原Ｊｒ"], ["p", "西岡大翔", "唐崎ジュニア"]]}, {"code": "A-A-3", "time": "11:25", "court": 11, "cls": "A", "phase": "L", "block": "A", "slots": [["p", "竹井瑛太", "伊丹スピリッツ"], ["p", "稲葉莉子", "ＴＥＡＭ升"]]}, {"code": "A-A-4", "time": "11:25", "court": 12, "cls": "A", "phase": "L", "block": "A", "slots": [["p", "中居楓菜", "各務原Ｊｒ"], ["p", "上坂実結", "唐崎ジュニア"]]}, {"code": "A-B-3", "time": "11:35", "court": 1, "cls": "A", "phase": "L", "block": "B", "slots": [["p", "米田麻莉", "ＣＳジュニア"], ["p", "小西旺佑", "Ｄｒｅａｍ．Ｊｒ"]]}, {"code": "A-B-4", "time": "11:35", "court": 2, "cls": "A", "phase": "L", "block": "B", "slots": [["p", "井上友陽奈", "各務原Ｊｒ"], ["p", "丹原幸咲", "ミナクサ会"]]}, {"code": "A-C-3", "time": "11:35", "court": 3, "cls": "A", "phase": "L", "block": "C", "slots": [["p", "神農叶愛", "伊丹スピリッツ"], ["p", "橋本玲衣", "Ｏ．Ｂ．ＣＬＵＢ"]]}, {"code": "A-C-4", "time": "11:35", "court": 4, "cls": "A", "phase": "L", "block": "C", "slots": [["p", "大澤結翔", "ミナクサ会"], ["p", "垣見空汰", "各務原Ｊｒ"]]}, {"code": "A-D-3", "time": "11:35", "court": 5, "cls": "A", "phase": "L", "block": "D", "slots": [["p", "八代啓士朗", "ミナクサ会"], ["p", "井上美結", "各務原Ｊｒ"]]}, {"code": "A-D-4", "time": "11:35", "court": 6, "cls": "A", "phase": "L", "block": "D", "slots": [["p", "早川蓮", "Ｄｒｅａｍ．Ｊｒ"], ["p", "臼井星来", "たんぽぽＢ．Ｃ"]]}, {"code": "A-E-3", "time": "11:35", "court": 7, "cls": "A", "phase": "L", "block": "E", "slots": [["p", "宇野功基", "松本ジュニア"], ["p", "川西彩陽", "唐崎ジュニア"]]}, {"code": "A-E-4", "time": "11:35", "court": 8, "cls": "A", "phase": "L", "block": "E", "slots": [["p", "吉江虹海", "Ｏ．Ｂ．ＣＬＵＢ"], ["p", "佐藤智哉", "富雄南ジュニア"]]}, {"code": "A-F-2", "time": "11:35", "court": 9, "cls": "A", "phase": "L", "block": "F", "slots": [["p", "北山結翔", "ＴＥＡＭ升"], ["p", "出蔵裕也", "Ｄｒｅａｍ．Ｊｒ"]]}, {"code": "A-G-2", "time": "11:35", "court": 10, "cls": "A", "phase": "L", "block": "G", "slots": [["p", "野々垣沙環", "唐崎ジュニア"], ["p", "池田麻穂里", "Ｏ．Ｂ．ＣＬＵＢ"]]}, {"code": "D-A-3", "time": "11:35", "court": 11, "cls": "D", "phase": "L", "block": "A", "slots": [["p", "古谷莉歩", "唐崎ジュニア"], ["p", "灰野楓七", "瀬田東スポ少"]]}, {"code": "D-A-4", "time": "11:35", "court": 12, "cls": "D", "phase": "L", "block": "A", "slots": [["p", "小林亜香梨", "瀬田北スポ少"], ["p", "阿形茅音", "草津ジュニア"]]}, {"code": "D-B-3", "time": "11:45", "court": 1, "cls": "D", "phase": "L", "block": "B", "slots": [["p", "黒田涼那", "瀬田東スポ少"], ["p", "榊原衣織", "各務原Ｊｒ"]]}, {"code": "D-B-4", "time": "11:45", "court": 2, "cls": "D", "phase": "L", "block": "B", "slots": [["p", "春本一華", "唐崎ジュニア"], ["p", "玉川碧衣", "瀬田北スポ少"]]}, {"code": "D-C-3", "time": "11:45", "court": 3, "cls": "D", "phase": "L", "block": "C", "slots": [["p", "森岡大雅", "Ｄｒｅａｍ．Ｊｒ"], ["p", "田中達稀", "瀬田北スポ少"]]}, {"code": "D-C-4", "time": "11:45", "court": 4, "cls": "D", "phase": "L", "block": "C", "slots": [["p", "大江千煌", "瀬田東スポ少"], ["p", "春田菜花", "唐崎ジュニア"]]}, {"code": "D-D-3", "time": "11:45", "court": 5, "cls": "D", "phase": "L", "block": "D", "slots": [["p", "寺田琴音", "瀬田東スポ少"], ["p", "山口葵翔", "Ｐｒｏｃｅｅｄ"]]}, {"code": "D-D-4", "time": "11:45", "court": 6, "cls": "D", "phase": "L", "block": "D", "slots": [["p", "島田虹奈", "唐崎ジュニア"], ["p", "中野愛彩", "田上スポーツ少年団"]]}, {"code": "D-E-2", "time": "11:45", "court": 7, "cls": "D", "phase": "L", "block": "E", "slots": [["p", "葛野花", "ぐるぐるパンチ"], ["p", "芦田呼春", "瀬田東スポ少"]]}, {"code": "D-F-2", "time": "11:45", "court": 8, "cls": "D", "phase": "L", "block": "F", "slots": [["p", "高阪遥夏", "唐崎ジュニア"], ["p", "山下璃花", "瀬田北スポ少"]]}, {"code": "D-G-2", "time": "11:45", "court": 9, "cls": "D", "phase": "L", "block": "G", "slots": [["p", "古関霞", "草津ジュニア"], ["p", "山本杏波", "瀬田北スポ少"]]}, {"code": "G-A-3", "time": "11:45", "court": 10, "cls": "G", "phase": "L", "block": "A", "slots": [["p", "野々村菜希", "Ｔｅａｍ３２８"], ["p", "正野愛茉", "瀬田北スポ少"]]}, {"code": "G-A-4", "time": "11:45", "court": 11, "cls": "G", "phase": "L", "block": "A", "slots": [["p", "藤本寛栞", "瀬田東スポ少"], ["p", "西川藍", "唐崎ジュニア"]]}, {"code": "G-B-3", "time": "11:45", "court": 12, "cls": "G", "phase": "L", "block": "B", "slots": [["p", "中原理太", "坂本倶楽部"], ["p", "中居眞太郎", "各務原Ｊｒ"]]}, {"code": "G-B-4", "time": "11:55", "court": 1, "cls": "G", "phase": "L", "block": "B", "slots": [["p", "八代脩吾", "ミナクサ会"], ["p", "三谷栞瑳", "唐崎ジュニア"]]}, {"code": "G-C-3", "time": "11:55", "court": 2, "cls": "G", "phase": "L", "block": "C", "slots": [["p", "東由紀乃", "瀬田東スポ少"], ["p", "伊藤玄笑", "坂本倶楽部"]]}, {"code": "G-C-4", "time": "11:55", "court": 3, "cls": "G", "phase": "L", "block": "C", "slots": [["p", "渡邉葵", "瀬田北スポ少"], ["p", "武内瑛亮", "松本ジュニア"]]}, {"code": "G-D-3", "time": "11:55", "court": 4, "cls": "G", "phase": "L", "block": "D", "slots": [["p", "田中来実", "ＮＯＣＫ"], ["p", "岸上桜梛", "唐崎ジュニア"]]}, {"code": "G-D-4", "time": "11:55", "court": 5, "cls": "G", "phase": "L", "block": "D", "slots": [["p", "宇野文乃", "ミナクサ会"], ["p", "萩崎颯太", "坂本倶楽部"]]}, {"code": "G-E-3", "time": "11:55", "court": 6, "cls": "G", "phase": "L", "block": "E", "slots": [["p", "清水端凌", "Ｏ．Ｂ．ＣＬＵＢ"], ["p", "黒田和樹", "Ｐｒｏｃｅｅｄ"]]}, {"code": "G-E-4", "time": "11:55", "court": 7, "cls": "G", "phase": "L", "block": "E", "slots": [["p", "西村律希", "瀬田北スポ少"], ["p", "春田椛月", "唐崎ジュニア"]]}, {"code": "G-F-2", "time": "11:55", "court": 8, "cls": "G", "phase": "L", "block": "F", "slots": [["p", "福田紗奈", "富雄南ジュニア"], ["p", "岸上楓向", "唐崎ジュニア"]]}, {"code": "F-A-3", "time": "11:55", "court": 9, "cls": "F", "phase": "L", "block": "A", "slots": [["p", "松浦優奈", "草津ジュニア"], ["p", "久野結菜", "ＣＳジュニア"]]}, {"code": "F-A-4", "time": "11:55", "court": 10, "cls": "F", "phase": "L", "block": "A", "slots": [["p", "拾井陽向", "唐崎ジュニア"], ["p", "桂川新大", "京都ジュニア"]]}, {"code": "F-B-3", "time": "11:55", "court": 11, "cls": "F", "phase": "L", "block": "B", "slots": [["p", "木下麗翔", "唐崎ジュニア"], ["p", "安達咲心", "草津ジュニア"]]}, {"code": "F-B-4", "time": "11:55", "court": 12, "cls": "F", "phase": "L", "block": "B", "slots": [["p", "椚座颯太", "坂本倶楽部"], ["p", "森下陽愛", "ＣＳジュニア"]]}, {"code": "F-C-3", "time": "12:05", "court": 1, "cls": "F", "phase": "L", "block": "C", "slots": [["p", "荒井茉莉", "京都ジュニア"], ["p", "足立るる", "伊丹スピリッツ"]]}, {"code": "F-C-4", "time": "12:05", "court": 2, "cls": "F", "phase": "L", "block": "C", "slots": [["p", "伊賀上藍", "唐崎ジュニア"], ["p", "安達陸", "草津ジュニア"]]}, {"code": "F-D-2", "time": "12:05", "court": 3, "cls": "F", "phase": "L", "block": "D", "slots": [["p", "森口七穂", "草津ジュニア"], ["p", "藤川穂香", "瀬田東スポ少"]]}, {"code": "F-E-2", "time": "12:05", "court": 4, "cls": "F", "phase": "L", "block": "E", "slots": [["p", "大森美月來", "ＣＳジュニア"], ["p", "道幸湊士", "京都ジュニア"]]}, {"code": "C-A-5", "time": "12:05", "court": 5, "cls": "C", "phase": "L", "block": "A", "slots": [["p", "小林鈴空", "唐崎ジュニア"], ["p", "松田奏来", "瀬田北スポ少"]]}, {"code": "C-A-6", "time": "12:05", "court": 6, "cls": "C", "phase": "L", "block": "A", "slots": [["p", "小寺葵陽", "Ｄｒｅａｍ．Ｊｒ"], ["p", "山本健慎", "ぐるぐるパンチ"]]}, {"code": "C-B-5", "time": "12:05", "court": 7, "cls": "C", "phase": "L", "block": "B", "slots": [["p", "吉田桜翔", "富雄南ジュニア"], ["p", "宮﨑煌人", "ミナクサ会"]]}, {"code": "C-B-6", "time": "12:05", "court": 8, "cls": "C", "phase": "L", "block": "B", "slots": [["p", "西村佳悟", "瀬田北スポ少"], ["p", "森創一郎", "各務原Ｊｒ"]]}, {"code": "C-C-5", "time": "12:05", "court": 9, "cls": "C", "phase": "L", "block": "C", "slots": [["p", "石田夏煌", "Ｄｒｅａｍ．Ｊｒ"], ["p", "辻琉希", "唐崎ジュニア"]]}, {"code": "C-C-6", "time": "12:05", "court": 10, "cls": "C", "phase": "L", "block": "C", "slots": [["p", "大倉直", "瀬田北スポ少"], ["p", "洲脇由茉", "草津ジュニア"]]}, {"code": "C-D-5", "time": "12:05", "court": 11, "cls": "C", "phase": "L", "block": "D", "slots": [["p", "水野未優", "松本ジュニア"], ["p", "山階紬希", "ＣＳジュニア"]]}, {"code": "C-D-6", "time": "12:05", "court": 12, "cls": "C", "phase": "L", "block": "D", "slots": [["p", "西村楓真", "ミナクサ会"], ["p", "上松蒼介", "瀬田北スポ少"]]}, {"code": "C-E-5", "time": "12:15", "court": 1, "cls": "C", "phase": "L", "block": "E", "slots": [["p", "高阪結夏", "唐崎ジュニア"], ["p", "千木良ゆず", "富雄南ジュニア"]]}, {"code": "C-E-6", "time": "12:15", "court": 2, "cls": "C", "phase": "L", "block": "E", "slots": [["p", "倉内瑛大", "草津ジュニア"], ["p", "稲垣絢斗", "各務原Ｊｒ"]]}, {"code": "C-F-5", "time": "12:15", "court": 3, "cls": "C", "phase": "L", "block": "F", "slots": [["p", "大江宏輝", "瀬田東スポ少"], ["p", "内川鈴菜", "ミナクサ会"]]}, {"code": "C-F-6", "time": "12:15", "court": 4, "cls": "C", "phase": "L", "block": "F", "slots": [["p", "小川愛菜", "各務原Ｊｒ"], ["p", "野々村翔", "Ｔｅａｍ３２８"]]}, {"code": "C-G-5", "time": "12:15", "court": 5, "cls": "C", "phase": "L", "block": "G", "slots": [["p", "香西信ノ輔", "唐崎ジュニア"], ["p", "臼田一華", "たんぽぽＢ．Ｃ"]]}, {"code": "C-G-6", "time": "12:15", "court": 6, "cls": "C", "phase": "L", "block": "G", "slots": [["p", "谷村大翔", "Ｄｒｅａｍ．Ｊｒ"], ["p", "中村日南", "草津ジュニア"]]}, {"code": "C-H-3", "time": "12:15", "court": 7, "cls": "C", "phase": "L", "block": "H", "slots": [["p", "長谷川愛那", "ぐるぐるパンチ"], ["p", "宮田彩葉", "各務原Ｊｒ"]]}, {"code": "E-A-5", "time": "12:15", "court": 8, "cls": "E", "phase": "L", "block": "A", "slots": [["p", "島田琉空", "唐崎ジュニア"], ["p", "寺尾和也", "Ｏ．Ｂ．ＣＬＵＢ"]]}, {"code": "E-A-6", "time": "12:15", "court": 9, "cls": "E", "phase": "L", "block": "A", "slots": [["p", "足立茉奏", "各務原Ｊｒ"], ["p", "袖岡雛乃", "草津ジュニア"]]}, {"code": "E-B-5", "time": "12:15", "court": 10, "cls": "E", "phase": "L", "block": "B", "slots": [["p", "森下朝陽", "ＣＳジュニア"], ["p", "岡本爽佑", "京都ジュニア"]]}, {"code": "E-B-6", "time": "12:15", "court": 11, "cls": "E", "phase": "L", "block": "B", "slots": [["p", "松田湊緒", "瀬田北スポ少"], ["p", "西川椛", "唐崎ジュニア"]]}, {"code": "E-C-5", "time": "12:15", "court": 12, "cls": "E", "phase": "L", "block": "C", "slots": [["p", "萩崎遥太", "坂本倶楽部"], ["p", "畑尾知依", "草津ジュニア"]]}, {"code": "E-C-6", "time": "12:25", "court": 1, "cls": "E", "phase": "L", "block": "C", "slots": [["p", "森下湊翔", "ＣＳジュニア"], ["p", "鈴木蒼馬", "各務原Ｊｒ"]]}, {"code": "E-D-5", "time": "12:25", "court": 2, "cls": "E", "phase": "L", "block": "D", "slots": [["p", "佐藤優吏", "京都ジュニア"], ["p", "宇野樹希", "草津ジュニア"]]}, {"code": "E-D-6", "time": "12:25", "court": 3, "cls": "E", "phase": "L", "block": "D", "slots": [["p", "宮﨑匠人", "ミナクサ会"], ["p", "大倉知", "瀬田北スポ少"]]}, {"code": "E-E-5", "time": "12:25", "court": 4, "cls": "E", "phase": "L", "block": "E", "slots": [["p", "香西春瑠", "唐崎ジュニア"], ["p", "久野蒼真", "ＣＳジュニア"]]}, {"code": "E-E-6", "time": "12:25", "court": 5, "cls": "E", "phase": "L", "block": "E", "slots": [["p", "牧栞愛", "伊丹スピリッツ"], ["p", "福本雄大", "各務原Ｊｒ"]]}, {"code": "E-F-5", "time": "12:25", "court": 6, "cls": "E", "phase": "L", "block": "F", "slots": [["p", "松本心陽", "草津ジュニア"], ["p", "岡本望鈴", "京都ジュニア"]]}, {"code": "E-F-6", "time": "12:25", "court": 7, "cls": "E", "phase": "L", "block": "F", "slots": [["p", "伊賀上華", "唐崎ジュニア"], ["p", "榊原可惟", "各務原Ｊｒ"]]}, {"code": "E-G-5", "time": "12:25", "court": 8, "cls": "E", "phase": "L", "block": "G", "slots": [["p", "萩原悠", "Ｏ．Ｂ．ＣＬＵＢ"], ["p", "釜淵紬", "草津ジュニア"]]}, {"code": "E-G-6", "time": "12:25", "court": 9, "cls": "E", "phase": "L", "block": "G", "slots": [["p", "森晴志郎", "各務原Ｊｒ"], ["p", "内川聖菜", "ミナクサ会"]]}, {"code": "E-H-3", "time": "12:25", "court": 10, "cls": "E", "phase": "L", "block": "H", "slots": [["p", "郷原文心", "草津ジュニア"], ["p", "横山絢音", "各務原Ｊｒ"]]}, {"code": "B-A-5", "time": "12:25", "court": 11, "cls": "B", "phase": "L", "block": "A", "slots": [["p", "櫻井絆日翔", "美翔団ジュニア"], ["p", "上坂拓実", "唐崎ジュニア"]]}, {"code": "B-A-6", "time": "12:25", "court": 12, "cls": "B", "phase": "L", "block": "A", "slots": [["p", "竹下修史", "Ｄｒｅａｍ．Ｊｒ"], ["p", "小川統大", "瀬田東スポ少"]]}, {"code": "B-B-5", "time": "12:35", "court": 1, "cls": "B", "phase": "L", "block": "B", "slots": [["p", "渡邉稜", "瀬田北スポ少"], ["p", "野瀬夏葉", "瀬田東スポ少"]]}, {"code": "B-B-6", "time": "12:35", "court": 2, "cls": "B", "phase": "L", "block": "B", "slots": [["p", "山田美彩紀", "各務原Ｊｒ"], ["p", "溝口慶次", "美翔団ジュニア"]]}, {"code": "B-C-5", "time": "12:35", "court": 3, "cls": "B", "phase": "L", "block": "C", "slots": [["p", "石本祥梧", "坂本倶楽部"], ["p", "西川一燈", "唐崎ジュニア"]]}, {"code": "B-C-6", "time": "12:35", "court": 4, "cls": "B", "phase": "L", "block": "C", "slots": [["p", "東方杏実", "たんぽぽＢ．Ｃ"], ["p", "小寺愛琉", "Ｄｒｅａｍ．Ｊｒ"]]}, {"code": "B-D-5", "time": "12:35", "court": 5, "cls": "B", "phase": "L", "block": "D", "slots": [["p", "大谷珠凰", "唐崎ジュニア"], ["p", "籠谷律花", "坂本倶楽部"]]}, {"code": "B-D-6", "time": "12:35", "court": 6, "cls": "B", "phase": "L", "block": "D", "slots": [["p", "真下結也", "瀬田北スポ少"], ["p", "武内佑晟", "Ｄｒｅａｍ．Ｊｒ"]]}, {"code": "B-E-5", "time": "12:35", "court": 7, "cls": "B", "phase": "L", "block": "E", "slots": [["p", "野々村柚希", "Ｔｅａｍ３２８"], ["p", "前田理仁", "瀬田北スポ少"]]}, {"code": "B-E-6", "time": "12:35", "court": 8, "cls": "B", "phase": "L", "block": "E", "slots": [["p", "佐藤ひかり", "富雄南ジュニア"], ["p", "奥村華奈", "各務原Ｊｒ"]]}, {"code": "B-F-5", "time": "12:35", "court": 9, "cls": "B", "phase": "L", "block": "F", "slots": [["p", "冨岡あお", "京都ジュニア"], ["p", "千木良柊", "富雄南ジュニア"]]}, {"code": "B-F-6", "time": "12:35", "court": 10, "cls": "B", "phase": "L", "block": "F", "slots": [["p", "深田圭", "瀬田北スポ少"], ["p", "萩原聖太", "Ｏ．Ｂ．ＣＬＵＢ"]]}, {"code": "B-G-3", "time": "12:35", "court": 11, "cls": "B", "phase": "L", "block": "G", "slots": [["p", "吉江姫依", "Ｏ．Ｂ．ＣＬＵＢ"], ["p", "桂川大知", "京都ジュニア"]]}, {"code": "B-H-3", "time": "12:35", "court": 12, "cls": "B", "phase": "L", "block": "H", "slots": [["p", "田中藤真", "瀬田北スポ少"], ["p", "西岡大翔", "唐崎ジュニア"]]}, {"code": "A-A-5", "time": "12:45", "court": 1, "cls": "A", "phase": "L", "block": "A", "slots": [["p", "稲葉莉子", "ＴＥＡＭ升"], ["p", "上坂実結", "唐崎ジュニア"]]}, {"code": "A-A-6", "time": "12:45", "court": 2, "cls": "A", "phase": "L", "block": "A", "slots": [["p", "竹井瑛太", "伊丹スピリッツ"], ["p", "中居楓菜", "各務原Ｊｒ"]]}, {"code": "A-B-5", "time": "12:45", "court": 3, "cls": "A", "phase": "L", "block": "B", "slots": [["p", "小西旺佑", "Ｄｒｅａｍ．Ｊｒ"], ["p", "丹原幸咲", "ミナクサ会"]]}, {"code": "A-B-6", "time": "12:45", "court": 4, "cls": "A", "phase": "L", "block": "B", "slots": [["p", "米田麻莉", "ＣＳジュニア"], ["p", "井上友陽奈", "各務原Ｊｒ"]]}, {"code": "A-C-5", "time": "12:45", "court": 5, "cls": "A", "phase": "L", "block": "C", "slots": [["p", "橋本玲衣", "Ｏ．Ｂ．ＣＬＵＢ"], ["p", "垣見空汰", "各務原Ｊｒ"]]}, {"code": "A-C-6", "time": "12:45", "court": 6, "cls": "A", "phase": "L", "block": "C", "slots": [["p", "神農叶愛", "伊丹スピリッツ"], ["p", "大澤結翔", "ミナクサ会"]]}, {"code": "A-D-5", "time": "12:45", "court": 7, "cls": "A", "phase": "L", "block": "D", "slots": [["p", "井上美結", "各務原Ｊｒ"], ["p", "臼井星来", "たんぽぽＢ．Ｃ"]]}, {"code": "A-D-6", "time": "12:45", "court": 8, "cls": "A", "phase": "L", "block": "D", "slots": [["p", "八代啓士朗", "ミナクサ会"], ["p", "早川蓮", "Ｄｒｅａｍ．Ｊｒ"]]}, {"code": "A-E-5", "time": "12:45", "court": 9, "cls": "A", "phase": "L", "block": "E", "slots": [["p", "川西彩陽", "唐崎ジュニア"], ["p", "佐藤智哉", "富雄南ジュニア"]]}, {"code": "A-E-6", "time": "12:45", "court": 10, "cls": "A", "phase": "L", "block": "E", "slots": [["p", "宇野功基", "松本ジュニア"], ["p", "吉江虹海", "Ｏ．Ｂ．ＣＬＵＢ"]]}, {"code": "A-F-3", "time": "12:45", "court": 11, "cls": "A", "phase": "L", "block": "F", "slots": [["p", "春本凛", "唐崎ジュニア"], ["p", "出蔵裕也", "Ｄｒｅａｍ．Ｊｒ"]]}, {"code": "A-G-3", "time": "12:45", "court": 12, "cls": "A", "phase": "L", "block": "G", "slots": [["p", "櫻井月渚", "美翔団ジュニア"], ["p", "池田麻穂里", "Ｏ．Ｂ．ＣＬＵＢ"]]}, {"code": "D-A-5", "time": "12:55", "court": 1, "cls": "D", "phase": "L", "block": "A", "slots": [["p", "灰野楓七", "瀬田東スポ少"], ["p", "阿形茅音", "草津ジュニア"]]}, {"code": "D-A-6", "time": "12:55", "court": 2, "cls": "D", "phase": "L", "block": "A", "slots": [["p", "古谷莉歩", "唐崎ジュニア"], ["p", "小林亜香梨", "瀬田北スポ少"]]}, {"code": "D-B-5", "time": "12:55", "court": 3, "cls": "D", "phase": "L", "block": "B", "slots": [["p", "榊原衣織", "各務原Ｊｒ"], ["p", "玉川碧衣", "瀬田北スポ少"]]}, {"code": "D-B-6", "time": "12:55", "court": 4, "cls": "D", "phase": "L", "block": "B", "slots": [["p", "黒田涼那", "瀬田東スポ少"], ["p", "春本一華", "唐崎ジュニア"]]}, {"code": "D-C-5", "time": "12:55", "court": 5, "cls": "D", "phase": "L", "block": "C", "slots": [["p", "田中達稀", "瀬田北スポ少"], ["p", "春田菜花", "唐崎ジュニア"]]}, {"code": "D-C-6", "time": "12:55", "court": 6, "cls": "D", "phase": "L", "block": "C", "slots": [["p", "森岡大雅", "Ｄｒｅａｍ．Ｊｒ"], ["p", "大江千煌", "瀬田東スポ少"]]}, {"code": "D-D-5", "time": "12:55", "court": 7, "cls": "D", "phase": "L", "block": "D", "slots": [["p", "山口葵翔", "Ｐｒｏｃｅｅｄ"], ["p", "中野愛彩", "田上スポーツ少年団"]]}, {"code": "D-D-6", "time": "12:55", "court": 8, "cls": "D", "phase": "L", "block": "D", "slots": [["p", "寺田琴音", "瀬田東スポ少"], ["p", "島田虹奈", "唐崎ジュニア"]]}, {"code": "D-E-3", "time": "12:55", "court": 9, "cls": "D", "phase": "L", "block": "E", "slots": [["p", "林奈槻", "富雄南ジュニア"], ["p", "芦田呼春", "瀬田東スポ少"]]}, {"code": "D-F-3", "time": "12:55", "court": 10, "cls": "D", "phase": "L", "block": "F", "slots": [["p", "義元鈴珠", "松本ジュニア"], ["p", "山下璃花", "瀬田北スポ少"]]}, {"code": "D-G-3", "time": "12:55", "court": 11, "cls": "D", "phase": "L", "block": "G", "slots": [["p", "田中芙実", "ぐるぐるパンチ"], ["p", "山本杏波", "瀬田北スポ少"]]}, {"code": "G-A-5", "time": "12:55", "court": 12, "cls": "G", "phase": "L", "block": "A", "slots": [["p", "正野愛茉", "瀬田北スポ少"], ["p", "西川藍", "唐崎ジュニア"]]}, {"code": "G-A-6", "time": "13:05", "court": 1, "cls": "G", "phase": "L", "block": "A", "slots": [["p", "野々村菜希", "Ｔｅａｍ３２８"], ["p", "藤本寛栞", "瀬田東スポ少"]]}, {"code": "G-B-5", "time": "13:05", "court": 2, "cls": "G", "phase": "L", "block": "B", "slots": [["p", "中居眞太郎", "各務原Ｊｒ"], ["p", "三谷栞瑳", "唐崎ジュニア"]]}, {"code": "G-B-6", "time": "13:05", "court": 3, "cls": "G", "phase": "L", "block": "B", "slots": [["p", "中原理太", "坂本倶楽部"], ["p", "八代脩吾", "ミナクサ会"]]}, {"code": "G-C-5", "time": "13:05", "court": 4, "cls": "G", "phase": "L", "block": "C", "slots": [["p", "伊藤玄笑", "坂本倶楽部"], ["p", "武内瑛亮", "松本ジュニア"]]}, {"code": "G-C-6", "time": "13:05", "court": 5, "cls": "G", "phase": "L", "block": "C", "slots": [["p", "東由紀乃", "瀬田東スポ少"], ["p", "渡邉葵", "瀬田北スポ少"]]}, {"code": "G-D-5", "time": "13:05", "court": 6, "cls": "G", "phase": "L", "block": "D", "slots": [["p", "岸上桜梛", "唐崎ジュニア"], ["p", "萩崎颯太", "坂本倶楽部"]]}, {"code": "G-D-6", "time": "13:05", "court": 7, "cls": "G", "phase": "L", "block": "D", "slots": [["p", "田中来実", "ＮＯＣＫ"], ["p", "宇野文乃", "ミナクサ会"]]}, {"code": "G-E-5", "time": "13:05", "court": 8, "cls": "G", "phase": "L", "block": "E", "slots": [["p", "黒田和樹", "Ｐｒｏｃｅｅｄ"], ["p", "春田椛月", "唐崎ジュニア"]]}, {"code": "G-E-6", "time": "13:05", "court": 9, "cls": "G", "phase": "L", "block": "E", "slots": [["p", "清水端凌", "Ｏ．Ｂ．ＣＬＵＢ"], ["p", "西村律希", "瀬田北スポ少"]]}, {"code": "G-F-3", "time": "13:05", "court": 10, "cls": "G", "phase": "L", "block": "F", "slots": [["p", "松浦奈瑚", "草津ジュニア"], ["p", "岸上楓向", "唐崎ジュニア"]]}, {"code": "F-A-5", "time": "13:05", "court": 11, "cls": "F", "phase": "L", "block": "A", "slots": [["p", "久野結菜", "ＣＳジュニア"], ["p", "桂川新大", "京都ジュニア"]]}, {"code": "F-A-6", "time": "13:05", "court": 12, "cls": "F", "phase": "L", "block": "A", "slots": [["p", "松浦優奈", "草津ジュニア"], ["p", "拾井陽向", "唐崎ジュニア"]]}, {"code": "F-B-5", "time": "13:15", "court": 1, "cls": "F", "phase": "L", "block": "B", "slots": [["p", "安達咲心", "草津ジュニア"], ["p", "森下陽愛", "ＣＳジュニア"]]}, {"code": "F-B-6", "time": "13:15", "court": 2, "cls": "F", "phase": "L", "block": "B", "slots": [["p", "木下麗翔", "唐崎ジュニア"], ["p", "椚座颯太", "坂本倶楽部"]]}, {"code": "F-C-5", "time": "13:15", "court": 3, "cls": "F", "phase": "L", "block": "C", "slots": [["p", "足立るる", "伊丹スピリッツ"], ["p", "安達陸", "草津ジュニア"]]}, {"code": "F-C-6", "time": "13:15", "court": 4, "cls": "F", "phase": "L", "block": "C", "slots": [["p", "荒井茉莉", "京都ジュニア"], ["p", "伊賀上藍", "唐崎ジュニア"]]}, {"code": "F-D-3", "time": "13:15", "court": 5, "cls": "F", "phase": "L", "block": "D", "slots": [["p", "足立ねね", "伊丹スピリッツ"], ["p", "藤川穂香", "瀬田東スポ少"]]}, {"code": "F-E-3", "time": "13:15", "court": 6, "cls": "F", "phase": "L", "block": "E", "slots": [["p", "岸上暖杏", "唐崎ジュニア"], ["p", "道幸湊士", "京都ジュニア"]]}, {"code": "LC-1", "time": "13:15", "court": 7, "cls": "C", "phase": "W", "slots": [["r", "B", 4], ["r", "H", 3]]}, {"code": "LC-2", "time": "13:15", "court": 8, "cls": "C", "phase": "W", "slots": [["r", "E", 3], ["r", "C", 4]]}, {"code": "LC-3", "time": "13:15", "court": 9, "cls": "C", "phase": "W", "slots": [["r", "F", 4], ["r", "D", 3]]}, {"code": "LC-4", "time": "13:15", "court": 10, "cls": "C", "phase": "W", "slots": [["r", "C", 3], ["r", "G", 4]]}, {"code": "LC-5", "time": "13:15", "court": 11, "cls": "C", "phase": "W", "slots": [["r", "D", 4], ["r", "F", 3]]}, {"code": "LC-6", "time": "13:15", "court": 12, "cls": "C", "phase": "W", "slots": [["r", "G", 3], ["r", "A", 4]]}, {"code": "LC-7", "time": "13:30", "court": 1, "cls": "C", "phase": "W", "slots": [["r", "E", 4], ["r", "B", 3]]}, {"code": "C-1", "time": "13:30", "court": 2, "cls": "C", "phase": "U", "slots": [["r", "A", 1], ["r", "G", 2]]}, {"code": "C-2", "time": "13:30", "court": 3, "cls": "C", "phase": "U", "slots": [["r", "C", 2], ["r", "H", 1]]}, {"code": "C-3", "time": "13:30", "court": 4, "cls": "C", "phase": "U", "slots": [["r", "E", 1], ["r", "B", 2]]}, {"code": "C-4", "time": "13:30", "court": 5, "cls": "C", "phase": "U", "slots": [["r", "F", 2], ["r", "D", 1]]}, {"code": "C-5", "time": "13:30", "court": 6, "cls": "C", "phase": "U", "slots": [["r", "C", 1], ["r", "E", 2]]}, {"code": "C-6", "time": "13:30", "court": 7, "cls": "C", "phase": "U", "slots": [["r", "A", 2], ["r", "F", 1]]}, {"code": "C-7", "time": "13:30", "court": 8, "cls": "C", "phase": "U", "slots": [["r", "G", 1], ["r", "D", 2]]}, {"code": "C-8", "time": "13:30", "court": 9, "cls": "C", "phase": "U", "slots": [["r", "H", 2], ["r", "B", 1]]}, {"code": "LE-1", "time": "13:30", "court": 10, "cls": "E", "phase": "W", "slots": [["r", "B", 4], ["r", "G", 3]]}, {"code": "LE-2", "time": "13:30", "court": 11, "cls": "E", "phase": "W", "slots": [["r", "E", 3], ["r", "C", 4]]}, {"code": "LE-3", "time": "13:30", "court": 12, "cls": "E", "phase": "W", "slots": [["r", "F", 4], ["r", "D", 3]]}, {"code": "LE-4", "time": "13:45", "court": 1, "cls": "E", "phase": "W", "slots": [["r", "C", 3], ["r", "E", 4]]}, {"code": "LE-5", "time": "13:45", "court": 2, "cls": "E", "phase": "W", "slots": [["r", "D", 4], ["r", "F", 3]]}, {"code": "LE-6", "time": "13:45", "court": 3, "cls": "E", "phase": "W", "slots": [["r", "H", 3], ["r", "A", 4]]}, {"code": "LE-7", "time": "13:45", "court": 4, "cls": "E", "phase": "W", "slots": [["r", "G", 4], ["r", "B", 3]]}, {"code": "E-1", "time": "13:45", "court": 5, "cls": "E", "phase": "U", "slots": [["r", "A", 1], ["r", "G", 2]]}, {"code": "E-2", "time": "13:45", "court": 6, "cls": "E", "phase": "U", "slots": [["r", "B", 2], ["r", "H", 1]]}, {"code": "E-3", "time": "13:45", "court": 7, "cls": "E", "phase": "U", "slots": [["r", "E", 1], ["r", "C", 2]]}, {"code": "E-4", "time": "13:45", "court": 8, "cls": "E", "phase": "U", "slots": [["r", "F", 2], ["r", "D", 1]]}, {"code": "E-5", "time": "13:45", "court": 9, "cls": "E", "phase": "U", "slots": [["r", "C", 1], ["r", "E", 2]]}, {"code": "E-6", "time": "13:45", "court": 10, "cls": "E", "phase": "U", "slots": [["r", "D", 2], ["r", "F", 1]]}, {"code": "E-7", "time": "13:45", "court": 11, "cls": "E", "phase": "U", "slots": [["r", "G", 1], ["r", "A", 2]]}, {"code": "E-8", "time": "13:45", "court": 12, "cls": "E", "phase": "U", "slots": [["r", "H", 2], ["r", "B", 1]]}, {"code": "LB-1", "time": "14:00", "court": 1, "cls": "B", "phase": "W", "slots": [["r", "B", 4], ["r", "H", 3]]}, {"code": "LB-2", "time": "14:00", "court": 2, "cls": "B", "phase": "W", "slots": [["r", "E", 3], ["r", "C", 4]]}, {"code": "LB-3", "time": "14:00", "court": 3, "cls": "B", "phase": "W", "slots": [["r", "F", 4], ["r", "D", 3]]}, {"code": "LB-4", "time": "14:00", "court": 4, "cls": "B", "phase": "W", "slots": [["r", "C", 3], ["r", "E", 4]]}, {"code": "LB-5", "time": "14:00", "court": 5, "cls": "B", "phase": "W", "slots": [["r", "D", 4], ["r", "F", 3]]}, {"code": "LB-6", "time": "14:00", "court": 6, "cls": "B", "phase": "W", "slots": [["r", "G", 3], ["r", "A", 4]]}, {"code": "B-1", "time": "14:00", "court": 7, "cls": "B", "phase": "U", "slots": [["r", "A", 1], ["r", "G", 2]]}, {"code": "B-2", "time": "14:00", "court": 8, "cls": "B", "phase": "U", "slots": [["r", "B", 2], ["r", "H", 1]]}, {"code": "B-3", "time": "14:00", "court": 9, "cls": "B", "phase": "U", "slots": [["r", "E", 1], ["r", "C", 2]]}, {"code": "B-4", "time": "14:00", "court": 10, "cls": "B", "phase": "U", "slots": [["r", "F", 2], ["r", "D", 1]]}, {"code": "B-5", "time": "14:00", "court": 11, "cls": "B", "phase": "U", "slots": [["r", "C", 1], ["r", "E", 2]]}, {"code": "B-6", "time": "14:00", "court": 12, "cls": "B", "phase": "U", "slots": [["r", "D", 2], ["r", "F", 1]]}, {"code": "B-7", "time": "14:15", "court": 1, "cls": "B", "phase": "U", "slots": [["r", "G", 1], ["r", "A", 2]]}, {"code": "B-8", "time": "14:15", "court": 2, "cls": "B", "phase": "U", "slots": [["r", "H", 2], ["r", "B", 1]]}, {"code": "LA-1", "time": "14:15", "court": 3, "cls": "A", "phase": "W", "slots": [["r", "B", 4], ["r", "G", 3]]}, {"code": "LA-2", "time": "14:15", "court": 4, "cls": "A", "phase": "W", "slots": [["r", "E", 3], ["r", "C", 4]]}, {"code": "LA-3", "time": "14:15", "court": 5, "cls": "A", "phase": "W", "slots": [["r", "D", 4], ["r", "F", 3]]}, {"code": "LA-4", "time": "14:15", "court": 6, "cls": "A", "phase": "W", "slots": [["r", "E", 4], ["r", "A", 4]]}, {"code": "A-1", "time": "14:15", "court": 7, "cls": "A", "phase": "U", "slots": [["r", "C", 2], ["r", "B", 2]]}, {"code": "A-2", "time": "14:15", "court": 8, "cls": "A", "phase": "U", "slots": [["r", "E", 1], ["r", "F", 2]]}, {"code": "A-3", "time": "14:15", "court": 9, "cls": "A", "phase": "U", "slots": [["r", "G", 2], ["r", "D", 1]]}, {"code": "A-4", "time": "14:15", "court": 10, "cls": "A", "phase": "U", "slots": [["r", "C", 1], ["r", "E", 2]]}, {"code": "A-5", "time": "14:15", "court": 11, "cls": "A", "phase": "U", "slots": [["r", "D", 2], ["r", "F", 1]]}, {"code": "A-6", "time": "14:15", "court": 12, "cls": "A", "phase": "U", "slots": [["r", "G", 1], ["r", "A", 2]]}, {"code": "LD-1", "time": "14:30", "court": 1, "cls": "D", "phase": "W", "slots": [["r", "C", 4], ["r", "B", 4]]}, {"code": "LD-2", "time": "14:30", "court": 2, "cls": "D", "phase": "W", "slots": [["r", "D", 4], ["r", "F", 3]]}, {"code": "LD-3", "time": "14:30", "court": 3, "cls": "D", "phase": "W", "slots": [["r", "G", 3], ["r", "A", 4]]}, {"code": "D-1", "time": "14:30", "court": 4, "cls": "D", "phase": "U", "slots": [["r", "F", 2], ["r", "C", 2]]}, {"code": "D-2", "time": "14:30", "court": 5, "cls": "D", "phase": "U", "slots": [["r", "E", 1], ["r", "B", 2]]}, {"code": "D-3", "time": "14:30", "court": 6, "cls": "D", "phase": "U", "slots": [["r", "G", 2], ["r", "D", 1]]}, {"code": "D-4", "time": "14:30", "court": 7, "cls": "D", "phase": "U", "slots": [["r", "C", 1], ["r", "E", 2]]}, {"code": "D-5", "time": "14:30", "court": 8, "cls": "D", "phase": "U", "slots": [["r", "A", 2], ["r", "F", 1]]}, {"code": "D-6", "time": "14:30", "court": 9, "cls": "D", "phase": "U", "slots": [["r", "G", 1], ["r", "D", 2]]}, {"code": "LG-1", "time": "14:30", "court": 10, "cls": "G", "phase": "W", "slots": [["r", "B", 4], ["r", "C", 4]]}, {"code": "LG-2", "time": "14:30", "court": 11, "cls": "G", "phase": "W", "slots": [["r", "D", 4], ["r", "F", 3]]}, {"code": "LG-3", "time": "14:30", "court": 12, "cls": "G", "phase": "W", "slots": [["r", "A", 4], ["r", "E", 4]]}, {"code": "G-1", "time": "14:45", "court": 1, "cls": "G", "phase": "U", "slots": [["r", "C", 2], ["r", "B", 2]]}, {"code": "G-2", "time": "14:45", "court": 2, "cls": "G", "phase": "U", "slots": [["r", "E", 1], ["r", "F", 2]]}, {"code": "G-3", "time": "14:45", "court": 3, "cls": "G", "phase": "U", "slots": [["r", "E", 2], ["r", "F", 1]]}, {"code": "G-4", "time": "14:45", "court": 4, "cls": "G", "phase": "U", "slots": [["r", "A", 2], ["r", "D", 2]]}, {"code": "LF-1", "time": "14:45", "court": 5, "cls": "F", "phase": "W", "slots": [["r", "A", 3], ["r", "B", 4]]}, {"code": "LF-2", "time": "14:45", "court": 6, "cls": "F", "phase": "W", "slots": [["r", "C", 4], ["r", "E", 3]]}, {"code": "LF-3", "time": "14:45", "court": 7, "cls": "F", "phase": "W", "slots": [["r", "C", 3], ["r", "D", 3]]}, {"code": "LF-4", "time": "14:45", "court": 8, "cls": "F", "phase": "W", "slots": [["r", "A", 4], ["r", "B", 3]]}, {"code": "F-1", "time": "14:45", "court": 9, "cls": "F", "phase": "U", "slots": [["r", "B", 2], ["r", "E", 1]]}, {"code": "F-2", "time": "14:45", "court": 10, "cls": "F", "phase": "U", "slots": [["r", "D", 2], ["r", "E", 2]]}, {"code": "LC-8", "time": "14:45", "court": 11, "cls": "C", "phase": "W", "slots": [["r", "A", 3], ["w", "LC-1"]]}, {"code": "LC-9", "time": "14:45", "court": 12, "cls": "C", "phase": "W", "slots": [["w", "LC-2"], ["w", "LC-3"]]}, {"code": "LC-10", "time": "15:00", "court": 1, "cls": "C", "phase": "W", "slots": [["w", "LC-4"], ["w", "LC-5"]]}, {"code": "LC-11", "time": "15:00", "court": 2, "cls": "C", "phase": "W", "slots": [["w", "LC-6"], ["w", "LC-7"]]}, {"code": "C-9", "time": "15:00", "court": 3, "cls": "C", "phase": "U", "slots": [["w", "C-1"], ["w", "C-2"]]}, {"code": "C-10", "time": "15:00", "court": 4, "cls": "C", "phase": "U", "slots": [["w", "C-3"], ["w", "C-4"]]}, {"code": "C-11", "time": "15:00", "court": 5, "cls": "C", "phase": "U", "slots": [["w", "C-5"], ["w", "C-6"]]}, {"code": "C-12", "time": "15:00", "court": 6, "cls": "C", "phase": "U", "slots": [["w", "C-7"], ["w", "C-8"]]}, {"code": "LE-8", "time": "15:00", "court": 7, "cls": "E", "phase": "W", "slots": [["r", "A", 3], ["w", "LE-1"]]}, {"code": "LE-9", "time": "15:00", "court": 8, "cls": "E", "phase": "W", "slots": [["w", "LE-2"], ["w", "LE-3"]]}, {"code": "LE-10", "time": "15:00", "court": 9, "cls": "E", "phase": "W", "slots": [["w", "LE-4"], ["w", "LE-5"]]}, {"code": "LE-11", "time": "15:00", "court": 10, "cls": "E", "phase": "W", "slots": [["w", "LE-6"], ["w", "LE-7"]]}, {"code": "E-9", "time": "15:00", "court": 11, "cls": "E", "phase": "U", "slots": [["w", "E-1"], ["w", "E-2"]]}, {"code": "E-10", "time": "15:00", "court": 12, "cls": "E", "phase": "U", "slots": [["w", "E-3"], ["w", "E-4"]]}, {"code": "E-11", "time": "15:15", "court": 1, "cls": "E", "phase": "U", "slots": [["w", "E-5"], ["w", "E-6"]]}, {"code": "E-12", "time": "15:15", "court": 2, "cls": "E", "phase": "U", "slots": [["w", "E-7"], ["w", "E-8"]]}, {"code": "LB-7", "time": "15:15", "court": 3, "cls": "B", "phase": "W", "slots": [["r", "A", 3], ["w", "LB-1"]]}, {"code": "LB-8", "time": "15:15", "court": 4, "cls": "B", "phase": "W", "slots": [["w", "LB-2"], ["w", "LB-3"]]}, {"code": "LB-9", "time": "15:15", "court": 5, "cls": "B", "phase": "W", "slots": [["w", "LB-4"], ["w", "LB-5"]]}, {"code": "LB-10", "time": "15:15", "court": 6, "cls": "B", "phase": "W", "slots": [["w", "LB-6"], ["r", "B", 3]]}, {"code": "B-9", "time": "15:15", "court": 7, "cls": "B", "phase": "U", "slots": [["w", "B-1"], ["w", "B-2"]]}, {"code": "B-10", "time": "15:15", "court": 8, "cls": "B", "phase": "U", "slots": [["w", "B-3"], ["w", "B-4"]]}, {"code": "B-11", "time": "15:15", "court": 9, "cls": "B", "phase": "U", "slots": [["w", "B-5"], ["w", "B-6"]]}, {"code": "B-12", "time": "15:15", "court": 10, "cls": "B", "phase": "U", "slots": [["w", "B-7"], ["w", "B-8"]]}, {"code": "LA-5", "time": "15:15", "court": 11, "cls": "A", "phase": "W", "slots": [["r", "A", 3], ["w", "LA-1"]]}, {"code": "LA-6", "time": "15:15", "court": 12, "cls": "A", "phase": "W", "slots": [["w", "LA-2"], ["r", "D", 3]]}, {"code": "LA-7", "time": "15:30", "court": 1, "cls": "A", "phase": "W", "slots": [["r", "C", 3], ["w", "LA-3"]]}, {"code": "LA-8", "time": "15:30", "court": 2, "cls": "A", "phase": "W", "slots": [["w", "LA-4"], ["r", "B", 3]]}, {"code": "A-7", "time": "15:30", "court": 3, "cls": "A", "phase": "U", "slots": [["r", "A", 1], ["w", "A-1"]]}, {"code": "A-8", "time": "15:30", "court": 4, "cls": "A", "phase": "U", "slots": [["w", "A-2"], ["w", "A-3"]]}, {"code": "A-9", "time": "15:30", "court": 5, "cls": "A", "phase": "U", "slots": [["w", "A-4"], ["w", "A-5"]]}, {"code": "A-10", "time": "15:30", "court": 6, "cls": "A", "phase": "U", "slots": [["w", "A-6"], ["r", "B", 1]]}, {"code": "LD-4", "time": "15:30", "court": 7, "cls": "D", "phase": "W", "slots": [["r", "A", 3], ["w", "LD-1"]]}, {"code": "LD-5", "time": "15:30", "court": 8, "cls": "D", "phase": "W", "slots": [["r", "E", 3], ["r", "D", 3]]}, {"code": "LD-6", "time": "15:30", "court": 9, "cls": "D", "phase": "W", "slots": [["r", "C", 3], ["w", "LD-2"]]}, {"code": "LD-7", "time": "15:30", "court": 10, "cls": "D", "phase": "W", "slots": [["w", "LD-3"], ["r", "B", 3]]}, {"code": "D-7", "time": "15:30", "court": 11, "cls": "D", "phase": "U", "slots": [["r", "A", 1], ["w", "D-1"]]}, {"code": "D-8", "time": "15:30", "court": 12, "cls": "D", "phase": "U", "slots": [["w", "D-2"], ["w", "D-3"]]}, {"code": "D-9", "time": "15:45", "court": 1, "cls": "D", "phase": "U", "slots": [["w", "D-4"], ["w", "D-5"]]}, {"code": "D-10", "time": "15:45", "court": 2, "cls": "D", "phase": "U", "slots": [["w", "D-6"], ["r", "B", 1]]}, {"code": "LG-4", "time": "15:45", "court": 3, "cls": "G", "phase": "W", "slots": [["r", "A", 3], ["w", "LG-1"]]}, {"code": "LG-5", "time": "15:45", "court": 4, "cls": "G", "phase": "W", "slots": [["r", "E", 3], ["r", "D", 3]]}, {"code": "LG-6", "time": "15:45", "court": 5, "cls": "G", "phase": "W", "slots": [["r", "C", 3], ["w", "LG-2"]]}, {"code": "LG-7", "time": "15:45", "court": 6, "cls": "G", "phase": "W", "slots": [["w", "LG-3"], ["r", "B", 3]]}, {"code": "G-5", "time": "15:45", "court": 7, "cls": "G", "phase": "U", "slots": [["r", "A", 1], ["w", "G-1"]]}, {"code": "G-6", "time": "15:45", "court": 8, "cls": "G", "phase": "U", "slots": [["w", "G-2"], ["r", "D", 1]]}, {"code": "G-7", "time": "15:45", "court": 9, "cls": "G", "phase": "U", "slots": [["r", "C", 1], ["w", "G-3"]]}, {"code": "G-8", "time": "15:45", "court": 10, "cls": "G", "phase": "U", "slots": [["w", "G-4"], ["r", "B", 1]]}, {"code": "LF-5", "time": "15:45", "court": 11, "cls": "F", "phase": "W", "slots": [["w", "LF-1"], ["w", "LF-2"]]}, {"code": "LF-6", "time": "15:45", "court": 12, "cls": "F", "phase": "W", "slots": [["w", "LF-3"], ["w", "LF-4"]]}, {"code": "F-3", "time": "16:00", "court": 1, "cls": "F", "phase": "U", "slots": [["r", "A", 1], ["w", "F-1"]]}, {"code": "F-4", "time": "16:00", "court": 2, "cls": "F", "phase": "U", "slots": [["r", "C", 2], ["r", "D", 1]]}, {"code": "F-5", "time": "16:00", "court": 3, "cls": "F", "phase": "U", "slots": [["r", "C", 1], ["r", "A", 2]]}, {"code": "F-6", "time": "16:00", "court": 4, "cls": "F", "phase": "U", "slots": [["w", "F-2"], ["r", "B", 1]]}, {"code": "LC-12", "time": "16:00", "court": 5, "cls": "C", "phase": "W", "slots": [["w", "LC-8"], ["w", "LC-9"]]}, {"code": "LC-13", "time": "16:00", "court": 6, "cls": "C", "phase": "W", "slots": [["w", "LC-10"], ["w", "LC-11"]]}, {"code": "C-13", "time": "16:00", "court": 7, "cls": "C", "phase": "U", "slots": [["w", "C-9"], ["w", "C-10"]]}, {"code": "C-14", "time": "16:00", "court": 8, "cls": "C", "phase": "U", "slots": [["w", "C-11"], ["w", "C-12"]]}, {"code": "LE-12", "time": "16:00", "court": 9, "cls": "E", "phase": "W", "slots": [["w", "LE-8"], ["w", "LE-9"]]}, {"code": "LE-13", "time": "16:00", "court": 10, "cls": "E", "phase": "W", "slots": [["w", "LE-10"], ["w", "LE-11"]]}, {"code": "E-13", "time": "16:00", "court": 11, "cls": "E", "phase": "U", "slots": [["w", "E-9"], ["w", "E-10"]]}, {"code": "E-14", "time": "16:00", "court": 12, "cls": "E", "phase": "U", "slots": [["w", "E-11"], ["w", "E-12"]]}, {"code": "LB-11", "time": "16:15", "court": 1, "cls": "B", "phase": "W", "slots": [["w", "LB-7"], ["w", "LB-8"]]}, {"code": "LB-12", "time": "16:15", "court": 2, "cls": "B", "phase": "W", "slots": [["w", "LB-9"], ["w", "LB-10"]]}, {"code": "B-13", "time": "16:15", "court": 3, "cls": "B", "phase": "U", "slots": [["w", "B-9"], ["w", "B-10"]]}, {"code": "B-14", "time": "16:15", "court": 4, "cls": "B", "phase": "U", "slots": [["w", "B-11"], ["w", "B-12"]]}, {"code": "LA-9", "time": "16:15", "court": 5, "cls": "A", "phase": "W", "slots": [["w", "LA-5"], ["w", "LA-6"]]}, {"code": "LA-10", "time": "16:15", "court": 6, "cls": "A", "phase": "W", "slots": [["w", "LA-7"], ["w", "LA-8"]]}, {"code": "A-11", "time": "16:15", "court": 7, "cls": "A", "phase": "U", "slots": [["w", "A-7"], ["w", "A-8"]]}, {"code": "A-12", "time": "16:15", "court": 8, "cls": "A", "phase": "U", "slots": [["w", "A-9"], ["w", "A-10"]]}, {"code": "LD-8", "time": "16:15", "court": 9, "cls": "D", "phase": "W", "slots": [["w", "LD-4"], ["w", "LD-5"]]}, {"code": "LD-9", "time": "16:15", "court": 10, "cls": "D", "phase": "W", "slots": [["w", "LD-6"], ["w", "LD-7"]]}, {"code": "D-11", "time": "16:15", "court": 11, "cls": "D", "phase": "U", "slots": [["w", "D-7"], ["w", "D-8"]]}, {"code": "D-12", "time": "16:15", "court": 12, "cls": "D", "phase": "U", "slots": [["w", "D-9"], ["w", "D-10"]]}, {"code": "LG-8", "time": "16:30", "court": 1, "cls": "G", "phase": "W", "slots": [["w", "LG-4"], ["w", "LG-5"]]}, {"code": "LG-9", "time": "16:30", "court": 2, "cls": "G", "phase": "W", "slots": [["w", "LG-6"], ["w", "LG-7"]]}, {"code": "G-9", "time": "16:30", "court": 3, "cls": "G", "phase": "U", "slots": [["w", "G-5"], ["w", "G-6"]]}, {"code": "G-10", "time": "16:30", "court": 4, "cls": "G", "phase": "U", "slots": [["w", "G-7"], ["w", "G-8"]]}, {"code": "F-7", "time": "16:30", "court": 5, "cls": "F", "phase": "U", "slots": [["w", "F-3"], ["w", "F-4"]]}, {"code": "F-8", "time": "16:30", "court": 6, "cls": "F", "phase": "U", "slots": [["w", "F-5"], ["w", "F-6"]]}, {"code": "LC-決勝", "time": "16:30", "court": 7, "cls": "C", "phase": "W", "slots": [["w", "LC-12"], ["w", "LC-13"]]}, {"code": "C-決勝", "time": "16:30", "court": 8, "cls": "C", "phase": "U", "slots": [["w", "C-13"], ["w", "C-14"]]}, {"code": "LE-決勝", "time": "16:30", "court": 9, "cls": "E", "phase": "W", "slots": [["w", "LE-12"], ["w", "LE-13"]]}, {"code": "E-決勝", "time": "16:30", "court": 10, "cls": "E", "phase": "U", "slots": [["w", "E-13"], ["w", "E-14"]]}, {"code": "LB-決勝", "time": "16:30", "court": 11, "cls": "B", "phase": "W", "slots": [["w", "LB-11"], ["w", "LB-12"]]}, {"code": "B-決勝", "time": "16:30", "court": 12, "cls": "B", "phase": "U", "slots": [["w", "B-13"], ["w", "B-14"]]}, {"code": "LD-決勝", "time": "16:45", "court": 1, "cls": "D", "phase": "W", "slots": [["w", "LD-8"], ["w", "LD-9"]]}, {"code": "D-決勝", "time": "16:45", "court": 2, "cls": "D", "phase": "U", "slots": [["w", "D-11"], ["w", "D-12"]]}, {"code": "LA-決勝", "time": "16:45", "court": 3, "cls": "A", "phase": "W", "slots": [["w", "LA-9"], ["w", "LA-10"]]}, {"code": "A-決勝", "time": "16:45", "court": 4, "cls": "A", "phase": "U", "slots": [["w", "A-11"], ["w", "A-12"]]}, {"code": "LG-決勝", "time": "16:45", "court": 5, "cls": "G", "phase": "W", "slots": [["w", "LG-8"], ["w", "LG-9"]]}, {"code": "G-決勝", "time": "16:45", "court": 6, "cls": "G", "phase": "U", "slots": [["w", "G-9"], ["w", "G-10"]]}, {"code": "LF-決勝", "time": "16:45", "court": 7, "cls": "F", "phase": "W", "slots": [["w", "LF-5"], ["w", "LF-6"]]}, {"code": "F-決勝", "time": "16:45", "court": 8, "cls": "F", "phase": "U", "slots": [["w", "F-7"], ["w", "F-8"]]}]}</script>
 <script src="https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js"></script>
 <script>
 "use strict";
-// === LOGIC START ===
-function nodeOf(player, kind, idx){
-  if (kind === "main"){
-    var m = player.main[idx]; if (!m) return null;
-    return {kind:"main", idx:idx, label:m.label, code:m.code, time:m.time, court:m.court, opp:m.opp};
-  }
-  if (kind === "final"){ var f = player.final; return f ? {kind:"final", idx:-1, label:"決勝", code:f.code, time:f.time, court:f.court, opp:f.opp} : null; }
-  if (kind === "third"){ var t = player.third; return t ? {kind:"third", idx:-1, label:"3位決定戦", code:t.code, time:t.time, court:t.court, opp:t.opp} : null; }
-  if (kind === "challenge"){
-    var c = player.challenge && player.challenge[idx]; if (!c) return null;
-    return {kind:"challenge", idx:idx, label:"チャレンジ初戦", code:c.code, time:c.time, court:c.court, opp:c.opp};
-  }
-  return null;
-}
-function applyResult(player, cur, result){
-  if (!cur) return {next:null, doneLabel:"終了"};
-  if (cur.kind === "main"){
-    var isSemi = cur.label === "準決勝";
-    if (result === "W"){
-      if (isSemi) return {next: nodeOf(player,"final"), doneLabel:null};
-      return {next: nodeOf(player,"main",cur.idx+1), doneLabel:null};
-    }
-    if (cur.idx <= 1){
-      var ch = nodeOf(player,"challenge",cur.idx);
-      if (ch) return {next: ch, doneLabel:null};
-    }
-    if (isSemi) return {next: nodeOf(player,"third"), doneLabel:null};
-    return {next:null, doneLabel:"敗退"};
-  }
-  if (cur.kind === "final") return {next:null, doneLabel: result === "W" ? "優勝" : "準優勝"};
-  if (cur.kind === "third") return {next:null, doneLabel: result === "W" ? "3位" : "4位"};
-  if (cur.kind === "challenge") return {next:null, doneLabel: result === "W" ? "チャレンジ初戦 勝ち" : "チャレンジ初戦 負け"};
-  return {next:null, doneLabel:"終了"};
-}
+var DATA = JSON.parse(document.getElementById("tournament-data").textContent);
+var TEAM = DATA.meta.team;
+var MATCH = {}; DATA.matches.forEach(function(m){ MATCH[m.code] = m; });
+var COURTS = 12;
+
+// === 結果の集計（LOGIC） ===
 function effectiveEntries(entries){
-  // 取り消し（undo）エントリを適用した、実際に効いている結果だけを返す
   var undone = {};
   (entries||[]).forEach(function(e){ if (e && e.undo && e.target) undone[e.target] = true; });
   return (entries||[]).filter(function(e){ return e && !e.undo && !undone[e.id]; });
 }
 function mergeEntries(a, b){
-  // 複数人が別々に入力した結果を、id で重複なく合体する（時刻順）
   var byId = {}, out = [];
   [a||[], b||[]].forEach(function(list){
     list.forEach(function(e){ if (e && e.id && !byId[e.id]){ byId[e.id] = true; out.push(e); } });
@@ -214,104 +167,123 @@ function mergeEntries(a, b){
   out.sort(function(x, y){ return (x.at||0) - (y.at||0) || (x.id < y.id ? -1 : 1); });
   return out;
 }
-function playerProgress(player, entries){
-  var eff = effectiveEntries(entries);
-  var past = [], cur = nodeOf(player,"main",0), doneLabel = null;
-  for (var i=0;i<eff.length;i++){
-    var e = eff[i];
-    if (e.pid !== player.id) continue;
-    if (!cur) break;
-    if (e.code !== cur.code || e.kind !== cur.kind) continue;
-    past.push({node:cur, result:e.result});
-    var r = applyResult(player, cur, e.result);
-    cur = r.next; doneLabel = r.doneLabel;
-    if (!cur && !doneLabel) doneLabel = "終了";
-  }
-  return {past:past, current:cur, doneLabel: cur ? null : (doneLabel || "終了")};
-}
-function nodeKey(n){ return n ? n.kind+":"+n.code : ""; }
-function possibleKeys(player, progress){
-  // 現在地から起こりうる今後の試合（勝ち続けルート＋途中の負け分岐）
-  var set = {};
-  var cur = progress.current;
-  if (!cur) return set;
-  set[nodeKey(cur)] = true;
-  var guard = 0, n = cur;
-  while (n && guard++ < 12){
-    if (n.kind === "main" && n.idx <= 1){
-      var ch = nodeOf(player,"challenge",n.idx);
-      if (ch) set[nodeKey(ch)] = true;
-    }
-    if (n.kind === "main" && n.label === "準決勝"){
-      var th = nodeOf(player,"third");
-      if (th) set[nodeKey(th)] = true;
-    }
-    var r = applyResult(player, n, "W");
-    n = r.next;
-    if (n) set[nodeKey(n)] = true;
-  }
-  return set;
-}
-function buildAnnotations(data){
-  // code -> [{pid, name, catCode, kind:'confirmed'|'win'|'challenge', nodeKind, nodeIdx, head, sub}]
+function resultsMap(entries){
+  // 試合コード -> 勝者側(0/1)。同じ試合は先に入った方が有効
   var map = {};
-  function add(code, seg){ seg.code = code; (map[code] = map[code] || []).push(seg); }
-  data.players.forEach(function(p){
-    p.main.forEach(function(m, i){
-      if (i === 0) add(m.code, {pid:p.id, name:p.name, catCode:p.catCode, kind:"confirmed", nodeKind:"main", nodeIdx:0, head:"唐崎 "+p.name, sub:"vs "+(m.opp||"")});
-      else add(m.code, {pid:p.id, name:p.name, catCode:p.catCode, kind:"win", nodeKind:"main", nodeIdx:i, head:"勝てば 唐崎 "+p.name, sub:m.label});
-    });
-    if (p.final) add(p.final.code, {pid:p.id, name:p.name, catCode:p.catCode, kind:"win", nodeKind:"final", nodeIdx:-1, head:"勝てば 唐崎 "+p.name, sub:"決勝"});
-    if (p.third) add(p.third.code, {pid:p.id, name:p.name, catCode:p.catCode, kind:"win", nodeKind:"third", nodeIdx:-1, head:"準決で負けたら 唐崎 "+p.name, sub:"3位決定戦"});
-    (p.challenge||[]).forEach(function(c, i){
-      if (c) add(c.code, {pid:p.id, name:p.name, catCode:p.catCode, kind:"challenge", nodeKind:"challenge", nodeIdx:i, head:p.main[i].code+"で負けたら 唐崎 "+p.name, sub:"チャレンジ初戦 vs "+(c.opp||"")});
-    });
+  effectiveEntries(entries).forEach(function(e){
+    if (e.code && (e.side === 0 || e.side === 1) && !(e.code in map)) map[e.code] = e.side;
   });
   return map;
 }
-function liveInfo(data, entries){
-  // pid -> {progress, pastMap(key->result), possible(set), currentKey}
-  var out = {};
-  data.players.forEach(function(p){
-    var pr = playerProgress(p, entries);
-    var pastMap = {};
-    pr.past.forEach(function(x){ pastMap[nodeKey(x.node)] = x.result; });
-    out[p.id] = {progress:pr, pastMap:pastMap, possible:possibleKeys(p, pr), currentKey:nodeKey(pr.current)};
+function blockPlayers(cls, block){
+  var seen = {}, out = [];
+  DATA.matches.forEach(function(m){
+    if (m.phase === "L" && m.cls === cls && m.block === block){
+      m.slots.forEach(function(s){
+        if (s[0] === "p" && !seen[s[1]]){ seen[s[1]] = true; out.push({name: s[1], team: s[2]}); }
+      });
+    }
   });
   return out;
 }
-function segState(seg, live){
-  var li = live[seg.pid]; if (!li) return "future";
-  var key = seg.nodeKind+":"+seg.code;
-  if (li.pastMap[key]) return "past-"+li.pastMap[key];
-  if (li.currentKey === key) return "current";
-  if (li.possible[key]) return "future";
-  return "dead";
+function blockMatches(cls, block){
+  return DATA.matches.filter(function(m){ return m.phase === "L" && m.cls === cls && m.block === block; });
 }
-function nextMatches(data, entries){
-  var out = [];
-  data.players.forEach(function(p){
-    var pr = playerProgress(p, entries);
-    if (pr.current) out.push({player:p, node:pr.current, past:pr.past});
-    else out.push({player:p, node:null, past:pr.past, doneLabel:pr.doneLabel});
+function standings(cls, block, res){
+  // [{name, team, w, l}] 勝ち数降順
+  var st = {};
+  blockPlayers(cls, block).forEach(function(p){ st[p.name] = {name: p.name, team: p.team, w: 0, l: 0}; });
+  blockMatches(cls, block).forEach(function(m){
+    var side = res[m.code];
+    if (side === undefined) return;
+    var wn = m.slots[side][1], ln = m.slots[1 - side][1];
+    if (st[wn]) st[wn].w++;
+    if (st[ln]) st[ln].l++;
   });
-  out.sort(function(a,b){
-    var ta = a.node ? a.node.time : "99:99", tb = b.node ? b.node.time : "99:99";
-    if (ta !== tb) return ta < tb ? -1 : 1;
-    var ca = a.node ? parseInt(a.node.court,10)||99 : 99, cb = b.node ? parseInt(b.node.court,10)||99 : 99;
-    return ca - cb;
+  var arr = Object.keys(st).map(function(k){ return st[k]; });
+  arr.sort(function(a, b){ return b.w - a.w || a.l - b.l || (a.name < b.name ? -1 : 1); });
+  return arr;
+}
+function blockComplete(cls, block, res){
+  return blockMatches(cls, block).every(function(m){ return res[m.code] !== undefined; });
+}
+function rankPlayer(cls, block, rank, res){
+  // ブロック全試合が終わり、勝ち数でその順位が1人に定まる場合だけ選手を返す
+  if (!blockComplete(cls, block, res)) return null;
+  var st = standings(cls, block, res);
+  if (rank < 1 || rank > st.length) return null;
+  var target = st[rank - 1];
+  var tied = st.filter(function(p){ return p.w === target.w; });
+  if (tied.length > 1){
+    // 同率グループが順位の境界をまたぐ場合は確定できない
+    var firstIdx = st.indexOf(tied[0]);
+    var lastIdx = st.indexOf(tied[tied.length - 1]);
+    if (rank - 1 >= firstIdx && rank - 1 <= lastIdx) return null;
+  }
+  return target;
+}
+function slotLabel(slot){
+  if (slot[0] === "r") return slot[1] + "ブロック" + slot[2] + "位";
+  if (slot[0] === "w") return slot[1] + "の勝者";
+  return "";
+}
+function resolveSlot(slot, res){
+  if (slot[0] === "p") return {name: slot[1], team: slot[2], label: null};
+  if (slot[0] === "r"){
+    // r スロットは自クラスのブロック順位
+    return {name: null, team: null, label: slotLabel(slot), rank: slot};
+  }
+  if (slot[0] === "w"){
+    var src = MATCH[slot[1]];
+    if (src && res[slot[1]] !== undefined){
+      var inner = resolveMatch(src, res).slots[res[slot[1]]];
+      if (inner && inner.name) return inner;
+    }
+    return {name: null, team: null, label: slotLabel(slot)};
+  }
+  return {name: null, team: null, label: ""};
+}
+function resolveMatch(m, res){
+  var slots = m.slots.map(function(s){
+    if (s[0] === "r"){
+      var p = rankPlayer(m.cls, s[1], s[2], res);
+      if (p) return {name: p.name, team: p.team, label: null};
+      return {name: null, team: null, label: slotLabel(s)};
+    }
+    return resolveSlot(s, res);
   });
-  return out;
+  return {slots: slots, decided: (res[m.code] !== undefined ? res[m.code] : null)};
+}
+function possiblePlayers(slot, m, guard){
+  guard = guard || {};
+  if (guard[m.code]) return [];
+  if (slot[0] === "p") return [{name: slot[1], team: slot[2]}];
+  if (slot[0] === "r") return blockPlayers(m.cls, slot[1]);
+  if (slot[0] === "w"){
+    var src = MATCH[slot[1]];
+    if (!src) return [];
+    guard[m.code] = true;
+    var out = [];
+    src.slots.forEach(function(s2){ out = out.concat(possiblePlayers(s2, src, guard)); });
+    return out;
+  }
+  return [];
+}
+function matchFlags(m, res){
+  var rm = resolveMatch(m, res);
+  var kz = rm.slots.some(function(s){ return s.team && s.team.indexOf(TEAM) >= 0; });
+  var poss = false;
+  if (!kz){
+    poss = m.slots.some(function(s){
+      return possiblePlayers(s, m).some(function(p){ return p.team && p.team.indexOf(TEAM) >= 0; });
+    });
+  }
+  return {rm: rm, kz: kz, poss: poss};
 }
 // === LOGIC END ===
-if (typeof module !== "undefined" && module.exports){
-  module.exports = {nodeOf:nodeOf, applyResult:applyResult, playerProgress:playerProgress, nextMatches:nextMatches, buildAnnotations:buildAnnotations, liveInfo:liveInfo, possibleKeys:possibleKeys, nodeKey:nodeKey, segState:segState, effectiveEntries:effectiveEntries, mergeEntries:mergeEntries};
-}
 </script>
 <script>
 "use strict";
-var DATA = JSON.parse(document.getElementById("tournament-data").textContent);
-var ANN = buildAnnotations(DATA);
 var BROKERS = ["wss://mqtt.eclipseprojects.io:443/mqtt", "wss://broker.emqx.io:8084/mqtt", "wss://broker.hivemq.com:8884/mqtt"];
 var TOPIC_PREFIX = "kztt/v1/";
 var ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789";
@@ -320,347 +292,372 @@ function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g, function(c){ re
 function toast(msg){ var t=$("toast"); t.textContent=msg; t.classList.add("show"); clearTimeout(toast._h); toast._h=setTimeout(function(){t.classList.remove("show");},2600); }
 function randStr(n){ var b=new Uint8Array(n); crypto.getRandomValues(b); var s=""; for(var i=0;i<n;i++) s+=ALPHABET[b[i]%ALPHABET.length]; return s; }
 function sha256hex(str){ return crypto.subtle.digest("SHA-256", new TextEncoder().encode(str)).then(function(buf){ return Array.prototype.map.call(new Uint8Array(buf), function(x){ return ("0"+x.toString(16)).slice(-2); }).join(""); }); }
-function pageBase(){ return location.href.split("#")[0]; }
-function hashParams(){ var h=location.hash.replace(/^#/,""); var o={}; h.split("&").forEach(function(kv){ var p=kv.split("="); if(p[0]) o[p[0]]=p[1]||""; }); return o; }
 
 var App = {
-  role:null, isLocal:false, isShared:false, room:null, key:null, vhash:null,
-  state:{v:1, seq:0, entries:[]},
-  lastSeq:-1, tab:(window.innerWidth>=821 ? "grid" : "list"), ready:false, karaOnly:false, focusPid:null,
-  client:null, connected:false, bc:null,
-  lsKey:function(){ return "kztt_state_" + (this.room || "local"); },
-  saveLocal:function(){ try{ localStorage.setItem(this.lsKey(), JSON.stringify(this.state)); }catch(e){} },
-  loadLocal:function(){ try{ var s=localStorage.getItem(this.lsKey()); if(s){ var st=JSON.parse(s); if(st && st.v===1 && Array.isArray(st.entries)) { this.state=st; this.lastSeq=st.seq||0; } } }catch(e){} },
-  setConn:function(kind, text){ var d=$("conn-dot"); d.className="dot "+kind; $("conn-text").textContent=text; },
-  startSync:function(){
-    var self=this;
-    try{ this.bc=new BroadcastChannel("kztt-"+this.room); this.bc.onmessage=function(ev){ self.receive(ev.data); }; }catch(e){}
-    this.setConn("mid","接続中…");
-    if (typeof mqtt==="undefined"){ this.setConn("off","中継ライブラリを読み込めませんでした"); this.ready=true; render(); return; }
+  room: DATA.meta.shared.room, key: DATA.meta.shared.key, vhash: null,
+  state: {v: 1, seq: 0, entries: []},
+  tab: (window.innerWidth >= 821 ? "grid" : "list"), karaOnly: false,
+  client: null, connected: false, bc: null, ready: false,
+  lsKey: function(){ return "kztt_state_" + this.room; },
+  saveLocal: function(){ try{ localStorage.setItem(this.lsKey(), JSON.stringify(this.state)); }catch(e){} },
+  loadLocal: function(){ try{ var s = localStorage.getItem(this.lsKey()); if (s){ var st = JSON.parse(s); if (st && st.v === 1 && Array.isArray(st.entries)){ this.state = st; } } }catch(e){} },
+  setConn: function(kind, text){ var d = $("conn-dot"); d.className = "dot " + kind; $("conn-text").textContent = text; },
+  startSync: function(){
+    var self = this;
+    sha256hex(this.key).then(function(h){ self.vhash = h; });
+    try{ this.bc = new BroadcastChannel("kztt-" + this.room); this.bc.onmessage = function(ev){ self.receive(ev.data); }; }catch(e){}
+    this.setConn("mid", "接続中…");
+    if (typeof mqtt === "undefined"){ this.setConn("off", "中継ライブラリを読み込めませんでした"); this.ready = true; render(); return; }
     this.connectBroker(0);
-    if (this.role==="op"){ setTimeout(function(){ self.ready=true; render(); }, 2600); } else { this.ready=true; }
+    setTimeout(function(){ self.ready = true; render(); }, 2600);
   },
-  connectBroker:function(idx){
-    var self=this;
+  connectBroker: function(idx){
+    var self = this;
     var client;
-    try{ client=mqtt.connect(BROKERS[idx], {clientId:"kztt-"+randStr(10), reconnectPeriod:4000, connectTimeout:9000, keepalive:40, clean:true}); }
-    catch(e){ if(idx+1<BROKERS.length) return this.connectBroker(idx+1); this.setConn("off","中継に接続できません"); return; }
-    this.client=client;
-    var got=false;
-    setTimeout(function(){ if(!got && idx+1<BROKERS.length){ try{client.end(true);}catch(e){} self.connectBroker(idx+1); } }, 10000);
+    try{ client = mqtt.connect(BROKERS[idx], {clientId: "kztt-" + randStr(10), reconnectPeriod: 4000, connectTimeout: 9000, keepalive: 40, clean: true}); }
+    catch(e){ if (idx + 1 < BROKERS.length) return this.connectBroker(idx + 1); this.setConn("off", "中継に接続できません"); return; }
+    this.client = client;
+    var got = false;
+    setTimeout(function(){ if (!got && idx + 1 < BROKERS.length){ try{ client.end(true); }catch(e){} self.connectBroker(idx + 1); } }, 10000);
     client.on("connect", function(){
-      got=true; self.connected=true; self.setConn("on", self.role==="op" ? "接続中（共有中）" : "接続中（ライブ受信中）");
-      client.subscribe(TOPIC_PREFIX+self.room, {qos:1}, function(err){
-        if(!err && self.role==="op" && self.state.seq>0) self.publish();
+      got = true; self.connected = true; self.setConn("on", "接続中（共有中）");
+      client.subscribe(TOPIC_PREFIX + self.room, {qos: 1}, function(err){
+        if (!err && self.state.seq > 0) self.publish();
       });
     });
-    client.on("reconnect", function(){ self.connected=false; self.setConn("mid","再接続中…"); });
-    client.on("offline", function(){ self.connected=false; self.setConn("mid","再接続中…"); });
-    client.on("error", function(){ self.setConn("mid","再接続中…"); });
+    client.on("reconnect", function(){ self.connected = false; self.setConn("mid", "再接続中…"); });
+    client.on("offline", function(){ self.connected = false; self.setConn("mid", "再接続中…"); });
+    client.on("error", function(){ self.setConn("mid", "再接続中…"); });
     client.on("message", function(topic, buf){ try{ self.receive(JSON.parse(buf.toString())); }catch(e){} });
   },
-  publish:function(){
-    var self=this;
-    var stateJson=JSON.stringify(this.state);
-    sha256hex(this.vhash+"|"+this.state.seq+"|"+stateJson).then(function(proof){
-      var payload={state:self.state, seq:self.state.seq, proof:proof};
-      if(self.bc){ try{ self.bc.postMessage(payload); }catch(e){} }
-      if(self.client && self.connected){ self.client.publish(TOPIC_PREFIX+self.room, JSON.stringify(payload), {retain:true, qos:1}); }
+  publish: function(){
+    var self = this;
+    if (!this.vhash) return;
+    var stateJson = JSON.stringify(this.state);
+    sha256hex(this.vhash + "|" + this.state.seq + "|" + stateJson).then(function(proof){
+      var payload = {state: self.state, seq: self.state.seq, proof: proof};
+      if (self.bc){ try{ self.bc.postMessage(payload); }catch(e){} }
+      if (self.client && self.connected){ self.client.publish(TOPIC_PREFIX + self.room, JSON.stringify(payload), {retain: true, qos: 1}); }
     });
   },
-  receive:function(payload){
-    if(!payload || typeof payload.seq!=="number" || !payload.state) return;
-    var self=this;
-    var stateJson=JSON.stringify(payload.state);
-    sha256hex(this.vhash+"|"+payload.seq+"|"+stateJson).then(function(proof){
-      if(proof!==payload.proof) return;
-      // 全員編集のため、受け取った状態で上書きせず、自分の分と合体させる
+  receive: function(payload){
+    if (!payload || typeof payload.seq !== "number" || !payload.state || !this.vhash) return;
+    var self = this;
+    var stateJson = JSON.stringify(payload.state);
+    sha256hex(this.vhash + "|" + payload.seq + "|" + stateJson).then(function(proof){
+      if (proof !== payload.proof) return;
       var merged = mergeEntries(self.state.entries, payload.state.entries);
-      var changedLocal = JSON.stringify(merged)!==JSON.stringify(self.state.entries);
-      var differsRemote = JSON.stringify(merged)!==JSON.stringify(payload.state.entries);
-      self.lastSeq=Math.max(self.lastSeq, payload.seq);
-      if(changedLocal){
-        self.state={v:1, seq:Math.max(self.state.seq, payload.seq), entries:merged};
-        self.ready=true;
+      var changedLocal = JSON.stringify(merged) !== JSON.stringify(self.state.entries);
+      var differsRemote = JSON.stringify(merged) !== JSON.stringify(payload.state.entries);
+      if (changedLocal){
+        self.state = {v: 1, seq: Math.max(self.state.seq, payload.seq), entries: merged};
+        self.ready = true;
         self.saveLocal();
         render();
       }
-      if(differsRemote && self.role==="op"){
-        self.state.seq=Math.max(self.state.seq, payload.seq)+1;
-        self.lastSeq=self.state.seq;
+      if (differsRemote){
+        self.state.seq = Math.max(self.state.seq, payload.seq) + 1;
         self.saveLocal();
         self.publish();
       }
     });
   },
-  record:function(pid, result){
-    if(this.role!=="op" || !this.ready) return;
-    var p=null; DATA.players.forEach(function(x){ if(x.id===pid) p=x; });
-    if(!p) return;
-    var pr=playerProgress(p, this.state.entries);
-    if(!pr.current) return;
-    this.state.entries.push({id:Date.now().toString(36)+randStr(4), pid:pid, kind:pr.current.kind, code:pr.current.code, result:result, at:Date.now()});
-    this.state.seq+=1; this.lastSeq=this.state.seq;
+  record: function(code, side){
+    if (!this.ready) return;
+    var m = MATCH[code]; if (!m) return;
+    var res = resultsMap(this.state.entries);
+    if (res[code] !== undefined) return;
+    var rm = resolveMatch(m, res);
+    if (!rm.slots[side].name) return;
+    this.state.entries.push({id: Date.now().toString(36) + randStr(4), code: code, side: side, at: Date.now()});
+    this.state.seq += 1;
     this.saveLocal(); this.publish(); render();
-    toast(p.name+"："+pr.current.code+" "+(result==="W"?"勝ち":"負け")+" を共有しました");
+    toast(rm.slots[side].name + " の勝ち（" + code + "）を共有しました");
   },
-  undo:function(){
-    if(this.role!=="op") return;
-    var eff=effectiveEntries(this.state.entries);
-    if(!eff.length) return;
-    var last=eff[eff.length-1];
-    // 削除ではなく「取り消し」の記録を足す（他の人の端末にも取り消しが伝わる）
-    this.state.entries.push({id:Date.now().toString(36)+randStr(4), undo:true, target:last.id, at:Date.now()});
-    this.state.seq+=1; this.lastSeq=this.state.seq;
+  undo: function(){
+    var eff = effectiveEntries(this.state.entries);
+    if (!eff.length) return;
+    var last = eff[eff.length - 1];
+    this.state.entries.push({id: Date.now().toString(36) + randStr(4), undo: true, target: last.id, at: Date.now()});
+    this.state.seq += 1;
     this.saveLocal(); this.publish(); render();
     toast("直前の入力を取り消しました");
   }
 };
 
-function live(){ return liveInfo(DATA, App.state.entries); }
+function phaseLabel(m){
+  if (m.phase === "L") return m.cls + "クラス " + m.block + "ブロック";
+  if (m.phase === "U") return m.cls + "クラス 上位" + (m.code.indexOf("決勝") >= 0 ? "決勝" : "");
+  return m.cls + "クラス 下位" + (m.code.indexOf("決勝") >= 0 ? "決勝" : "");
+}
+function phaseShort(m){
+  if (m.phase === "L") return "リーグ";
+  if (m.phase === "U") return m.code.indexOf("決勝") >= 0 ? "上位決勝" : "上位";
+  return m.code.indexOf("決勝") >= 0 ? "下位決勝" : "下位";
+}
 function query(){ return $("q").value.trim(); }
-function segMatchesQ(seg){
-  var q=query(); if(!q) return true;
-  return seg.name.indexOf(q)>=0 || seg.code.indexOf(q)>=0 || seg.catCode===q;
+function matchHit(m, fl){
+  var q = query();
+  if (App.karaOnly && !fl.kz && !fl.poss) return false;
+  var fc = $("f-cls").value;
+  if (fc && m.cls !== fc) return false;
+  if (!q) return true;
+  if (m.code.indexOf(q) >= 0) return true;
+  return m.slots.some(function(s){ return s[0] === "p" && (s[1].indexOf(q) >= 0 || (s[2] && s[2].indexOf(q) >= 0)); }) ||
+    fl.rm.slots.some(function(s){ return s.name && s.name.indexOf(q) >= 0; });
 }
-function segHtml(seg, lv){
-  var st = segState(seg, lv);
-  var cls = seg.kind==="confirmed" ? "who" : (seg.kind==="win" ? "who2" : "who3");
-  var badge = "";
-  if (st==="past-W") badge = ' <span class="res w">勝ち</span>';
-  else if (st==="past-L") badge = ' <span class="res l">負け</span>';
-  else if (st==="current") badge = ' <span class="now">← いまの次の試合</span>';
-  return '<div class="seg'+(st==="dead"?' dead':'')+'"><span class="'+cls+'">'+esc(seg.head)+badge+'</span>'+(seg.sub?'<span class="vs">'+esc(seg.sub)+'</span>':'')+'</div>';
+function sideHtml(m, rm, sideIdx){
+  var s = rm.slots[sideIdx];
+  var decided = rm.decided;
+  var cls = "side";
+  if (decided !== null) cls += (decided === sideIdx ? " win" : " lose");
+  var inner;
+  if (s.name){
+    inner = '<span class="nm">' + esc(s.name) + (decided === sideIdx ? '<span class="winmark">勝</span>' : '') + '</span>' +
+      (s.team ? '<span class="tm">' + esc(s.team) + '</span>' : '');
+  } else {
+    inner = '<span class="lbl">' + esc(s.label || "未定") + '</span>';
+  }
+  if (decided === null && s.name && App.ready){
+    return '<button class="' + cls + '" data-code="' + esc(m.code) + '" data-side="' + sideIdx + '">' + inner + '</button>';
+  }
+  return '<div class="' + cls + '">' + inner + '</div>';
 }
-function cellClass(segs, lv){
-  if (!segs || !segs.length) return "plain";
-  var states = segs.map(function(s){ return segState(s, lv); });
-  if (states.indexOf("current")>=0) return "cell-current kz";
-  var alive = segs.filter(function(s,i){ return states[i]!=="dead"; });
-  if (!alive.length) return "cell-decided kz";
-  var kinds = {};
-  alive.forEach(function(s){ kinds[s.kind]=true; });
-  if (kinds.confirmed) return "cell-confirmed kz";
-  if (kinds.win) return "cell-win kz";
-  if (kinds.challenge) return "cell-challenge kz";
-  return "cell-decided kz";
+function cardHtml(m, fl){
+  var rm = fl.rm;
+  var cls = "mcard" + (fl.kz ? " kz" : (fl.poss ? " poss" : "")) + (rm.decided !== null ? " decided" : "");
+  var h = '<div class="' + cls + '" id="card-' + esc(m.code) + '">';
+  h += '<div class="m-top"><span class="m-code">' + esc(m.code) + '</span>' +
+    '<span class="m-phase' + (m.phase === "U" ? " u" : (m.phase === "W" ? " w" : "")) + '">' + esc(phaseShort(m)) + '</span>' +
+    '<span class="m-court">' + m.court + 'コート</span>' +
+    '<span class="m-time">' + esc(phaseLabel(m)) + '</span></div>';
+  h += '<div class="vsrow">' + sideHtml(m, rm, 0) + '<span class="vsmid">vs</span>' + sideHtml(m, rm, 1) + '</div>';
+  if (rm.decided === null && rm.slots[0].name && rm.slots[1].name && App.ready){
+    h += '<div class="tapnote">勝った選手の名前をタップすると結果が全員に共有されます</div>';
+  }
+  h += '</div>';
+  return h;
 }
-function timesList(){
-  var set={};
-  Object.keys(DATA.grid).forEach(function(code){ set[DATA.grid[code][0]]=true; });
-  return Object.keys(set).sort();
+function allFlags(res){
+  var map = {};
+  DATA.matches.forEach(function(m){ map[m.code] = matchFlags(m, res); });
+  return map;
+}
+function viewList(res, flags){
+  var times = [];
+  var byTime = {};
+  DATA.matches.forEach(function(m){
+    var fl = flags[m.code];
+    if (!matchHit(m, fl)) return;
+    if (!byTime[m.time]){ byTime[m.time] = []; times.push(m.time); }
+    byTime[m.time].push(m);
+  });
+  times.sort();
+  if (!times.length) return '<div class="empty">該当する試合がありません</div>';
+  var h = '<div class="listwrap">';
+  times.forEach(function(t){
+    h += '<div class="thead">' + esc(t) + '〜</div>';
+    byTime[t].sort(function(a, b){ return a.court - b.court; }).forEach(function(m){ h += cardHtml(m, flags[m.code]); });
+  });
+  return h + '</div>';
+}
+function viewGrid(res, flags){
+  var times = [];
+  var cell = {};
+  DATA.matches.forEach(function(m){
+    if (times.indexOf(m.time) < 0) times.push(m.time);
+    cell[m.time + "|" + m.court] = m;
+  });
+  times.sort();
+  var h = '<div class="gridwrap"><table class="tt"><thead><tr><th class="time">時刻</th>';
+  for (var c = 1; c <= COURTS; c++) h += '<th>' + c + 'コート</th>';
+  h += '</tr></thead><tbody>';
+  times.forEach(function(t){
+    h += '<tr><th class="time">' + esc(t) + '</th>';
+    for (var c = 1; c <= COURTS; c++){
+      var m = cell[t + "|" + c];
+      if (!m){ h += '<td></td>'; continue; }
+      var fl = flags[m.code], rm = fl.rm;
+      var cls = fl.kz ? "kz" : (fl.poss ? "poss" : "");
+      if (rm.decided !== null) cls += " decided";
+      h += '<td class="' + cls + '" data-jump="' + esc(m.code) + '"><span class="code">' + esc(m.code) + ' ' + esc(phaseShort(m)) + '</span>';
+      rm.slots.forEach(function(s, i){
+        if (s.name){
+          var wc = rm.decided === null ? "" : (rm.decided === i ? " win" : " lose");
+          h += '<span class="who' + wc + '">' + esc(s.name) + '</span>';
+          if (s.team) h += '<span class="tm">' + esc(s.team) + '</span>';
+        } else {
+          h += '<span class="lbl">' + esc(s.label || "未定") + '</span>';
+        }
+        if (i === 0) h += '<span class="lbl">vs</span>';
+      });
+      h += '</td>';
+    }
+    h += '</tr>';
+  });
+  return h + '</tbody></table></div>';
+}
+function viewStandings(res){
+  var h = '<div class="cards">';
+  var any = false;
+  "ABCDEFG".split("").forEach(function(cls){
+    if ($("f-cls").value && $("f-cls").value !== cls) return;
+    var blocks = [];
+    DATA.matches.forEach(function(m){ if (m.phase === "L" && m.cls === cls && blocks.indexOf(m.block) < 0) blocks.push(m.block); });
+    blocks.sort();
+    blocks.forEach(function(b){
+      var st = standings(cls, b, res);
+      if (!st.length) return;
+      any = true;
+      var total = blockMatches(cls, b).length;
+      var done = blockMatches(cls, b).filter(function(m){ return res[m.code] !== undefined; }).length;
+      h += '<div class="gtitle">' + cls + 'クラス ' + b + 'ブロック</div>';
+      h += '<table class="st"><tr><th>順位</th><th>選手</th><th>勝-敗</th><th>進出</th></tr>';
+      var prevW = null, rank = 0;
+      st.forEach(function(p, i){
+        if (p.w !== prevW){ rank = i + 1; prevW = p.w; }
+        var zone = rank <= 2 ? "上位" : "下位";
+        var kz = p.team && p.team.indexOf(TEAM) >= 0;
+        h += '<tr class="' + (kz ? "kz " : "") + (rank <= 2 ? "zone-u" : "zone-w") + '"><td class="rk">' + rank + '</td>' +
+          '<td>' + esc(p.name) + '<br><span style="font-size:11px;color:#777">' + esc(p.team || "") + '</span></td>' +
+          '<td class="wl">' + p.w + '勝' + p.l + '敗</td><td>' + (done === total ? zone + "トーナメント" : "―") + '</td></tr>';
+      });
+      h += '</table><div class="blockmeta">リーグ ' + done + '/' + total + ' 試合入力済み' + (done === total ? '（全試合終了）' : '') + '。順位は勝ち数の自動計算です。</div>';
+    });
+  });
+  if (!any) h += '<div class="empty">該当するブロックがありません</div>';
+  return h + '</div>';
+}
+function viewPlayers(res, flags){
+  var h = '<div class="cards">';
+  var byCls = {};
+  DATA.matches.forEach(function(m){
+    if (m.phase !== "L") return;
+    m.slots.forEach(function(s){
+      if (s[0] === "p" && s[2] && s[2].indexOf(TEAM) >= 0){
+        (byCls[m.cls] = byCls[m.cls] || []).push({player: s[1], match: m});
+      }
+    });
+  });
+  var q = query();
+  Object.keys(byCls).sort().forEach(function(cls){
+    if ($("f-cls").value && $("f-cls").value !== cls) return;
+    var players = {};
+    byCls[cls].forEach(function(x){ (players[x.player] = players[x.player] || []).push(x.match); });
+    h += '<div class="gtitle">' + cls + 'クラス（唐崎ジュニア）</div>';
+    Object.keys(players).sort().forEach(function(name){
+      if (q && name.indexOf(q) < 0) return;
+      var ms = players[name];
+      var block = ms[0].block;
+      h += '<div class="prow kz"><span class="pname">' + esc(name) + '</span> <span class="pmeta">' + cls + 'クラス ' + block + 'ブロック</span>';
+      ms.slice().sort(function(a, b){ return a.time < b.time ? -1 : 1; }).forEach(function(m){
+        var opp = m.slots[0][1] === name ? m.slots[1] : m.slots[0];
+        var side = res[m.code];
+        var mark = "";
+        if (side !== undefined){
+          var mySide = m.slots[0][1] === name ? 0 : 1;
+          mark = side === mySide ? ' <span class="w">勝ち</span>' : ' <span class="l">負け</span>';
+        }
+        h += '<div class="pm">' + esc(m.time) + ' ' + m.court + 'コート ' + esc(m.code) + ' vs ' + esc(opp[1]) + '（' + esc(opp[2] || "") + '）' + mark + '</div>';
+      });
+      // この選手が入る可能性のあるトーナメント試合
+      DATA.matches.forEach(function(m){
+        if (m.phase === "L" || m.cls !== cls) return;
+        var fl = flags[m.code];
+        var involves = fl.rm.slots.some(function(s){ return s.name === name; }) ||
+          m.slots.some(function(s){ return possiblePlayers(s, m).some(function(p){ return p.name === name; }); });
+        if (involves){
+          h += '<div class="pm">→ ' + esc(m.time) + ' ' + m.court + 'コート ' + esc(m.code) + '（' + esc(phaseLabel(m)) + '）: ' +
+            fl.rm.slots.map(function(s){ return esc(s.name || s.label || "未定"); }).join(" vs ") +
+            (fl.rm.decided !== null ? ' <span class="w">結果入力済み</span>' : '') + '</div>';
+        }
+      });
+      h += '</div>';
+    });
+  });
+  return h + '</div>';
+}
+function viewHistory(res){
+  var eff = effectiveEntries(App.state.entries).slice().reverse();
+  var h = '<div class="cards">';
+  if (!eff.length) h += '<div class="empty">まだ結果が入力されていません</div>';
+  eff.forEach(function(e){
+    var m = MATCH[e.code]; if (!m) return;
+    var rm = resolveMatch(m, (function(){ var r = Object.assign({}, res); return r; })());
+    var winner = "?";
+    // 勝者名は、その試合の入力時点ではなく現在の解決で表示（リーグは固定なので一致する）
+    var slotsNow = m.slots[e.side];
+    if (slotsNow && slotsNow[0] === "p") winner = slotsNow[1];
+    else {
+      var r2 = resolveMatch(m, res);
+      if (r2.slots[e.side] && r2.slots[e.side].name) winner = r2.slots[e.side].name;
+      else if (rm.slots[e.side]) winner = rm.slots[e.side].label || "?";
+    }
+    var d = new Date(e.at);
+    var hh = ("0" + d.getHours()).slice(-2) + ":" + ("0" + d.getMinutes()).slice(-2);
+    h += '<div class="hrow">' + hh + '入力 ' + esc(e.code) + '（' + esc(phaseLabel(m)) + '） <span class="w">' + esc(winner) + ' の勝ち</span></div>';
+  });
+  return h + '</div>';
 }
 function render(){
-  $("h-title").textContent = (DATA.meta.team||"")+" 共有タイムテーブル";
-  $("h-meta").textContent = [DATA.meta.date, DATA.meta.venue, DATA.meta.title].filter(Boolean).join(" ・ ");
-  var inRoom = !!App.role;
-  $("view-home").classList.toggle("hidden", inRoom);
-  $("view-room").classList.toggle("hidden", !inRoom);
-  if(!inRoom){ App.setConn("off","ルーム未選択"); return; }
-  var badge=$("mode-badge"); badge.classList.remove("hidden");
-  badge.textContent = App.isLocal ? "ローカル（共有なし）" : (App.isShared ? "みんなで編集" : (App.role==="op" ? "操作用" : "観戦用"));
-  badge.classList.toggle("op", App.role==="op");
-  var cb=$("count-badge"); cb.classList.remove("hidden");
-  cb.textContent = "結果 "+effectiveEntries(App.state.entries).length+" 件";
-  $("share-box").classList.toggle("hidden", !(App.role==="op" && !App.isLocal));
-  if(App.isShared){
-    $("btn-copy-viewer").textContent = "共有用URLをコピー（みんなに送る）";
-    $("viewer-link").textContent = pageBase();
-  } else if(App.role==="op" && !App.isLocal){ $("viewer-link").textContent = pageBase()+"#r="+App.room+"&v="+App.vhash; }
-  $("btn-undo").classList.toggle("hidden", !(App.role==="op" && effectiveEntries(App.state.entries).length));
-  Array.prototype.forEach.call(document.querySelectorAll("[data-tab]"), function(b){ b.classList.toggle("on", b.getAttribute("data-tab")===App.tab); });
-  $("btn-kara").classList.toggle("hidden", App.tab!=="grid");
-  $("btn-font").classList.toggle("hidden", App.tab!=="grid");
-  $("btn-kara").classList.toggle("on", App.karaOnly);
-  $("btn-kara").textContent = App.karaOnly ? "すべての時間を表示" : "唐崎の時間だけ";
-  var lv = live();
-  var el = $("list");
-  if (App.tab==="grid") el.innerHTML = viewGrid(lv);
-  else if (App.tab==="list") el.innerHTML = viewList(lv);
-  else if (App.tab==="next") el.innerHTML = viewNext();
-  else if (App.tab==="players") el.innerHTML = viewPlayers();
-  else el.innerHTML = viewHistory();
+  var res = resultsMap(App.state.entries);
+  var flags = allFlags(res);
+  var eff = effectiveEntries(App.state.entries);
+  var cb = $("count-badge");
+  cb.textContent = "結果 " + eff.length + "件入力済み";
+  cb.classList.remove("hidden");
+  $("btn-undo").classList.toggle("hidden", !eff.length);
+  var main = $("list");
+  if (App.tab === "list") main.innerHTML = viewList(res, flags);
+  else if (App.tab === "grid") main.innerHTML = viewGrid(res, flags);
+  else if (App.tab === "standings") main.innerHTML = viewStandings(res);
+  else if (App.tab === "players") main.innerHTML = viewPlayers(res, flags);
+  else if (App.tab === "history") main.innerHTML = viewHistory(res);
   bindActions();
-  if (App.focusPid){
-    var t=document.getElementById("card-"+App.focusPid);
-    if(t){ t.scrollIntoView({block:"center"}); t.classList.add("flash"); }
-    App.focusPid=null;
-  }
-}
-function viewGrid(lv){
-  var times = timesList();
-  var courts=[]; for(var c=1;c<=19;c++) courts.push(c);
-  var byTC={};
-  Object.keys(DATA.grid).forEach(function(code){ var g=DATA.grid[code]; byTC[g[0]+"|"+g[1]]=code; });
-  var q=query();
-  var html='<div class="gridwrap"><table class="tt"><thead><tr><th class="time">時刻</th>'+courts.map(function(c){return "<th>"+c+"コート</th>";}).join("")+"</tr></thead><tbody>";
-  times.forEach(function(t){
-    var rowCodes = courts.map(function(c){ return byTC[t+"|"+c]; }).filter(Boolean);
-    var hasKz = rowCodes.some(function(code){ return ANN[code]; });
-    if (App.karaOnly && !hasKz) return;
-    if (q && !rowCodes.some(function(code){ return (ANN[code]||[]).some(segMatchesQ) || code.indexOf(q)>=0; })) return;
-    html+='<tr><th class="time">'+esc(t)+"</th>";
-    courts.forEach(function(c){
-      var code=byTC[t+"|"+c];
-      if(!code){ html+='<td class="plain"></td>'; return; }
-      var segs=ANN[code];
-      if(!segs){ html+='<td class="plain"><div class="code">'+esc(code)+"</div></td>"; return; }
-      html+='<td class="'+cellClass(segs, lv)+'" data-code="'+esc(code)+'"><div class="code">'+esc(code)+"</div>"+segs.map(function(s){ return segHtml(s, lv); }).join("")+"</td>";
-    });
-    html+="</tr>";
-  });
-  return html+"</tbody></table></div>";
-}
-function viewList(lv){
-  var times=timesList(), q=query();
-  var html='<div class="listwrap">';
-  var any=false;
-  times.forEach(function(t){
-    var codes=Object.keys(DATA.grid).filter(function(c){ return DATA.grid[c][0]===t; }).sort(function(a,b){ return DATA.grid[a][1]-DATA.grid[b][1]; });
-    var kz=codes.filter(function(c){ return ANN[c]; });
-    var others=codes.filter(function(c){ return !ANN[c]; });
-    if (q){
-      kz=kz.filter(function(c){ return ANN[c].some(segMatchesQ); });
-      if(!kz.length) return;
-      others=[];
-    }
-    any=true;
-    html+='<div class="thead">'+esc(t)+'</div>';
-    kz.forEach(function(code){
-      var segs=ANN[code], g=DATA.grid[code];
-      var states=segs.map(function(s){ return segState(s, lv); });
-      var cls = states.indexOf("current")>=0 ? "mcard current" : (segs[0].kind==="confirmed" && states.some(function(s){return s!=="dead";}) ? "mcard confirmed" : (segs[0].kind==="challenge" ? "mcard challenge" : "mcard win"));
-      if (states.every(function(s){ return s==="dead" || s.indexOf("past")===0; }) && states.indexOf("current")<0) cls="mcard decided";
-      html+='<div class="'+cls+'"><div class="m-top"><span class="m-code">'+esc(code)+'</span><span class="m-court">'+g[1]+'コート</span><span class="m-time">'+esc(t)+'</span></div>'
-        + segs.map(function(s){ return segHtml(s, lv); }).join("");
-      if (App.role==="op"){
-        segs.forEach(function(s){
-          if (segState(s, lv)==="current"){
-            html+='<div class="btnrow"><button class="btn-win" data-pid="'+s.pid+'" data-r="W" '+(App.ready?"":"disabled")+'>'+esc(s.name)+' 勝ち</button><button class="btn-lose" data-pid="'+s.pid+'" data-r="L" '+(App.ready?"":"disabled")+'>負け</button></div>';
-          }
-        });
-      }
-      html+="</div>";
-    });
-    if (others.length) html+='<div class="chips">'+others.map(function(c){ return '<span class="chip">'+esc(c)+"</span>"; }).join("")+"</div>";
-  });
-  if(!any) return '<div class="empty">該当する試合がありません</div>';
-  return html+"</div>";
-}
-function pastText(past){
-  if(!past.length) return "";
-  return past.map(function(x){ return esc(x.node.code)+" "+(x.result==="W"?'<span class="w">勝ち</span>':'<span class="l">負け</span>'); }).join(" → ");
-}
-function viewNext(){
-  var q=query();
-  var items = nextMatches(DATA, App.state.entries).filter(function(x){ return !q || x.player.name.indexOf(q)>=0 || x.player.cat.indexOf(q)>=0 || (x.node && x.node.code.indexOf(q)>=0); });
-  if(!items.length) return '<div class="cards"><div class="empty">該当する選手がいません</div></div>';
-  var html='<div class="cards">';
-  items.forEach(function(x){
-    var p=x.player;
-    if(!x.node){
-      html+='<div class="card done"><span class="c-code">'+esc(p.catCode)+'</span><div class="c-name">'+esc(p.name)+'</div><div class="c-label">'+esc(x.doneLabel||"終了")+'（全試合終了）</div><div class="past">'+pastText(x.past)+"</div></div>";
-      return;
-    }
-    var n=x.node;
-    html+='<div class="card current" id="card-'+p.id+'"><span class="c-code">'+esc(n.code)+'</span><span class="c-time">'+esc(n.time)+'</span><span class="c-court">'+esc(n.court)+'コート</span>'
-      +'<div class="c-name">'+esc(p.name)+'<span class="c-cat">'+esc(p.cat)+'</span></div>'
-      +'<div class="c-opp">vs '+esc(n.opp||"相手未定")+'</div><div class="c-label">'+esc(n.label)+'</div>'
-      + (x.past.length ? '<div class="past">'+pastText(x.past)+"</div>" : "");
-    if(App.role==="op"){
-      html+='<div class="btnrow"><button class="btn-win" data-pid="'+p.id+'" data-r="W" '+(App.ready?"":"disabled")+'>勝ち</button><button class="btn-lose" data-pid="'+p.id+'" data-r="L" '+(App.ready?"":"disabled")+'>負け</button></div>'
-        + (App.ready ? "" : '<div class="c-opp">同期確認中…（数秒お待ちください）</div>');
-    }
-    html+="</div>";
-  });
-  return html+"</div>";
-}
-function viewPlayers(){
-  var q=query(), html='<div class="cards">', cats=[];
-  DATA.players.forEach(function(p){ if(cats.indexOf(p.cat)<0) cats.push(p.cat); });
-  cats.forEach(function(cat){
-    var rows=DATA.players.filter(function(p){ return p.cat===cat && (!q || p.name.indexOf(q)>=0); });
-    if(!rows.length) return;
-    html+='<div class="gtitle">'+esc(cat)+"</div>";
-    rows.forEach(function(p){
-      var pr=playerProgress(p, App.state.entries);
-      var next=pr.current ? "<b>"+esc(pr.current.time)+" "+esc(pr.current.court)+"コート</b><br>"+esc(pr.current.code)+" "+esc(pr.current.label) : "<b>"+esc(pr.doneLabel||"終了")+"</b>";
-      html+='<div class="prow"><div><span class="pname">'+esc(p.name)+'</span><div class="past">'+pastText(pr.past)+'</div></div><div class="pnext">'+next+"</div></div>";
-    });
-  });
-  return html+"</div>";
-}
-function viewHistory(){
-  var eff=effectiveEntries(App.state.entries);
-  if(!eff.length) return '<div class="cards"><div class="empty">まだ結果が入っていません</div></div>';
-  var byId={}; DATA.players.forEach(function(p){ byId[p.id]=p; });
-  var html='<div class="cards">';
-  eff.slice().reverse().forEach(function(e){
-    var p=byId[e.pid]; if(!p) return;
-    html+='<div class="hrow">'+esc(p.name)+'（'+esc(p.catCode)+'） '+esc(e.code)+' → '+(e.result==="W"?'<span class="w">勝ち</span>':'<span class="l">負け</span>')+"</div>";
-  });
-  return html+"</div>";
 }
 function bindActions(){
-  Array.prototype.forEach.call(document.querySelectorAll("[data-pid]"), function(b){
-    b.addEventListener("click", function(){ App.record(b.getAttribute("data-pid"), b.getAttribute("data-r")); });
+  document.querySelectorAll("button.side").forEach(function(b){
+    b.addEventListener("click", function(){ App.record(b.getAttribute("data-code"), parseInt(b.getAttribute("data-side"), 10)); });
   });
-  Array.prototype.forEach.call(document.querySelectorAll("td.kz"), function(td){
+  document.querySelectorAll("[data-jump]").forEach(function(td){
     td.addEventListener("click", function(){
-      var code=td.getAttribute("data-code");
-      var segs=ANN[code]||[];
-      var cur=segs.filter(function(s){ return segState(s, live())==="current"; });
-      if(cur.length){ App.tab="next"; App.focusPid=cur[0].pid; render(); }
+      var code = td.getAttribute("data-jump");
+      App.tab = "list";
+      document.querySelectorAll(".toolbar [data-tab]").forEach(function(x){ x.classList.toggle("on", x.getAttribute("data-tab") === "list"); });
+      render();
+      var el = $("card-" + code);
+      if (el){ el.scrollIntoView({block: "center"}); el.classList.add("flash"); }
     });
   });
 }
-$("btn-create").addEventListener("click", function(){
-  location.hash="r="+randStr(10)+"&k="+randStr(16);
-  location.reload();
-});
-$("btn-local").addEventListener("click", function(){ location.hash="local=1"; location.reload(); });
-$("btn-undo").addEventListener("click", function(){ App.undo(); });
-$("btn-copy-viewer").addEventListener("click", function(){
-  var link=$("viewer-link").textContent;
-  var label=App.isShared ? "共有用URL" : "観戦用リンク";
-  if(navigator.clipboard){ navigator.clipboard.writeText(link).then(function(){ toast(label+"をコピーしました"); }, function(){ prompt(label, link); }); }
-  else prompt(label, link);
-});
-Array.prototype.forEach.call(document.querySelectorAll("[data-tab]"), function(b){
-  b.addEventListener("click", function(){ App.tab=b.getAttribute("data-tab"); render(); });
-});
-$("btn-kara").addEventListener("click", function(){ App.karaOnly=!App.karaOnly; render(); });
-$("btn-font").addEventListener("click", function(){ document.body.classList.toggle("big"); });
-$("q").addEventListener("input", render);
 (function init(){
-  var h=hashParams();
-  var SH=(DATA.meta && DATA.meta.shared) || null;
-  if(!h.r && !h.local && SH && SH.room && SH.key){
-    // 共有編集モード: URLを開いた全員が同じルームで編集できる
-    sha256hex(SH.key).then(function(vhash){
-      App.role="op"; App.isShared=true; App.room=SH.room; App.key=SH.key; App.vhash=vhash;
-      App.loadLocal(); render(); App.startSync();
+  $("h-title").textContent = DATA.meta.title + " 共有タイムテーブル";
+  $("h-meta").textContent = DATA.meta.dateLabel + " ｜ " + DATA.meta.venue + " ｜ " + TEAM + "を応援";
+  document.querySelectorAll(".toolbar [data-tab]").forEach(function(b){
+    b.classList.toggle("on", b.getAttribute("data-tab") === App.tab);
+    b.addEventListener("click", function(){
+      App.tab = b.getAttribute("data-tab");
+      document.querySelectorAll(".toolbar [data-tab]").forEach(function(x){ x.classList.toggle("on", x === b); });
+      render();
     });
-    return;
-  }
-  if(h.local==="1"){
-    App.role="op"; App.isLocal=true; App.room="local"; App.vhash="local";
-    App.loadLocal(); App.ready=true; App.setConn("mid","ローカル（この端末だけ）");
-    render(); return;
-  }
-  if(h.r && h.k){
-    sha256hex(h.k).then(function(vhash){
-      App.role="op"; App.room=h.r; App.key=h.k; App.vhash=vhash;
-      App.loadLocal(); render(); App.startSync();
-    });
-    return;
-  }
-  if(h.r && h.v){
-    App.role="view"; App.room=h.r; App.vhash=h.v;
-    App.loadLocal(); render(); App.startSync();
-    return;
-  }
+  });
+  $("q").addEventListener("input", render);
+  $("f-cls").addEventListener("change", render);
+  $("btn-kara").addEventListener("click", function(){
+    App.karaOnly = !App.karaOnly;
+    this.classList.toggle("on", App.karaOnly);
+    render();
+  });
+  $("btn-undo").addEventListener("click", function(){ App.undo(); });
+  $("btn-copy-url").addEventListener("click", function(){
+    var url = location.href.split("#")[0];
+    if (navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(url).then(function(){ toast("URLをコピーしました"); }, function(){ toast(url); });
+    } else toast(url);
+  });
+  App.loadLocal();
   render();
+  App.startSync();
 })();
 </script>
 </body>
