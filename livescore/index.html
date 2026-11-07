@@ -717,6 +717,27 @@ button.side:active .plus-badge{transform:scale(.93);}
   </section>
 
   <section class="card">
+    <h2>試合の設定（あとから変更できます）</h2>
+    <div class="duo">
+      <div>
+        <label class="f">コート番号</label>
+        <select id="s-court"><option value="">指定なし</option><option value="1">1番コート</option><option value="2">2番コート</option><option value="3">3番コート</option><option value="4">4番コート</option><option value="5">5番コート</option><option value="6">6番コート</option><option value="7">7番コート</option><option value="8">8番コート</option><option value="9">9番コート</option><option value="10">10番コート</option><option value="11">11番コート</option><option value="12">12番コート</option><option value="13">13番コート</option><option value="14">14番コート</option><option value="15">15番コート</option><option value="16">16番コート</option><option value="17">17番コート</option><option value="18">18番コート</option><option value="19">19番コート</option><option value="20">20番コート</option></select>
+      </div>
+      <div>
+        <label class="f">試合形式</label>
+        <select id="s-format">
+          <option value="21x3">21点・3ゲーム（2ゲーム先取）</option>
+          <option value="15x3">15点・3ゲーム（2ゲーム先取）</option>
+          <option value="21x1">21点・1ゲーム</option>
+          <option value="15x1">15点・1ゲーム</option>
+        </select>
+      </div>
+    </div>
+    <div class="btnrow"><button class="btn" id="k-settings-apply" style="flex:1;">設定を変更する</button></div>
+    <p class="small" style="margin-bottom:0;">終わったゲームの記録はそのまま残ります。進行中のゲームは、新しい形式のルールで判定し直します（すでに決着がつく点数なら、そのゲームは終了します）。試合が終わっている場合は変更できません。間違えたら「1つ取り消す」で戻せます。</p>
+  </section>
+
+  <section class="card">
     <h2>試合の操作</h2>
     <div class="btnrow" style="margin-top:0;">
       <button class="btn danger" id="k-reset">試合を最初からやり直す</button>
@@ -1310,6 +1331,43 @@ function wireKeeper(){
       pushAndRender(prev); toast("リセットしました");
     });
   };
+  $("k-settings-apply").onclick = function(){
+    if (K.state.finished){ toast("試合が終わっているので変更できません"); return; }
+    var newFmt = $("s-format").value, newCourt = $("s-court").value;
+    if (newFmt === K.state.formatKey && newCourt === (K.state.court || "")){ toast("変更はありません"); return; }
+    var f = FORMATS[newFmt];
+    if (gamesWon(K.state, 0) >= f.gamesToWin && gamesWon(K.state, 1) >= f.gamesToWin){
+      toast("その形式では勝敗を決められないため変更できません"); return;
+    }
+    openModal("設定を変更しますか？",
+      "試合形式を「" + f.label + "」に、コート番号を「" + (newCourt ? newCourt + "番コート" : "指定なし") + "」に変更します。終わったゲームの記録はそのまま残ります。",
+      function(){
+        K.undoStack.push(snapshot());
+        var prev = snapshot();
+        K.state.formatKey = newFmt;
+        K.state.court = newCourt;
+        K.state.matchName = courtTitle(newCourt);
+        var gw = gameWinnerByScore(K.state);
+        if (gw >= 0){
+          /* 進行中のゲームが新しいルールで既に決着している場合は締める */
+          K.state.games.push({ a: K.state.cur.a, b: K.state.cur.b, rallies: K.state.rallies.slice() });
+          K.state.cur = { a:0, b:0 }; K.state.rallies = [];
+          if (gamesWon(K.state, gw) >= f.gamesToWin){ K.state.finished = true; K.state.winner = gw; }
+          else K.state.swapped = !K.state.swapped;
+        } else if (gamesWon(K.state, 0) >= f.gamesToWin || gamesWon(K.state, 1) >= f.gamesToWin){
+          /* 必要ゲーム数を取り終えている場合は試合終了にする */
+          K.state.winner = gamesWon(K.state, 0) > gamesWon(K.state, 1) ? 0 : 1;
+          K.state.finished = true;
+        }
+        try { var cfg = JSON.parse(localStorage.getItem("kzscore_cfg_" + K.room) || "null");
+          if (cfg){ cfg.formatKey = newFmt; cfg.court = newCourt; cfg.matchName = K.state.matchName;
+            localStorage.setItem("kzscore_cfg_" + K.room, JSON.stringify(cfg)); } } catch(e){}
+        upsertMatch({ room:K.room, keeperKey:K.key, verifyHash:K.vhash, role:"keeper",
+          court:newCourt, matchName:K.state.matchName, fixed:true });
+        pushAndRender(prev);
+        toast("設定を変更しました");
+      });
+  };
   $("k-to-lobby").onclick = function(){ location.hash = ""; };
   var vlink = viewerLink(K.room, K.vhash), klink = keeperLink(K.room, K.key);
   $("k-viewer-link").textContent = vlink;
@@ -1353,7 +1411,12 @@ function minusPoint(p){
   if (st.rallies.length) st.server = st.rallies[st.rallies.length-1];
   pushAndRender(prev);
 }
-function renderKeeper(prev){ renderBoard("k", K.state, prev); }
+function renderKeeper(prev){
+  renderBoard("k", K.state, prev);
+  var sc = $("s-court"), sf = $("s-format");
+  if (sc) sc.value = K.state.court || "";
+  if (sf) sf.value = K.state.formatKey;
+}
 
 /* ================= VIEWER ================= */
 var V = { room:null, vhash:null, state:null, wakeLock:null };
