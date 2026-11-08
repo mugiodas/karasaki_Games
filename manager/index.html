@@ -938,6 +938,7 @@ function resolveSrc(src, results, matchById){
 function isLeagueMatch(m){ return !!m && (m.kind === "league" || (m.block !== undefined && m.block !== null)); }
 function phasePointCode(ev, m){
   if (!ev || !m) return "";
+  if (m.challenge) return ev.challengePoint || ev.pointCodeTour || "";
   return isLeagueMatch(m) ? (ev.pointCodeLeague || "") : (ev.pointCodeTour || "");
 }
 try{ __step("core"); }catch(e){}
@@ -1177,6 +1178,7 @@ function allMatches(ev){
   if (ev.format === "league2" || ev.format === "tournament" || ev.format === "team"){
     out = out.concat(tournamentMatches(ev, "upper", lms));
     if (ev.format === "league2") out = out.concat(tournamentMatches(ev, "lower", lms));
+    if (ev.challengeUntil && (ev.format === "tournament" || ev.format === "league2")) out = out.concat(challengeMatches(ev));
   }
   _amCache[ev.id] = out;
   return out;
@@ -1195,6 +1197,48 @@ function championOf(ev, tier){
   var r = state.results[final.id];
   if (r && r.winner) return r.winner;
   var pl = matchPlayers(ev, final, null);
+  if (pl.p1 === "BYE") return pl.p2; if (pl.p2 === "BYE") return pl.p1;
+  return null;
+}
+// Challenge tournament: losers of the main (upper) bracket up to round
+// ev.challengeUntil feed a separate single-elimination bracket. Each leaf
+// resolves through the feeder match's loser, so pairings appear on their
+// own as main results come in (same loseOf machinery as the 3rd-place match).
+function challengeFeeders(ev, mainMs){
+  var byId = {}; mainMs.forEach(function(m){ byId[m.id] = m; });
+  function canReal(src){
+    if (!src) return false;
+    if (src.pid) return true;
+    if (src.bye) return false;
+    if (src.winOf){ var f = byId[src.winOf]; if (!f) return false; return canReal(f.src1) || canReal(f.src2); }
+    if (src.loseOf){ var l = byId[src.loseOf]; if (!l) return false; return canReal(l.src1) && canReal(l.src2); }
+    return false;
+  }
+  return mainMs.filter(function(m){ return !m.thirdPlace && m.round <= (ev.challengeUntil || 0) && canReal(m.src1) && canReal(m.src2); })
+    .sort(function(a, b){ return a.round - b.round || a.idx - b.idx; });
+}
+function challengeMatches(ev){
+  if (!ev.challengeUntil) return [];
+  if (ev.format !== "tournament" && ev.format !== "league2") return [];
+  var main = tournamentMatches(ev, "upper", leagueMatchList(ev));
+  var feeders = challengeFeeders(ev, main);
+  if (feeders.length < 2) return [];
+  var ents = feeders.map(function(f){ return {pid: f.id, block: null}; });
+  var b = bracketMatches(ents, ev.id + "-C");
+  var fset = {}; feeders.forEach(function(f){ fset[f.id] = 1; });
+  return b.matches.map(function(m){
+    var c = Object.assign({}, m, {kind: "tour", evId: ev.id, tier: "upper", challenge: true});
+    ["src1", "src2"].forEach(function(k){ if (c[k] && c[k].pid && fset[c[k].pid]) c[k] = {loseOf: c[k].pid}; });
+    return c;
+  });
+}
+function challengeChampion(ev){
+  var cms = challengeMatches(ev);
+  if (!cms.length) return null;
+  var fin = cms[cms.length - 1];
+  var r = state.results[fin.id];
+  if (r && r.winner) return r.winner;
+  var pl = matchPlayers(ev, fin, null);
   if (pl.p1 === "BYE") return pl.p2; if (pl.p2 === "BYE") return pl.p1;
   return null;
 }
@@ -1346,6 +1390,7 @@ function buildSchedule(){
       if (tier === "lower" && ev.format !== "league2") return;
       tournamentMatches(ev, tier, lms).forEach(function(m){ seq.push(m); });
     });
+    if (ev.challengeUntil && (ev.format === "tournament" || ev.format === "league2")) challengeMatches(ev).forEach(function(m){ seq.push(m); });
   });
   function flushTime(s2){ var t = base + s2*interval; return String(Math.floor(t/60)).padStart(2,"0") + ":" + String(t%60).padStart(2,"0"); }
   var placed = {}, playerLast = {}, slots = {}, out = [];
@@ -1574,7 +1619,7 @@ function matchCard(ev, m, showMeta){
   var meta = "";
   if (showMeta !== false){
     var kind = m.kind === "league" ? '<span class="chip gray">' + esc(ev.name) + " " + m.blockName + "ブロック</span>"
-      : (m.thirdPlace ? '<span class="chip" style="background:rgba(221,136,0,.1);color:#a86400;border-color:#dd8800">' + esc(ev.name) + ' 3位決定戦</span>' : '<span class="chip ' + (m.tier === "lower" ? "lower" : "upper") + '">' + esc(ev.name) + " " + (m.tier === "lower" ? "下位" : "上位") + " R" + m.round + '</span>');
+      : (m.challenge ? '<span class="chip" style="background:rgba(221,136,0,.1);color:#a86400;border-color:#dd8800">' + esc(ev.name) + ' チャレンジ R' + m.round + '</span>' : (m.thirdPlace ? '<span class="chip" style="background:rgba(221,136,0,.1);color:#a86400;border-color:#dd8800">' + esc(ev.name) + ' 3位決定戦</span>' : '<span class="chip ' + (m.tier === "lower" ? "lower" : "upper") + '">' + esc(ev.name) + " " + (m.tier === "lower" ? "下位" : "上位") + " R" + m.round + '</span>'));
     var ref = refereeFor(ev, m, all);
     var noteLabel = r && r.note === "wo" ? "試合棄権" : (r && r.note === "retire" ? "途中棄権" : "");
     meta = '<div class="meta">' + kind + '<span>' + esc(m.id.split("-").slice(-2).join("-")) + '</span>' +
@@ -1739,7 +1784,7 @@ function scoreModalHTML(ev, m, all){
   var r = state.results[m.id] || {};
   var title = ev.teamComp ? ev.name + " 対戦カード"
     : ev.name + (m.kind === "league" ? " " + m.blockName + "ブロック"
-      : (m.thirdPlace ? " 3位決定戦" : " " + (m.tier === "lower" ? "下位" : "上位") + "トーナメント R" + m.round));
+      : (m.challenge ? " チャレンジトーナメント R" + m.round : (m.thirdPlace ? " 3位決定戦" : " " + (m.tier === "lower" ? "下位" : "上位") + "トーナメント R" + m.round)));
   var head = '<div class="msheet"><div class="mhead"><div class="mt">' + esc(title) +
     '<br><span style="font-weight:600;font-size:12.5px;opacity:.85">SCORE ENTRY — スコア入力</span></div>' +
     '<button class="mclose" onclick="closeScoreModal()">×</button></div>';
@@ -1908,6 +1953,7 @@ function vHome(){
     if (ev.format === "league2" || ev.format === "tournament"){ var c = championOf(ev, "upper"); if (c) champs.push(ev.name + " 上位優勝: " + playerName(ev, c)); }
     if (ev.format === "team"){ var ct = championOf(ev, "upper"); if (ct) champs.push(ev.name + " 優勝: " + playerName(ev, ct)); }
     if (ev.format === "league2"){ var c2 = championOf(ev, "lower"); if (c2) champs.push(ev.name + " 下位優勝: " + playerName(ev, c2)); }
+    if (ev.challengeUntil){ var cc9 = challengeChampion(ev); if (cc9) champs.push(ev.name + " チャレンジ優勝: " + playerName(ev, cc9)); }
   });
   var sched = buildSchedule();
   var next = sched.filter(function(s){ var r = state.results[s.match.id]; if (r && r.winner) return false; var ev = evById(s.match.evId); var pl = matchPlayers(ev, s.match, null); return pl.p1 && pl.p2 && pl.p1 !== "BYE" && pl.p2 !== "BYE"; }).slice(0, 6);
@@ -1978,6 +2024,8 @@ function vEntry(){
     '<div><label class="f">トーナメント組み合わせ方式</label><select id="nev-seed"><option value="standard">標準（アプリ方式）</option><option value="asami">ASAMI方式</option></select></div>' +
     '<div><label class="f">ポイント設定（数字コード）</label><input type="text" id="nev-point" value="21330" oninput="document.getElementById(\'ptprev\').textContent = decodePoint(this.value).label"><div class="mini" id="ptprev">21点 3ゲーム 延長30点</div></div>' +
     '<div><label class="f">3位決定戦</label><select id="nev-3p"><option value="">なし</option><option value="1">あり（準決勝の敗者同士）</option></select></div></div>' +
+    '<div class="grid2"><div><label class="f">チャレンジトーナメント（敗者復活）</label><select id="nev-ch"><option value="">なし</option><option value="1">あり（1回戦までの敗者）</option><option value="2">あり（2回戦までの敗者）</option></select></div>' +
+    '<div><label class="f">チャレンジ用ポイント（任意）</label><input type="text" id="nev-chpoint" placeholder="空欄＝トーナメント用/共通（例: 15121）"></div></div>' +
     '<div class="grid2"><div><label class="f">リーグ用ポイント（任意）</label><input type="text" id="nev-point-l" placeholder="空欄＝共通設定"></div>' +
     '<div><label class="f">トーナメント用ポイント（任意）</label><input type="text" id="nev-point-t" placeholder="空欄＝共通設定"></div></div>' +
     '<div style="margin-top:12px"><button class="btn" onclick="addEvent()">種目を追加</button></div>' +
@@ -2029,6 +2077,8 @@ function eventEntryCard(ev){
     '<div><label class="f">上位に進む人数</label><select id="es-adv-' + ev.id + '"><option' + (ev.advance === 1 ? " selected" : "") + '>1</option><option' + (ev.advance === 2 ? " selected" : "") + '>2</option></select></div>' +
     '<div><label class="f">トーナメント組み合わせ方式</label><select id="es-seed-' + ev.id + '"><option value="standard"' + (ev.seedMode !== "asami" ? " selected" : "") + '>標準（アプリ方式）</option><option value="asami"' + (ev.seedMode === "asami" ? " selected" : "") + '>ASAMI方式</option></select></div></div>' +
     '<label class="f">3位決定戦</label><select id="es-3p-' + ev.id + '"><option value=""' + (!ev.thirdPlace ? " selected" : "") + '>なし</option><option value="1"' + (ev.thirdPlace ? " selected" : "") + '>あり（準決勝の敗者同士）</option></select>' +
+    '<div class="grid2"><div><label class="f">チャレンジトーナメント（敗者復活）</label><select id="es-ch-' + ev.id + '"><option value=""' + (!ev.challengeUntil ? " selected" : "") + '>なし</option><option value="1"' + (ev.challengeUntil === 1 ? " selected" : "") + '>あり（1回戦までの敗者）</option><option value="2"' + (ev.challengeUntil === 2 ? " selected" : "") + '>あり（2回戦までの敗者）</option></select></div>' +
+    '<div><label class="f">チャレンジ用ポイント（任意）</label><input type="text" id="es-chp-' + ev.id + '" value="' + esc(ev.challengePoint || "") + '" placeholder="空欄＝トーナメント用/共通（例: 15121）"></div></div>' +
     '<label class="f">ポイント設定（数字コード・当日変更可）</label><input type="text" id="es-pt-' + ev.id + '" value="' + esc(ev.pointCode || "") + '">' +
     '<div class="grid2"><div><label class="f">リーグ用ポイント（任意）</label><input type="text" id="es-ptl-' + ev.id + '" value="' + esc(ev.pointCodeLeague || "") + '" placeholder="空欄＝共通設定"></div>' +
     '<div><label class="f">トーナメント用ポイント（任意）</label><input type="text" id="es-ptt-' + ev.id + '" value="' + esc(ev.pointCodeTour || "") + '" placeholder="空欄＝共通設定"></div></div>' +
@@ -2049,15 +2099,22 @@ function saveEventSettings(eid){
   if ((ptl && !/^\d{2,5}$/.test(ptl)) || (ptt && !/^\d{2,5}$/.test(ptt))){ alert("リーグ用／トーナメント用ポイントは2〜5桁の数字コードで入力してください"); return; }
   var tpEl2 = document.getElementById("es-3p-" + eid);
   var tp = tpEl2 ? !!tpEl2.value : !!ev.thirdPlace;
+  var chEl2 = document.getElementById("es-ch-" + eid);
+  var chU = chEl2 ? (+chEl2.value || 0) : (ev.challengeUntil || 0);
+  var chpEl2 = document.getElementById("es-chp-" + eid);
+  var chp = chpEl2 ? chpEl2.value.trim() : (ev.challengePoint || "");
+  if (chp && !/^\d{2,5}$/.test(chp)){ alert("チャレンジ用ポイントは2〜5桁の数字コードで入力してください"); return; }
   var seedEl2 = document.getElementById("es-seed-" + eid);
   var seedMode = seedEl2 ? seedEl2.value : (ev.seedMode || "standard");
-  var structural = (pat !== ev.pattern || bs !== (ev.blockSize || 4) || adv !== (ev.advance || 2) || tp !== !!ev.thirdPlace || seedMode !== (ev.seedMode || "standard"));
+  var structural = (pat !== ev.pattern || bs !== (ev.blockSize || 4) || adv !== (ev.advance || 2) || tp !== !!ev.thirdPlace || chU !== (ev.challengeUntil || 0) || seedMode !== (ev.seedMode || "standard"));
   if (structural && ev.blocks){
-    if (!confirm("人数・対戦順・進出人数・3位決定戦・組み合わせ方式の変更は、組合せと入力済みの結果をリセットします。続けますか？")) return;
+    if (!confirm("人数・対戦順・進出人数・3位決定戦・チャレンジ・組み合わせ方式の変更は、組合せと入力済みの結果をリセットします。続けますか？")) return;
     pushSnapshot("種目設定変更の前: " + ev.name);
     resetEventData(ev);
   }
   ev.pattern = pat; ev.blockSize = bs; ev.advance = adv; ev.thirdPlace = tp; ev.seedMode = seedMode; if (pt) ev.pointCode = pt;
+  if (chU) ev.challengeUntil = chU; else delete ev.challengeUntil;
+  if (chp) ev.challengePoint = chp; else delete ev.challengePoint;
   if (ptl) ev.pointCodeLeague = ptl; else delete ev.pointCodeLeague;
   if (ptt) ev.pointCodeTour = ptt; else delete ev.pointCodeTour;
   touchConfig(); render();
@@ -2075,6 +2132,10 @@ function addEvent(){
     pointCode: document.getElementById("nev-point").value.trim() || "21330",
     participants: [], blocks: null, manualRank: {} };
   var tpEl = document.getElementById("nev-3p"); if (tpEl && tpEl.value) ev.thirdPlace = true;
+  var chEl = document.getElementById("nev-ch"); if (chEl && chEl.value) ev.challengeUntil = +chEl.value;
+  var chpEl = document.getElementById("nev-chpoint"); var chpV = chpEl ? chpEl.value.trim() : "";
+  if (chpV && !/^\d{2,5}$/.test(chpV)){ alert("チャレンジ用ポイントは2〜5桁の数字コードで入力してください"); return; }
+  if (chpV) ev.challengePoint = chpV;
   var npl = document.getElementById("nev-point-l"), npt = document.getElementById("nev-point-t");
   var vpl = npl ? npl.value.trim() : "", vpt = npt ? npt.value.trim() : "";
   if ((vpl && !/^\d{2,5}$/.test(vpl)) || (vpt && !/^\d{2,5}$/.test(vpt))){ alert("リーグ用／トーナメント用ポイントは2〜5桁の数字コードで入力してください"); return; }
@@ -2464,6 +2525,25 @@ function vTour(){
       });
       h += "</div></div>";
     });
+    if (ev.challengeUntil && (ev.format === "tournament" || ev.format === "league2")){
+      var cms = challengeMatches(ev);
+      h += '<div class="card"><div class="row"><span class="chip" style="background:rgba(221,136,0,.12);color:#a86400;border-color:#dd8800">チャレンジトーナメント</span>' +
+        (challengeChampion(ev) ? '<span class="chip green">優勝: ' + esc(playerName(ev, challengeChampion(ev))) + "</span>" : "") +
+        '<span style="margin-left:auto"></span><button class="btn ghost small" onclick="uiTourView=\'bracket\';render()">トーナメント表</button>' +
+        '<button class="btn ghost small" onclick="uiTourView=\'cards\';render()">カード</button></div>';
+      if (!cms.length){ h += '<div class="empty">本戦の' + ev.challengeUntil + '回戦までの敗者が対象です。対象の試合が組み上がると、ここにチャレンジトーナメントが組み上がります。</div></div>'; }
+      else if (uiTourView === "bracket"){ h += bracketHTML(ev, "upper", cms) + "</div>"; }
+      else {
+        var crounds = {};
+        cms.forEach(function(m){ (crounds[m.round] = crounds[m.round] || []).push(m); });
+        h += '<div class="rounds">';
+        Object.keys(crounds).sort().forEach(function(rn){
+          var clabel = (+rn === Math.max.apply(null, Object.keys(crounds).map(Number))) ? "決勝" : "R" + rn;
+          h += '<div class="roundcol"><div class="roundhead"><span class="ghostnum">' + rn + '</span><h4>' + clabel + "</h4></div>" + crounds[rn].map(function(m){ return matchCard(ev, m, false); }).join("") + "</div>";
+        });
+        h += "</div></div>";
+      }
+    }
   }
   return h;
 }
@@ -2472,6 +2552,7 @@ var _liveTimer = null;
 function vsTag(ev, m){
   if (m.kind === "league") return ev.name + " " + m.blockName + "ブロック";
   if (m.thirdPlace) return ev.name + " 3位決定戦";
+  if (m.challenge) return ev.name + " チャレンジ R" + m.round;
   return ev.name + " " + (m.tier === "lower" ? "下位" : "上位") + "トーナメント R" + m.round;
 }
 function vsHTML(ev, m, mode, sub){
@@ -2876,7 +2957,7 @@ function exportCsvResults(){
     all.forEach(function(m){
       var pl = matchPlayers(ev, m, all); var r = state.results[m.id] || {};
       var sx = smap[m.id];
-      var kind = m.kind === "league" ? m.blockName + "ブロック" : (m.thirdPlace ? "3位決定戦" : (m.tier === "lower" ? "下位" : "上位") + " R" + m.round);
+      var kind = m.kind === "league" ? m.blockName + "ブロック" : (m.challenge ? "チャレンジ R" + m.round : (m.thirdPlace ? "3位決定戦" : (m.tier === "lower" ? "下位" : "上位") + " R" + m.round));
       var pn = function(pid){ return pid === "BYE" ? "不戦勝" : (pid ? playerName(ev, pid) : "未定"); };
       var pa = function(pid){ var p = ev.participants.find(function(x){ return x.id === pid; }); return p ? (p.aff || "") : ""; };
       var ref = refereeFor(ev, m, all);
@@ -2918,6 +2999,17 @@ function exportCsvStandings(){
       var third = thirdPlaceOf(ev, tier);
       if (third && third !== "BYE") rows.push([ev.name, tierLbl, "3位", playerName(ev, third), aff(third), "", "", ""]);
     });
+    if (ev.challengeUntil && (ev.format === "tournament" || ev.format === "league2")){
+      var cch = challengeChampion(ev);
+      if (cch){
+        var cms2 = challengeMatches(ev);
+        var cfin = cms2[cms2.length - 1];
+        var cpl = cfin ? matchPlayers(ev, cfin, null) : {};
+        var crun = cpl.p1 === cch ? cpl.p2 : cpl.p1;
+        rows.push([ev.name, "チャレンジトーナメント", "優勝", playerName(ev, cch), aff(cch), "", "", ""]);
+        if (crun && crun !== "BYE") rows.push([ev.name, "チャレンジトーナメント", "準優勝", playerName(ev, crun), aff(crun), "", "", ""]);
+      }
+    }
   });
   csvDownload("standings.csv", rows);
 }
@@ -3114,6 +3206,17 @@ function printAwards(evId){
       var third = thirdPlaceOf(ev, tier);
       if (third && third !== "BYE") html += awardHTML(ev, "第3位", third, tl);
     });
+    if (ev.challengeUntil && (ev.format === "tournament" || ev.format === "league2")){
+      var cch2 = challengeChampion(ev);
+      if (cch2){
+        var cms3 = challengeMatches(ev);
+        var cfin3 = cms3[cms3.length - 1];
+        var cpl3 = cfin3 ? matchPlayers(ev, cfin3, null) : {};
+        var crun3 = cpl3.p1 === cch2 ? cpl3.p2 : cpl3.p1;
+        html += awardHTML(ev, "優勝", cch2, "チャレンジトーナメント");
+        if (crun3 && crun3 !== "BYE") html += awardHTML(ev, "準優勝", crun3, "チャレンジトーナメント");
+      }
+    }
   }
   if (!html){
     leagueBlocks(ev).forEach(function(block, bi){
