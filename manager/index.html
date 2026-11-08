@@ -1131,6 +1131,17 @@ function templateMatches(ev, tier, entries){
     if (!Array.isArray(node) || node.length !== 2) return;
     node.forEach(function(side){ if (side && side[0] === "N" && depth[side[1]] != null) depth[i] = Math.max(depth[i], depth[side[1]] + 1); });
   });
+  // Round numbers count from the final backwards, not from the leaves: a
+  // match between two players who both had a first-round bye is a round-2
+  // match even though its subtree is only one match deep. (Post-order =>
+  // parents always have larger indices than their children.)
+  var dist = tpl.map(function(){ return -1; });
+  if (tpl.length){ dist[tpl.length - 1] = 0; }
+  for (var di = tpl.length - 1; di >= 0; di--){
+    if (dist[di] < 0 || !Array.isArray(tpl[di])) continue;
+    tpl[di].forEach(function(side){ if (side && side[0] === "N" && dist[side[1]] < 0) dist[side[1]] = dist[di] + 1; });
+  }
+  var maxDist = Math.max.apply(null, dist.concat([0]));
   var out = [];
   for (var i = 0; i < tpl.length; i++){
     var node = tpl[i];
@@ -1143,7 +1154,7 @@ function templateMatches(ev, tier, entries){
       okSides = false; return null;
     });
     if (!okSides) return null;
-    out.push({id: ids[i], round: depth[i], idx: i, src1: srcs[0], src2: srcs[1]});
+    out.push({id: ids[i], round: dist[i] >= 0 ? (maxDist - dist[i] + 1) : depth[i], idx: i, src1: srcs[0], src2: srcs[1]});
   }
   return out;
 }
@@ -1151,6 +1162,11 @@ function tournamentMatches(ev, tier, lms){
   if (tier === "lower" && ev.format === "team") return [];
   if (ev.format === "tournament"){
     var ents = ev.participants.map(function(p,i){ return {pid:p.id, block:null}; });
+    var tmpl = templateMatches(ev, "upper", ents);
+    if (tmpl){
+      var tms = tmpl.map(function(m){ return Object.assign({}, m, {kind:"tour", evId:ev.id, tier:"upper"}); });
+      return withThirdPlace(tms, ev, "upper", ev.id + "-U");
+    }
     var b = bracketMatches(ents, ev.id + "-T");
     var ms = b.matches.map(function(m){ return Object.assign({}, m, {kind:"tour", evId:ev.id, tier:"upper"}); });
     return withThirdPlace(ms, ev, "upper", ev.id + "-T");
@@ -1221,11 +1237,36 @@ function challengeMatches(ev){
   if (!ev.challengeUntil) return [];
   if (ev.format !== "tournament" && ev.format !== "league2") return [];
   var main = tournamentMatches(ev, "upper", leagueMatchList(ev));
-  var feeders = challengeFeeders(ev, main);
-  if (feeders.length < 2) return [];
-  var ents = feeders.map(function(f){ return {pid: f.id, block: null}; });
+  var ents = null, fset = {};
+  // Official-bracket mode: ev.challengeOrder lists, per challenge slot
+  // (in bracket order), the id of the main match whose loser takes that
+  // slot, or null for a bye slot. Feeders may come from any round (an
+  // official bracket is replicated exactly, not re-derived from rules).
+  if (Array.isArray(ev.challengeOrder) && ev.challengeOrder.length >= 2){
+    var byId = {}; main.forEach(function(m){ byId[m.id] = m; });
+    var size = 1; while (size < ev.challengeOrder.length) size *= 2;
+    var slots = [];
+    for (var si = 0; si < size; si++){
+      var mid = ev.challengeOrder[si];
+      slots.push(mid && byId[mid] ? {pid: mid, block: null} : null);
+    }
+    if (slots.some(function(e){ return !!e; })){
+      // bracketMatches places entries by its standard seed fold; invert the
+      // fold so the entries land on the official slots
+      var order = [1, 2];
+      while (order.length < size){ var sum = order.length * 2 + 1, nxt = []; order.forEach(function(s){ nxt.push(s); nxt.push(sum - s); }); order = nxt; }
+      ents = new Array(size).fill(null);
+      for (var oi = 0; oi < size; oi++) ents[order[oi] - 1] = slots[oi];
+      ents.forEach(function(e){ if (e) fset[e.pid] = 1; });
+    }
+  }
+  if (!ents){
+    var feeders = challengeFeeders(ev, main);
+    if (feeders.length < 2) return [];
+    ents = feeders.map(function(f){ return {pid: f.id, block: null}; });
+    feeders.forEach(function(f){ fset[f.id] = 1; });
+  }
   var b = bracketMatches(ents, ev.id + "-C");
-  var fset = {}; feeders.forEach(function(f){ fset[f.id] = 1; });
   return b.matches.map(function(m){
     var c = Object.assign({}, m, {kind: "tour", evId: ev.id, tier: "upper", challenge: true});
     ["src1", "src2"].forEach(function(k){ if (c[k] && c[k].pid && fset[c[k].pid]) c[k] = {loseOf: c[k].pid}; });
