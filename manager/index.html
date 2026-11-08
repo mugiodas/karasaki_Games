@@ -2711,6 +2711,13 @@ function vConfig(){
     '<button class="btn ghost small" onclick="exportCsvStandings()">CSV: 成績（順位）</button></div></div>';
   var CL = (typeof certLayout === "function") ? certLayout() : null;
   var CFM = (typeof certFormat === "function") ? certFormat() : null;
+  var CST = (typeof certKind === "function") ? certKind() : "v";
+  var CH = (typeof certH === "function") ? certH() : { title: "賞状", suffix: "殿", issuerTitle: "", fTitle: "boku", fBody: "syuku", dateBlank: false, showAff: true, sealOn: true, sealX: 166, sealY: 228, sealS: 24 };
+  function certFontOpts(sel){
+    return [["boku", "悠字 朴（力強い筆文字）"], ["syuku", "悠字 肅（端正な楷書）"], ["mai", "悠字 舞（流麗な行書）"], ["mincho", "しっぽり明朝"]].map(function(o){
+      return '<option value="' + o[0] + '"' + (sel === o[0] ? " selected" : "") + '>' + o[1] + '</option>';
+    }).join("");
+  }
   function certItemRow(it, i){
     function num(id, v){ return '<input type="number" step="0.5" id="cc-it-' + i + '-' + id + '" value="' + (v == null ? "" : v) + '" style="width:64px">'; }
     return '<div style="border:1px solid var(--line);padding:8px 10px;margin-top:8px">' +
@@ -2728,8 +2735,13 @@ function vConfig(){
       '<label class="mini">文字/大きさ ' + num('s', it.s) + '</label><label class="mini">字間 ' + num('ls', it.ls) + '</label>' +
       '<label class="mini">列の長さ ' + num('len', it.len) + '</label><label class="mini">行間 ' + num('lh', it.lh) + '</label></div></div>';
   }
-  if (CL && CFM) h += '<div class="card certset"><h3 style="margin-top:0">賞状の設定（既製賞状用紙・A3縦）</h3>' +
-    '<div class="sub">鳳凰枠などが印刷済みの市販の賞状用紙に、文字と唐崎ジュニアの朱印だけを印刷します。書式は下の「項目」の並びで定義します（アサミと同じ、設定で書式を決める方式）。各項目は表示する文字列・書体・位置・大きさを個別に変えられ、項目の追加・削除もできます。文字列の中の {大会名} {種目} {区分} {順位} {氏名} {ふりがな} {所属} {日付} {主催者名} {本文} は、受賞者ごとに置き換わります。空になる項目（ふりがな未登録など）は印刷されません。数値はすべてmmで、位置は用紙の右端・上端からの距離です。</div>' +
+  if (CL) h += '<div class="card certset"><h3 style="margin-top:0">賞状の設定</h3>' +
+    '<label class="f">書式（用紙に合わせて選んでください。切り替えると設定画面が変わります）</label>' +
+    '<select id="cc-style" onchange="saveCertSettings(true)">' +
+    '<option value="v"' + (CST === "v" ? " selected" : "") + '>縦書き（A3・既製賞状用紙）</option>' +
+    '<option value="h"' + (CST === "h" ? " selected" : "") + '>横書き（A4・専用用紙）</option></select>' +
+    (CST === "v" ?
+    '<div class="sub" style="margin-top:8px">鳳凰枠などが印刷済みの市販の賞状用紙に、文字と唐崎ジュニアの朱印だけを印刷します。書式は下の「項目」の並びで定義します（アサミと同じ、設定で書式を決める方式）。各項目は表示する文字列・書体・位置・大きさを個別に変えられ、項目の追加・削除もできます。文字列の中の {大会名} {種目} {区分} {順位} {氏名} {ふりがな} {所属} {日付} {主催者名} {本文} は、受賞者ごとに置き換わります。空になる項目（ふりがな未登録など）は印刷されません。数値はすべてmmで、位置は用紙の右端・上端からの距離です。</div>' +
     '<label class="f">本文（{本文} の中身。同じ置換が使えます）</label><textarea id="cc-body" rows="3">' + esc(state.meta.certBody || CERT_BODY_DEFAULT) + '</textarea>' +
     '<div class="grid3"><div><label class="f">全体の横ずれ（mm）</label><input type="number" step="0.5" id="cc-ox" value="' + CL.ox + '"></div>' +
     '<div><label class="f">全体の縦ずれ（mm）</label><input type="number" step="0.5" id="cc-oy" value="' + CL.oy + '"></div>' +
@@ -2740,9 +2752,30 @@ function vConfig(){
     '<div class="sub" style="margin-top:10px">サンプルのガイド枠＝用紙の飾り枠の内側の目安（mm）</div>' +
     '<div class="row" style="gap:8px;flex-wrap:wrap">' +
     ["t|上", "b|下", "l|左", "r|右"].map(function(p){ var kv = p.split("|"); return '<label class="mini">' + kv[1] + ' <input type="number" step="1" id="cc-g-' + kv[0] + '" value="' + CL.guide[kv[0]] + '" style="width:64px"></label>'; }).join("") + '</div>' +
+    '<div class="mini" style="margin-top:6px">ふりがなは名前とは別の項目として置くので、用紙に合わせて位置をずらせます。</div>'
+    :
+    '<div class="sub" style="margin-top:8px">A4縦の専用用紙に、横書きで文字と唐崎ジュニアの朱印だけを印刷します。題字・順位・受賞者名は結果から自動で入ります。本文の先頭には種目と区分が自動で入り、団体名は「大会情報」の主催者名、発行者は「大会情報」の代表者名（と下の役職）を使います。枠に収まらない文字は自動で小さくして収めます。数値はすべてmmです。</div>' +
+    '<label class="f">本文（{本文} の中身。同じ置換が使えます）</label><textarea id="cc-body" rows="3">' + esc(state.meta.certBody || CERT_BODY_DEFAULT) + '</textarea>' +
+    '<div class="grid3"><div><label class="f">全体の横ずれ（mm）</label><input type="number" step="0.5" id="cc-ox" value="' + CL.ox + '"></div>' +
+    '<div><label class="f">全体の縦ずれ（mm）</label><input type="number" step="0.5" id="cc-oy" value="' + CL.oy + '"></div><div></div></div>' +
+    '<div class="grid3"><div><label class="f">題字</label><input type="text" id="cc-h-title" value="' + esc(CH.title) + '"></div>' +
+    '<div><label class="f">敬称</label><input type="text" id="cc-h-suffix" value="' + esc(CH.suffix) + '"></div>' +
+    '<div><label class="f">役職（代表者名の前に小さく。空欄可）</label><input type="text" id="cc-h-isstitle" value="' + esc(CH.issuerTitle) + '"></div></div>' +
+    '<div class="grid3"><div><label class="f">書体：題字・順位・氏名・代表者名</label><select id="cc-h-ftitle">' + certFontOpts(CH.fTitle) + '</select></div>' +
+    '<div><label class="f">書体：本文・日付・団体名・役職</label><select id="cc-h-fbody">' + certFontOpts(CH.fBody) + '</select></div>' +
+    '<div><label class="f">日付の印字</label><select id="cc-h-datemode"><option value="date"' + (!CH.dateBlank ? " selected" : "") + '>大会の日付を印字する</option><option value="blank"' + (CH.dateBlank ? " selected" : "") + '>空欄で印字（手書き用）</option></select></div></div>' +
+    '<div class="row" style="gap:14px;flex-wrap:wrap;margin-top:2px">' +
+    '<label class="mini"><input type="checkbox" id="cc-h-aff"' + (CH.showAff ? " checked" : "") + '> 氏名の下に所属を印字</label>' +
+    '<label class="mini"><input type="checkbox" id="cc-h-sealon"' + (CH.sealOn ? " checked" : "") + '> 朱印を印字</label></div>' +
+    '<div class="row" style="gap:8px;flex-wrap:wrap;margin-top:6px"><span class="mini">朱印の位置：</span>' +
+    '<label class="mini">左から <input type="number" step="1" id="cc-h-sealx" value="' + CH.sealX + '" style="width:64px"></label>' +
+    '<label class="mini">上から <input type="number" step="1" id="cc-h-sealy" value="' + CH.sealY + '" style="width:64px"></label>' +
+    '<label class="mini">大きさ <input type="number" step="1" id="cc-h-seals" value="' + CH.sealS + '" style="width:64px"></label></div>' +
+    '<div class="mini" style="margin-top:6px">書体（悠字・しっぽり明朝）は、保存した印刷ファイルを開くときにネットから読み込みます。ネットが無い環境では内蔵の筆文字・楷書で代用表示されます。</div>'
+    ) +
     '<div class="row" style="margin-top:10px"><button class="btn" onclick="saveCertSettings(true)">賞状設定を保存</button>' +
     '<button class="btn ghost" onclick="saveCertSettings(false);printCertSample()">サンプルで位置合わせ</button></div>' +
-    '<div class="mini" style="margin-top:6px">サンプルには位置合わせ用ガイド（枠・目盛り）が付きます。本番の賞状にはガイドは印刷されません。ふりがなは名前とは別の項目として置くので、用紙に合わせて位置をずらせます。</div></div>';
+    '<div class="mini" style="margin-top:6px">サンプルには位置合わせ用ガイド（枠・中心線・項目の範囲）が付きます。本番の賞状にはガイドは印刷されません。</div></div>';
   var snaps = listSnapshots();
   h += '<div class="card"><h3 style="margin-top:0">自動バックアップ（この端末内）</h3>' +
     '<div class="sub">大きな操作の前と、結果が20件増えるごとに自動で保存します（最新8件）。消してしまったときはここから戻せます。</div>' +
@@ -2893,9 +2926,9 @@ function printSheets(evId, mode){
   showPrintPreview(list.map(function(m){ return sheetHTML(ev, m, all, smap); }).join(""),
     "審判用紙 — " + ev.name + (mode === "ready" ? "（確定分）" : "（全試合）"), "scoresheet-" + ev.id + ".html");
 }
-var _ppHTML = "", _ppFile = "print.html", _ppCSS = "";
-function showPrintPreview(html, title, fname, css){
-  _ppHTML = html; _ppFile = fname || "print.html"; _ppCSS = css || "";
+var _ppHTML = "", _ppFile = "print.html", _ppCSS = "", _ppHead = "";
+function showPrintPreview(html, title, fname, css, head){
+  _ppHTML = html; _ppFile = fname || "print.html"; _ppCSS = css || ""; _ppHead = head || "";
   document.getElementById("ppTitle").textContent = title || "印刷プレビュー";
   document.getElementById("ppBody").innerHTML = html;
   document.getElementById("printPreview").style.display = "block";
@@ -2926,11 +2959,11 @@ function downloadFile(name, content, type){
 }
 function ppDownload(){
   var title = document.getElementById("ppTitle").textContent;
-  var doc = '<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>' + esc(title) + '</title><style>' + (_ppCSS || SHEET_FILE_CSS) + '</style></head><body>' + _ppHTML + '</bo' + 'dy></ht' + 'ml>';
+  var doc = '<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>' + esc(title) + '</title><style>' + (_ppCSS || SHEET_FILE_CSS) + '</style>' + (_ppHead || "") + '</head><body>' + _ppHTML + '</bo' + 'dy></ht' + 'ml>';
   downloadFile(_ppFile, doc, "text/html;charset=utf-8");
 }
-function doPrintHTML(html, title, fname, css){
-  showPrintPreview(html, title, fname, css);
+function doPrintHTML(html, title, fname, css, head){
+  showPrintPreview(html, title, fname, css, head);
 }
 function printOneSheet(mid){
   for (var i = 0; i < state.events.length; i++){
@@ -3054,6 +3087,43 @@ function certLayout(){
   return { ox: +c.ox || 0, oy: +c.oy || 0, scale: +c.scale || 100,
     guide: Object.assign({}, CERT_GUIDE_DEFAULT, c.guide || {}) };
 }
+// Horizontal A4 format, incorporated from the user's own certificate tool
+// (2026-11-08): fixed layout, two font groups, shrink-to-fit sizes,
+// era date or blank-for-handwriting, global mm offset, printable guides.
+var CERT_H_DEFAULT = { title: "賞状", suffix: "殿", issuerTitle: "", fTitle: "boku", fBody: "syuku",
+  dateBlank: false, showAff: true, sealOn: true, sealX: 166, sealY: 228, sealS: 24 };
+function certKind(){ return state.meta && state.meta.certStyle === "h" ? "h" : "v"; }
+function certH(){ return Object.assign({}, CERT_H_DEFAULT, (state.meta && state.meta.certH) || {}); }
+var CERT_FILE_CSS_H = 'body{font-family:"Hiragino Mincho ProN","Yu Mincho",serif;margin:0;background:#fff}' +
+  '.certstage{page-break-after:always}.certstage:last-child{page-break-after:auto}' +
+  '.certpage{width:210mm;height:297mm;position:relative;overflow:hidden;color:#000;background:#fff}' +
+  '@page{size:A4 portrait;margin:0}@media print{body{margin:0}}';
+var CERT_FONT_STACKS_H = {
+  boku: "'Yuji Boku','TmYuji','Hiragino Mincho ProN',serif",
+  syuku: "'Yuji Syuku','TmYuji','Hiragino Mincho ProN',serif",
+  mai: "'Yuji Mai','TmYuji','Hiragino Mincho ProN',serif",
+  mincho: "'Shippori Mincho','TmKlee','Hiragino Mincho ProN',serif"
+};
+var CERT_FONT_LINK_H = '<link rel="preconnect" hre' + 'f="https://fonts.googleapis.com">' +
+  '<link hre' + 'f="https://fonts.googleapis.com/css2?family=Yuji+Boku&family=Yuji+Mai&family=Yuji+Syuku&family=Shippori+Mincho:wght@500;700&display=swap" rel="stylesheet">';
+function certTextEm(t){
+  var w = 0; t = String(t || "");
+  for (var i = 0; i < t.length; i++){ var c = t.charCodeAt(i); w += (c < 0x80 || (c >= 0xff61 && c <= 0xff9f)) ? 0.55 : 1; }
+  return w;
+}
+function certFitPt(t, maxPt, minPt, boxMm, lsEm){
+  var em = certTextEm(t), n = String(t || "").length, pt = maxPt;
+  while (pt > minPt && pt * 0.3528 * (em + (lsEm || 0) * n) > boxMm) pt -= 0.5;
+  return pt;
+}
+function fmtCertDateH(s){
+  var m = /(\d{4})[-/](\d{1,2})[-/](\d{1,2})/.exec(s || "");
+  if (!m) return s || "";
+  var y = +m[1];
+  var era = y >= 2019 ? "令和" + (y === 2019 ? "元" : (y - 2018)) + "年" : y + "年";
+  return era + "　" + (+m[2]) + "月　" + (+m[3]) + "日";
+}
+var CERT_DATE_BLANK_H = "令和　　年　　月　　日";
 function saveCertSettings(rerender){
   function gv(id, fb){ var el = document.getElementById(id); if (!el) return fb; var v = parseFloat(el.value); return isNaN(v) ? fb : v; }
   function gs(id, fb){ var el = document.getElementById(id); return el ? el.value : fb; }
@@ -3073,6 +3143,16 @@ function saveCertSettings(rerender){
     return o;
   });
   var b = document.getElementById("cc-body"); if (b) state.meta.certBody = b.value;
+  state.meta.certStyle = gs("cc-style", certKind()) === "h" ? "h" : "v";
+  var prevH = certH();
+  state.meta.certH = {
+    title: gs("cc-h-title", prevH.title), suffix: gs("cc-h-suffix", prevH.suffix),
+    issuerTitle: gs("cc-h-isstitle", prevH.issuerTitle),
+    fTitle: gs("cc-h-ftitle", prevH.fTitle), fBody: gs("cc-h-fbody", prevH.fBody),
+    dateBlank: gs("cc-h-datemode", prevH.dateBlank ? "blank" : "date") === "blank",
+    showAff: gc("cc-h-aff", prevH.showAff !== false), sealOn: gc("cc-h-sealon", prevH.sealOn !== false),
+    sealX: gv("cc-h-sealx", prevH.sealX), sealY: gv("cc-h-sealy", prevH.sealY), sealS: gv("cc-h-seals", prevH.sealS)
+  };
   touchConfig();
   if (rerender) render();
 }
@@ -3148,6 +3228,7 @@ function certStyle(el, L, F, extra){
     'mm;writing-mode:vertical-rl;text-orientation:upright;font-family:' + F + (extra || '');
 }
 function certPageHTML(d, guide){
+  if (certKind() === "h") return certPageHTMLh(d, guide);
   var L = certLayout(), k = L.scale / 100;
   var F = "'TmKlee','KaiTi','STKaiti','Hiragino Mincho ProN','Yu Mincho','MS PMincho',serif";
   var FS = "'TmKlee','KaiTi','STKaiti','Hiragino Mincho ProN','Yu Mincho',serif";
@@ -3171,6 +3252,61 @@ function certPageHTML(d, guide){
   if (guide) h += certGuideHTML(L);
   return h + '</sec' + 'tion></div>';
 }
+function certGuideHTMLh(){
+  var h = '<div style="position:absolute;left:10mm;right:10mm;top:10mm;bottom:10mm;border:.25mm dashed #2b6fd6"></div>';
+  h += '<div style="position:absolute;left:105mm;top:0;bottom:0;border-left:.2mm dashed #2b6fd6"></div>';
+  h += '<div style="position:absolute;top:148.5mm;left:0;right:0;border-top:.2mm dashed #2b6fd6"></div>';
+  h += '<div style="position:absolute;left:8mm;bottom:6mm;font-size:4mm;color:#888">位置合わせ用ガイド：青い破線＝用紙の端から10mmと中心線。赤い破線＝各項目の範囲です。本番の賞状には印刷されません。</div>';
+  return h;
+}
+// ===CHUNK===
+function certPageHTMLh(d, guide){
+  var H = certH(), L = certLayout(), ox = L.ox, oy = L.oy;
+  var FT = CERT_FONT_STACKS_H[H.fTitle] || CERT_FONT_STACKS_H.syuku;
+  var FB = CERT_FONT_STACKS_H[H.fBody] || CERT_FONT_STACKS_H.syuku;
+  var OL = guide ? ";outline:.25mm dashed #e0261c" : "";
+  function el(css, txt){ return '<div style="position:absolute;color:#000;white-space:nowrap;' + css + OL + '">' + txt + '</div>'; }
+  var h = '<div class="certstage"><' + 'section class="certpage" style="width:210mm;height:297mm;position:relative;overflow:hidden;background:#fff">';
+  var title = H.title || "賞状";
+  h += el('left:' + (55 + ox) + 'mm;top:' + (66 + oy) + 'mm;width:100mm;text-align:center;letter-spacing:.3em;text-indent:.3em;font-family:' + FT + ';font-size:' + certFitPt(title, 58, 28, 100, 0.3) + 'pt', esc(title));
+  var rank = certSubst("{順位}", d);
+  if (rank) h += el('left:' + (51 + ox) + 'mm;top:' + (96 + oy) + 'mm;font-family:' + FT + ';font-size:' + certFitPt(rank, 36, 16, 60, 0) + 'pt', esc(rank));
+  if (d.name){
+    var nm = d.name + (H.suffix || "");
+    h += el('left:' + (92 + ox) + 'mm;top:' + (110 + oy) + 'mm;font-family:' + FT + ';font-size:' + certFitPt(nm, 36, 16, 70, 0) + 'pt', esc(nm));
+  }
+  if (H.showAff && d.aff) h += el('left:' + (92 + ox) + 'mm;top:' + (125 + oy) + 'mm;font-family:' + FB + ';font-size:12pt', esc(d.aff));
+  var lines = [];
+  var cat = certSubst("{種目}　{区分}", d);
+  if (cat) lines.push(cat);
+  certBodyText(d).split("\n").forEach(function(x){ lines.push(x); });
+  // shrink-to-fit like the user's tool, but wrap-aware: lines may wrap inside
+  // the 115mm box, as long as the wrapped total stays within the 65mm height
+  var bpt = 17, tot = lines.length;
+  while (bpt > 9){
+    tot = 0;
+    for (var li = 0; li < lines.length; li++) tot += Math.max(1, Math.ceil(bpt * 0.3528 * certTextEm(lines[li]) * 1.06 / 115 - 0.001));
+    if (tot <= 5) break;
+    bpt -= 0.5;
+  }
+  var lh = tot > 5 ? Math.max(9.5, 65 / tot) : 12.9;
+  h += '<div style="position:absolute;color:#000;left:' + (49 + ox) + 'mm;top:' + (130.5 + oy) + 'mm;width:115mm;font-family:' + FB + ';font-size:' + bpt + 'pt;line-height:' + lh.toFixed(1) + 'mm;letter-spacing:.06em;' + OL + '">' + lines.map(function(x){ return esc(x); }).join("<br>") + '</div>';
+  var dtxt = H.dateBlank ? CERT_DATE_BLANK_H : fmtCertDateH(state.meta.date);
+  if (dtxt) h += el('left:' + (76 + ox) + 'mm;top:' + (200 + oy) + 'mm;font-family:' + FB + ';letter-spacing:.12em;font-size:' + certFitPt(dtxt, 19, 9, 85, 0.12) + 'pt', esc(dtxt));
+  var org = state.meta.organizer || state.meta.name || "";
+  if (org) h += el('left:' + (55 + ox) + 'mm;top:' + (218 + oy) + 'mm;font-family:' + FB + ';font-size:' + certFitPt(org, 26, 12, 110, 0) + 'pt', esc(org));
+  var rep = state.meta.representative || "", itT = H.issuerTitle || "";
+  if (rep || itT){
+    var ipt = 30, emT = certTextEm(rep) + 0.6 * certTextEm(itT);
+    while (ipt > 14 && ipt * 0.3528 * emT > 93) ipt -= 0.5;
+    h += '<div style="position:absolute;color:#000;left:' + (66 + ox) + 'mm;top:' + (234 + oy) + 'mm;width:95mm;text-align:right;white-space:nowrap;' + OL + '">' +
+      (itT ? '<span style="font-family:' + FB + ';font-size:' + (ipt * 0.6).toFixed(1) + 'pt">' + esc(itT) + '</span> ' : '') +
+      '<span style="font-family:' + FT + ';font-size:' + ipt + 'pt">' + esc(rep) + '</span></div>';
+  }
+  if (H.sealOn && SEAL_IMG) h += '<' + 'img alt="唐崎ジュニア朱印" sr' + 'c="' + SEAL_IMG + '" style="position:absolute;left:' + (H.sealX + ox) + 'mm;top:' + (H.sealY + oy) + 'mm;width:' + H.sealS + 'mm;height:' + H.sealS + 'mm">';
+  if (guide) h += certGuideHTMLh();
+  return h + '</sec' + 'tion></div>';
+}
 // ===CHUNK===
 function awardHTML(ev, place, pid, tierLabel){
   var p = ev.participants.find(function(x){ return x.id === pid; });
@@ -3178,8 +3314,10 @@ function awardHTML(ev, place, pid, tierLabel){
 }
 // ===CHUNK===
 function printCertSample(){
+  var st = certKind();
   doPrintHTML(certPageHTML({eventName: "サンプル種目", tierLabel: "上位トーナメント", place: "優勝", name: "山田花子", aff: "唐崎ジュニア", kana: "やまだはなこ"}, true),
-    "賞状サンプル（位置合わせ用）", "awards-sample.html", CERT_FILE_CSS + (window.__FONT_CSS__ || ""));
+    "賞状サンプル（位置合わせ用）", "awards-sample.html",
+    (st === "h" ? CERT_FILE_CSS_H : CERT_FILE_CSS) + (window.__FONT_CSS__ || ""), st === "h" ? CERT_FONT_LINK_H : "");
 }
 // ===CHUNK===
 function printAwards(evId){
@@ -3225,7 +3363,9 @@ function printAwards(evId){
     });
   }
   if (!html){ alert("順位が決まっている種目がありません"); return; }
-  doPrintHTML(html, "賞状 — " + ev.name, "awards-" + ev.id + ".html", CERT_FILE_CSS + (window.__FONT_CSS__ || ""));
+  var cst = certKind();
+  doPrintHTML(html, "賞状 — " + ev.name, "awards-" + ev.id + ".html",
+    (cst === "h" ? CERT_FILE_CSS_H : CERT_FILE_CSS) + (window.__FONT_CSS__ || ""), cst === "h" ? CERT_FONT_LINK_H : "");
 }
 // ===CHUNK===
 // ===CHUNK===
