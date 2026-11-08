@@ -3403,17 +3403,19 @@ function shojoRecord(d, guide){
     ox: String(L.ox || 0), oy: String(L.oy || 0)
   };
 }
-function shojoToolHTML(records){
+function shojoToolHTML(records, startIdx){
   var b64 = window.__SHOJO_B64__ || "";
   if (!b64) return "";
   var bin = atob(b64), bytes = new Uint8Array(bin.length);
   for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
   var tpl = new TextDecoder().decode(bytes);
   var recJson = JSON.stringify(records).replace(/<\//g, "<\\/");
-  var inject = "<script>(function(){var RECS=" + recJson + ";" +
+  var pre = (typeof startIdx === "number" && startIdx >= 0 && startIdx < records.length) ? String(startIdx) : "null";
+  var inject = "<script>(function(){var RECS=" + recJson + ";var PRE=" + pre + ";" +
     "var KEY=\"shojo-print-v1\",RK=\"shojo-print-v1-recidx\";" +
     "function apply(i){try{localStorage.setItem(RK,String(i));localStorage.setItem(KEY,JSON.stringify(RECS[i]));}catch(e){}}" +
     "var idx=0;try{idx=Math.min(RECS.length-1,Math.max(0,parseInt(localStorage.getItem(RK)||\"0\",10)||0));}catch(e){}" +
+    "if(PRE!=null)idx=PRE;" +
     "apply(idx);" +
     "if(RECS.length>1){document.addEventListener(\"DOMContentLoaded\",function(){var ui=document.querySelector(\".ui\");var fs=ui&&ui.querySelector(\"fieldset\");if(!ui||!fs)return;var lab=document.createElement(\"label\");lab.textContent=\"受賞者を切り替え（大会運営アプリから）\";var sel=document.createElement(\"select\");RECS.forEach(function(r,i){var o=document.createElement(\"option\");o.value=i;o.textContent=((r.award||\"\")+\" \"+(r.name||\"\"));sel.appendChild(o);});sel.value=String(idx);sel.addEventListener(\"change\",function(){apply(+sel.value);location.reload();});lab.appendChild(sel);ui.insertBefore(lab,fs);});}" +
     "})();</" + "script>";
@@ -3422,17 +3424,24 @@ function shojoToolHTML(records){
   if (at < 0) return "";
   return tpl.slice(0, at) + inject + "\n" + tpl.slice(at);
 }
+var _shojoRecords = null, _shojoFile = "";
+function shojoPick(i){
+  if (!_shojoRecords) return;
+  var tool = shojoToolHTML(_shojoRecords, i);
+  if (tool) downloadFile(_shojoFile, tool, "text/html;charset=utf-8");
+}
 function presentShojoFile(records, fname, heading){
   var tool = shojoToolHTML(records);
   if (!tool){ alert("賞状ツールを読み込めませんでした。"); return false; }
+  _shojoRecords = records; _shojoFile = fname;
+  var btns = records.map(function(r, i){
+    return '<button class="btn" style="display:block;width:100%;text-align:left;margin:6px 0" onclick="shojoPick(' + i + ')">この人の賞状ファイルを保存：' + esc((r.award || "") + "　" + (r.name || "")) + '</button>';
+  }).join("");
   var note = '<div style="padding:20px 18px;max-width:600px;line-height:1.9">' +
     '<h3 style="margin:0 0 8px">' + esc(heading) + '</h3>' +
-    '<p>横書きの賞状は、いただいた「賞状印刷」ツールに受賞データを渡して印刷します。下のボタンでツールのファイルを保存し、開いてください。氏名・順位・本文などは入力済みです。' +
-    (records.length > 1 ? '受賞者が複数いる場合は、ツール左上の「受賞者を切り替え」で切り替えて印刷してください。' : '') +
-    '朱印は元のツールの仕様どおり付きません。</p></div>';
+    '<p>横書きの賞状は、いただいた「賞状印刷」ツールに受賞データを渡して印刷します。<b>下のボタンで受賞者を選ぶ</b>と、その人の内容が入力済みのツールファイルが保存されます。保存したファイルを開いて、そのまま印刷してください。ファイルを開いたあとでも、ツール左上の「受賞者を切り替え」で別の受賞者に切り替えられます。朱印は元のツールの仕様どおり付きません。</p>' + btns + '</div>';
   showPrintPreview(note, heading, fname, "", "");
   _ppRaw = tool;
-  downloadFile(fname, tool, "text/html;charset=utf-8");
   return true;
 }
 // ===CHUNK===
