@@ -241,6 +241,71 @@ input,select,textarea{font-size:16px}
 .mfoot{display:flex;gap:10px;padding:0 14px 16px}
 .mfoot .btn{flex:1;min-height:54px;font-size:16.5px}
 @media print{.moverlay{display:none !important}}
+/* official score sheet paper (from the live-score app) */
+.ss-paper{min-width:1020px; max-width:1020px; margin:0 auto; background:#fff; padding:32px;
+  border:1px solid #94a3b8; box-shadow:0 4px 6px rgba(0,0,0,.1); color:#000; font-family:sans-serif;}
+.ss-doc-head{text-align:center; border-bottom:2px solid #000; padding-bottom:8px; margin-bottom:12px;}
+.ss-doc-head .sub{font-size:11px; font-weight:700; letter-spacing:.08em; color:#334155;}
+.ss-doc-head h1{font-size:24px; font-weight:900; letter-spacing:.2em; margin:4px 0; color:#000;}
+.ss-doc-head .en{font-size:10px; font-family:ui-monospace,monospace; letter-spacing:.15em; color:#475569;}
+.ss-meta-table{width:100%; border-collapse:collapse; border:1px solid #000; margin-bottom:12px; font-size:12px;}
+.ss-meta-table td{border-right:1px solid #000; padding:4px 8px;}
+.ss-meta-table tr+tr td{border-top:1px solid #000;}
+.ss-meta-table td.k{background:#f1f5f9; font-weight:700; width:64px;}
+.ss-meta-table td.k2{background:#f1f5f9; font-weight:700; width:56px;}
+.ss-meta-table .mono{font-family:ui-monospace,monospace;}
+.ss-meta-table .bold{font-weight:700;}
+.ss-summary{border:1px solid #000; margin-bottom:12px;}
+.ss-summary-head{background:#e2e8f0; border-bottom:1px solid #000; padding:4px 8px; font-weight:700; font-size:12px;}
+.ss-summary table{width:100%; border-collapse:collapse; text-align:center; font-size:12px;}
+.ss-summary th{border-right:1px solid #000; padding:4px; background:#f8fafc; border-bottom:1px solid #000; font-size:11px;}
+.ss-summary th:last-child{border-right:none;}
+.ss-summary td{border-right:1px solid #000; padding:8px;}
+.ss-summary td:last-child{border-right:none;}
+.ss-summary tr.rowline td{border-bottom:1px solid #cbd5e1;}
+.ss-summary .pname-cell{text-align:left; font-weight:700; font-size:14px;}
+.ss-summary .aff{font-size:11px; font-weight:400; color:#475569;}
+.ss-summary .gscore{font-family:ui-monospace,monospace; font-weight:700; font-size:14px;}
+.ss-summary .gcount{font-family:ui-monospace,monospace; font-weight:900; font-size:16px; vertical-align:middle;}
+.ss-summary .winner-cell{vertical-align:middle;}
+.ss-circle{display:inline-block; border:2px solid #000; border-radius:9999px; padding:1px 6px; line-height:1.1;}
+.ss-circle-sm{display:inline-block; border:2px solid #000; border-radius:9999px; padding:0 4px; line-height:1.25;}
+.ss-winner-chip{display:inline-block; border:2px solid #000; border-radius:12px; padding:4px 12px; font-weight:900; font-size:16px;}
+/* --- ゲームグリッド --- */
+.ss-game{border:1px solid #000; margin-bottom:8px; font-size:11px;}
+.ss-game-bar{background:#e2e8f0; border-bottom:1px solid #000; padding:2px 8px; font-weight:700;
+  display:flex; justify-content:space-between; align-items:center; font-size:12px;}
+.ss-game-bar .meta{font-family:ui-monospace,monospace; font-size:11px; font-weight:400; display:flex; gap:16px;}
+.ss-game-scroll{overflow-x:auto;}
+.ss-grid{width:100%; border-collapse:collapse; text-align:center; table-layout:fixed; min-width:700px;}
+.ss-grid th,.ss-grid td{border-right:1px solid #cbd5e1; padding:2px 0;}
+.ss-grid thead tr{border-bottom:1px solid #000; background:#f1f5f9; font-size:10px;}
+.ss-grid th.h-name{border-right:1px solid #000; width:128px; text-align:left; padding-left:4px;}
+.ss-grid th.h-aff{border-right:1px solid #000; width:80px; text-align:left; padding-left:4px;}
+.ss-grid th.h-sr,.ss-grid th.h-lr{border-right:1px solid #000; width:28px;}
+.ss-grid th.h-num{font-family:ui-monospace,monospace; font-size:9px; color:#64748b; width:20px;}
+.ss-grid th.h-final{width:56px; border-right:none;}
+.ss-grid td.c-name{border-right:1px solid #000; text-align:left; padding-left:4px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.ss-grid td.c-aff{border-right:1px solid #000; text-align:left; padding-left:4px; font-size:10px; color:#334155; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; vertical-align:middle;}
+.ss-grid td.c-sr,.ss-grid td.c-lr{border-right:1px solid #000; font-weight:700; font-family:ui-monospace,monospace; font-size:12px;}
+.ss-grid td.c-cell{font-family:ui-monospace,monospace; font-size:12px; color:#0f172a; font-weight:700;}
+.ss-grid td.c-cell.slash{color:#dc2626; font-weight:900;}
+.ss-grid td.c-final{font-family:ui-monospace,monospace; font-weight:900; font-size:12px; border-right:none; vertical-align:middle;}
+.ss-grid tr.r-h28{height:28px;}
+.ss-grid tr.r-h24{height:24px;}
+.ss-grid tr.bb-black{border-bottom:1px solid #000;}
+.ss-grid tr.bb-slate{border-bottom:1px solid #cbd5e1;}
+.ss-grid tr.p2row{background:rgba(248,250,252,.4);}
+.ss-grid td.c-dash{color:#cbd5e1; font-family:ui-monospace,monospace;}
+.ss-breakdown{border-top:1px solid #000; padding:4px 8px; font-size:10px; display:flex; flex-wrap:wrap; column-gap:24px;}
+.ss-breakdown b{font-weight:700;}
+.ss-legacy{background:#fffbeb; border-top:1px solid #fde68a; padding:4px 12px; font-size:10px; color:#92400e;}
+.ss-remarks{border:1px solid #000; padding:10px; margin-bottom:8px; font-size:12px;}
+.ss-remarks .row{display:flex; justify-content:space-between; gap:8px; flex-wrap:wrap;}
+.ss-remarks .codes{font-size:10px; color:#475569; font-family:ui-monospace,monospace;}
+.ss-remarks .mono{font-family:ui-monospace,monospace; color:#1e293b;}
+.ss-footer{display:flex; justify-content:space-between; align-items:center; font-size:9px; color:#64748b; font-family:ui-monospace,monospace; padding-top:4px;}
+.ss-games-stack{display:flex; flex-direction:column; gap:8px; margin-bottom:12px;}
 .roverlay{position:fixed;inset:0;background:#f2f2ef;z-index:210;display:flex;flex-direction:column}
 .rhead{background:#111;color:#fff;padding:10px 14px;display:flex;align-items:flex-start;gap:10px}
 .rhead .rt{font-weight:800;font-size:15px;line-height:1.4}
@@ -1691,6 +1756,7 @@ function matchCard(ev, m, showMeta){
       (!winner && state.live && state.live[m.id] ? '<span class="chip" style="background:rgba(221,136,0,.1);color:#a86400;border-color:#dd8800">● 試合中 ' + Math.max(0, Math.round((Date.now() - state.live[m.id]) / 60000)) + '分</span>' : "") +
       (!winner && !(state.live && state.live[m.id]) && pl.p1 && pl.p2 && pl.p1 !== "BYE" && pl.p2 !== "BYE" ? '<button class="linkbtn" onclick="startMatch(\'' + m.id + '\')">▶ 開始</button>' : "") +
       (pl.p1 && pl.p2 && pl.p1 !== "BYE" && pl.p2 !== "BYE" ? '<button class="linkbtn" onclick="printOneSheet(\'' + m.id + '\')">審判用紙</button>' : "") +
+      (winner ? '<button class="linkbtn" onclick="printOfficialSheet(\'' + m.id + '\')">スコアシート</button>' : "") +
       '<button class="linkbtn" onclick="openScoreModal(\'' + ev.id + "','" + m.id + '\')">' + (winner || (r && r.score) ? "スコア修正" : "スコア入力") + '</button></div>';
   }
   return '<div class="match" id="card-' + m.id + '">' + meta + '<div class="vs">' + btn(pl.p1,1) + '<div class="vsmid">vs</div>' + btn(pl.p2,2) + '</div>' + '</div>';
@@ -1877,6 +1943,7 @@ function scoreModalHTML(ev, m, all){
     '<div class="mfoot"><button class="btn ghost" onclick="closeScoreModal()">キャンセル</button>' +
     '<button class="btn ghost" onclick="openReferee(\'' + ev.id + "','" + m.id + '\')">審判モード</button>' +
     '<button class="btn ghost" onclick="printOneSheet(\'' + m.id + '\')">審判用紙</button>' +
+    (r.winner ? '<button class="btn ghost" onclick="printOfficialSheet(\'' + m.id + '\')">スコアシート</button>' : "") +
     '<button class="btn" onclick="saveScore(\'' + ev.id + "','" + m.id + '\')">保存</button></div></div>';
 }
 function tieLineupHTML(ev, m){
@@ -1995,7 +2062,7 @@ function openReferee(evId, mid){
   if (!pl.p1 || !pl.p2 || pl.p1 === "BYE" || pl.p2 === "BYE"){ alert("対戦が確定してから開いてください"); return; }
   closeScoreModal();
   if (!state.results[mid] && !(state.live && state.live[mid])) startMatch(mid);
-  if (!_refDrafts[mid]){ _refDrafts[mid] = { games: [[]], server: "A" }; refSaveDrafts(); }
+  if (!_refDrafts[mid]){ _refDrafts[mid] = { games: [[]], server: "A", init: "A" }; refSaveDrafts(); }
   _refCur = { evId: evId, mid: mid };
   renderReferee();
   var ov = document.getElementById("refOverlay");
@@ -2024,6 +2091,7 @@ function refServeUI(e){
   if (!_refCur) return;
   var st = _refDrafts[_refCur.mid]; if (!st || refTotal(st) > 0) return;
   st.server = st.server === "A" ? "B" : "A";
+  st.init = st.server;
   refSaveDrafts(); renderReferee();
 }
 function refDiscard(){
@@ -2046,6 +2114,8 @@ function refFinalize(){
   var prev = state.results[_refCur.mid];
   if (prev && prev.score !== score && !confirm("この試合には既存の結果があります。審判モードの結果で上書きしますか？")) return;
   var rec = { winner: w === "A" ? pl.p1 : pl.p2, score: score };
+  rec.rallies = st.games.filter(function(g){ return g.length; }).map(function(g){ return g.join(""); });
+  rec.initServer = st.init || "A";
   if (prev && prev.point) rec.point = prev.point;
   var mid = _refCur.mid;
   closeReferee();
@@ -2094,13 +2164,373 @@ function renderReferee(){
     (hist ? '<div class="rhist">' + hist + '</div>' : "") +
     '<div class="rfoot">' +
     '<button class="btn ghost" onclick="refUndoUI()"' + (refTotal(st) ? "" : " disabled") + '>↩ 1つ戻す</button>' +
-    '<button class="btn ghost" onclick="printOneSheet(\'' + _refCur.mid + '\')">審判用紙</button>' +
+    '<button class="btn ghost" onclick="printOfficialSheetDraft()">スコアシート</button>' +
     '<button class="btn ghost" onclick="refToModal()">通常入力</button>' +
     '<button class="btn" onclick="refFinalize()"' + (win ? "" : " disabled") + '>' + (win ? '確定して適用（' + esc(playerName(ev, win === "A" ? pl.p1 : pl.p2)) + ' の勝ち）' : "確定して適用") + '</button>' +
     '</div>' +
     '<div style="padding:0 10px 10px;background:#fff"><button class="linkbtn" style="color:var(--bad)" onclick="refDiscard()">下書きを破棄</button>' +
-    '<span class="mini" style="margin-left:10px">棄権・途中棄権は「通常入力」から記録してください。</span></div>';
+    '<button class="linkbtn" style="margin-left:12px" onclick="printOneSheet(\'' + _refCur.mid + '\')">審判用紙（白紙）</button>' +
+    '<span class="mini" style="margin-left:10px">「スコアシート」はタップした得点経過入りの公式記録用シートです。棄権・途中棄権は「通常入力」から記録してください。</span></div>';
 }
+function ssBuildColumns(game, discipline, targetPoints) {
+  targetPoints = targetPoints || 21;
+  var leftP1Id = (game.teamLeftPlayers && game.teamLeftPlayers[0] && game.teamLeftPlayers[0].id) || "p_l1";
+  var leftP2Id = (game.teamLeftPlayers && game.teamLeftPlayers[1] && game.teamLeftPlayers[1].id) || "p_l2";
+  var rightP1Id = (game.teamRightPlayers && game.teamRightPlayers[0] && game.teamRightPlayers[0].id) || "p_r1";
+  var rightP2Id = (game.teamRightPlayers && game.teamRightPlayers[1] && game.teamRightPlayers[1].id) || "p_r2";
+  var columns = [];
+  function addColumn(targetPlayerId, entry) {
+    var col = {};
+    col[leftP1Id] = null; col[leftP2Id] = null; col[rightP1Id] = null; col[rightP2Id] = null;
+    col[targetPlayerId] = entry;
+    columns.push(col);
+  }
+  var hasRallies = game.rallies && game.rallies.length > 0;
+  if (hasRallies) {
+    var initServerId = game.initialServerPlayerId || (game.initialServerTeam === "left" ? leftP1Id : rightP1Id);
+    addColumn(initServerId, { text: "0" });
+    var deuceSlashAdded = false;
+    var deucePoint = targetPoints === 15 ? 14 : 20; /* §9-2: 11点制ではスラッシュなし */
+    for (var i = 0; i < game.rallies.length; i++) {
+      var rally = game.rallies[i];
+      var targetPlayerId = rally.nextServerPlayerId;
+      if (!targetPlayerId) {
+        if (discipline === "singles") {
+          targetPlayerId = rally.scoringSide === "left" ? leftP1Id : rightP1Id;
+        } else {
+          if (rally.isServiceOver) {
+            var nextRally = game.rallies[i + 1];
+            if (nextRally && nextRally.serverPlayerId) {
+              targetPlayerId = nextRally.serverPlayerId;
+            } else {
+              var finalScore = rally.scoringSide === "left" ? rally.teamLeftScore : rally.teamRightScore;
+              if (rally.scoringSide === "left") targetPlayerId = finalScore % 2 === 0 ? leftP1Id : leftP2Id;
+              else targetPlayerId = finalScore % 2 === 0 ? rightP1Id : rightP2Id;
+            }
+          } else {
+            targetPlayerId = rally.serverPlayerId;
+          }
+        }
+      }
+      var scoreVal = rally.scoringSide === "left" ? rally.teamLeftScore : rally.teamRightScore;
+      var isFinalRally = i === game.rallies.length - 1;
+      /* §9-1: scoreVal===30 判定は21点制向けのまま（15点制キャップ21-20は丸囲みされない） */
+      var isWinningScore = isFinalRally && (
+        (scoreVal >= targetPoints && Math.abs(rally.teamLeftScore - rally.teamRightScore) >= 2) ||
+        scoreVal === 30
+      );
+      addColumn(targetPlayerId, { text: String(scoreVal), isCircled: isWinningScore });
+      if (!deuceSlashAdded &&
+          rally.teamLeftScore >= deucePoint &&
+          rally.teamRightScore >= deucePoint &&
+          rally.teamLeftScore === rally.teamRightScore) {
+        deuceSlashAdded = true;
+        addColumn(targetPlayerId, { text: "/", isSlash: true });
+      }
+    }
+  }
+  var totalCols = Math.max(34, columns.length + 1);
+  return { columns: columns, totalCols: totalCols };
+}
+
+/* 1ゲーム分の行データ（fixtures の expectedFirstGameRows と同じ形＋描画用メタ）
+   metaAff: {left, right} 大会情報設定で上書きされた所属（'' ならレコード側を使う）
+   戻り値: [{name, affiliation, sr, lr, cells:[string], entries:[entry|null], finalScore, finalCircled, isP2}] */
+function ssGridRows(record, game, metaAff) {
+  var discipline = record.discipline || "singles";
+  var targetPoints = record.targetPoints || 21;
+  var built = ssBuildColumns(game, discipline, targetPoints);
+  var columns = built.columns, totalCols = built.totalCols;
+  var leftPlayers = game.teamLeftPlayers || [];
+  var rightPlayers = game.teamRightPlayers || [];
+  var leftP1 = (leftPlayers[0] && leftPlayers[0].name) || record.teamLeftName || "選手 L1";
+  var leftP2 = (leftPlayers[1] && leftPlayers[1].name) || "選手 L2";
+  var rightP1 = (rightPlayers[0] && rightPlayers[0].name) || record.teamRightName || "選手 R1";
+  var rightP2 = (rightPlayers[1] && rightPlayers[1].name) || "選手 R2";
+  var leftP1Id = (leftPlayers[0] && leftPlayers[0].id) || "p_l1";
+  var leftP2Id = (leftPlayers[1] && leftPlayers[1].id) || "p_l2";
+  var rightP1Id = (rightPlayers[0] && rightPlayers[0].id) || "p_r1";
+  var rightP2Id = (rightPlayers[1] && rightPlayers[1].id) || "p_r2";
+  var affL = (metaAff && metaAff.left) || record.teamLeftAffiliation || "―";
+  var affR = (metaAff && metaAff.right) || record.teamRightAffiliation || "―";
+  var isLeftInitialServer = game.initialServerTeam === "left";
+  var gameNumber = (game.gameIndex || 0) + 1;
+  /* §9-3: L/R はゲーム番号の偶奇のみで決める */
+  var leftCourtLetter = gameNumber % 2 === 1 ? "L" : "R";
+  var rightCourtLetter = gameNumber % 2 === 1 ? "R" : "L";
+  var leftWon = game.teamLeftScore > game.teamRightScore; /* §9-4: 進行中でも多い側が丸囲み */
+  function makeRow(name, affiliation, sr, lr, pid, finalScore, finalCircled, isP2) {
+    var cells = [], entries = [];
+    for (var c = 0; c < totalCols; c++) {
+      var e = columns[c] ? columns[c][pid] : null;
+      entries.push(e || null);
+      cells.push(e ? e.text : "");
+    }
+    return { name: name, affiliation: affiliation, sr: sr, lr: lr, cells: cells, entries: entries,
+             finalScore: finalScore, finalCircled: finalCircled, isP2: !!isP2 };
+  }
+  var rows = [];
+  rows.push(makeRow(leftP1, affL, isLeftInitialServer ? "S" : "R", leftCourtLetter, leftP1Id,
+                    String(game.teamLeftScore), leftWon, false));
+  if (discipline === "doubles") {
+    rows.push(makeRow(leftP2, null, "―", "―", leftP2Id, null, false, true));
+  }
+  rows.push(makeRow(rightP1, affR, isLeftInitialServer ? "R" : "S", rightCourtLetter, rightP1Id,
+                    String(game.teamRightScore), !leftWon, false));
+  if (discipline === "doubles") {
+    rows.push(makeRow(rightP2, null, "―", "―", rightP2Id, null, false, true));
+  }
+  return { rows: rows, totalCols: totalCols, leftWon: leftWon };
+}
+
+/* §6.3 得点者内訳（ダブルス・scorerPlayerId があるゲームのみ）。無ければ null */
+function ssScorerBreakdown(game, record) {
+  if (!game.rallies || !game.rallies.some(function (r) { return r.scorerPlayerId; })) return null;
+  function sideText(side) {
+    var players = side === "left" ? game.teamLeftPlayers : game.teamRightPlayers;
+    var sideRallies = game.rallies.filter(function (r) { return r.scoringSide === side; });
+    var parts = players.map(function (pl) {
+      return pl.name + " " + sideRallies.filter(function (r) { return r.scorerPlayerId === pl.id; }).length + "点";
+    });
+    var unselected = sideRallies.filter(function (r) { return !r.scorerPlayerId; }).length;
+    if (unselected > 0) parts.push("未選択 " + unselected + "点");
+    return (side === "left" ? record.teamLeftName : record.teamRightName) + ": " + parts.join(" / ");
+  }
+  return "得点者内訳（参考） " + sideText("left") + " " + sideText("right");
+}
+
+/* §7 旧データ（games 無し）フォールバック: gameScores から GameRecord を合成（reference と同一） */
+function ssFallbackGames(record) {
+  return (record.gameScores || []).map(function (score, idx) {
+    return {
+      gameIndex: idx,
+      teamLeftScore: score.left,
+      teamRightScore: score.right,
+      winner: score.left > score.right ? "left" : "right",
+      initialServerTeam: idx === 0 ? "left" :
+        (record.gameScores[idx - 1].left > record.gameScores[idx - 1].right ? "left" : "right"),
+      initialServerPlayerId: "p_l1",
+      initialServerPlayerName: record.teamLeftName,
+      initialReceiverPlayerId: "p_r1",
+      initialReceiverPlayerName: record.teamRightName,
+      initialLeftCourtSide: idx % 2 === 0 ? "left" : "right",
+      initialRightCourtSide: idx % 2 === 0 ? "right" : "left",
+      teamLeftPlayers: [{ id: "p_l1", name: record.teamLeftName }],
+      teamRightPlayers: [{ id: "p_r1", name: record.teamRightName }],
+      rallies: []
+    };
+  });
+}
+
+function ssEffectiveGames(record) {
+  return (record.games && record.games.length > 0) ? record.games : ssFallbackGames(record);
+}
+
+function ssEffAff(rec) {
+  return {
+    left: (SS.meta && SS.meta.affL) || rec.teamLeftAffiliation || "",
+    right: (SS.meta && SS.meta.affR) || rec.teamRightAffiliation || ""
+  };
+}
+function ssRenderGameGrid(rec, game) {
+  var eff = ssEffAff(rec);
+  var built = ssGridRows(rec, game, eff);
+  var rows = built.rows, totalCols = built.totalCols;
+  var gameNumber = (game.gameIndex || 0) + 1;
+  var finalText = game.teamLeftScore + "-" + game.teamRightScore;
+  var leaderName = built.leftWon ? rec.teamLeftName : rec.teamRightName;
+  var html = '<div class="ss-game score-sheet-page">';
+  html += '<div class="ss-game-bar"><span>第 ' + gameNumber + ' ゲーム (GAME ' + gameNumber + ')</span><span class="meta">';
+  if (game.startTime) html += '<span>開始: ' + esc(game.startTime) + '</span>';
+  if (game.endTime) html += '<span>終了: ' + esc(game.endTime) + '</span>';
+  html += '<span>' + (game.isFinished === false ? '進行中' : '勝者') + ': <strong>' + esc(leaderName) + '</strong> (' + finalText + ')</span>';
+  html += '</span></div>';
+  html += '<div class="ss-game-scroll"><table class="ss-grid"><thead><tr>' +
+    '<th class="h-name">選手名 (氏名)</th><th class="h-aff">所属</th><th class="h-sr">S/R</th><th class="h-lr">L/R</th>';
+  for (var c = 0; c < totalCols; c++) html += '<th class="h-num">' + (c + 1) + '</th>';
+  html += '<th class="h-final">完了スコア</th></tr></thead><tbody>';
+  rows.forEach(function (row, ri) {
+    var isDoubles = rec.discipline === "doubles";
+    var trCls = isDoubles
+      ? (ri === 0 ? "r-h24 bb-slate" : ri === 1 ? "r-h24 bb-black p2row" : ri === 2 ? "r-h24 bb-slate" : "r-h24 p2row")
+      : (ri === 0 ? "r-h28 bb-black" : "r-h28");
+    html += '<tr class="' + trCls + '">';
+    html += '<td class="c-name">' + esc(row.name) + '</td>';
+    if (!row.isP2) {
+      var aff = row.affiliation == null ? "―" : row.affiliation;
+      if (isDoubles) html += '<td class="c-aff" rowspan="2">' + esc(aff) + '</td>';
+      else html += '<td class="c-aff">' + esc(aff) + '</td>';
+      html += '<td class="c-sr">' + esc(row.sr) + '</td><td class="c-lr">' + esc(row.lr) + '</td>';
+    } else {
+      html += '<td class="c-dash">―</td><td class="c-dash">―</td>';
+    }
+    row.entries.forEach(function (e) {
+      if (!e) { html += '<td class="c-cell"></td>'; return; }
+      var cls = e.isSlash ? "c-cell slash" : "c-cell";
+      var inner = e.isCircled ? '<span class="ss-circle-sm">' + esc(e.text) + '</span>' : esc(e.text);
+      html += '<td class="' + cls + '">' + inner + '</td>';
+    });
+    if (!row.isP2) {
+      var fin = row.finalCircled
+        ? '<span class="ss-circle">' + esc(row.finalScore) + '</span>'
+        : '<span>' + esc(row.finalScore) + '</span>';
+      html += isDoubles
+        ? '<td class="c-final" rowspan="2">' + fin + '</td>'
+        : '<td class="c-final">' + fin + '</td>';
+    }
+    html += '</tr>';
+  });
+  html += '</tbody></table></div>';
+  var bd = ssScorerBreakdown(game, rec);
+  if (rec.discipline === "doubles" && bd) {
+    var parts = bd.replace(/^得点者内訳（参考）\s*/, "").split(/\s+(?=\S+:\s)/);
+    html += '<div class="ss-breakdown"><b>得点者内訳（参考）</b>' +
+      parts.map(function (p) { return '<span>' + esc(p) + '</span>'; }).join("") + '</div>';
+  }
+  if (!game.rallies || game.rallies.length === 0) {
+    html += '<div class="ss-legacy">※本ゲームは最終スコアのみ保存された記録です。公式規則に基づき、未記録のラリー経過は推測生成せず空白で表示しています。</div>';
+  }
+  html += '</div>';
+  return html;
+}
+function ssRenderOfficial(rec) {
+  var m = SS.meta, eff = ssEffAff(rec);
+  var gamesEff = ssEffectiveGames(rec);
+  var html = '<div class="ss-paper score-sheet-page">';
+  html += '<div class="ss-doc-head"><div class="sub">公益財団法人 日本バドミントン協会 公認審判員規程 準拠</div>' +
+    '<h1>公式記録用スコアシート</h1><div class="en">OFFICIAL BADMINTON SCORE SHEET</div></div>';
+  html += '<table class="ss-meta-table"><tbody>' +
+    '<tr><td class="k">大会名</td><td style="font-weight:600;">' + esc(m.tournamentName) + '</td>' +
+    '<td class="k2">会場</td><td>' + esc(m.venue) + '</td>' +
+    '<td class="k2">期日</td><td class="mono">' + esc(rec.date) + '</td>' +
+    '<td class="k2">種目</td><td class="bold">' + (rec.discipline === "singles" ? "シングルス (単)" : "ダブルス (複)") + '</td></tr>' +
+    '<tr><td class="k">コート</td><td class="bold">' + esc(m.courtNumber) + '</td>' +
+    '<td class="k2">試合番号</td><td class="bold">' + esc(m.matchNumber) + '</td>' +
+    '<td class="k2">開始/終了</td><td class="mono" style="font-size:11px;">' + esc(rec.startTime || "―") + ' 〜 ' + esc(rec.endTime || "―") + '</td>' +
+    '<td class="k2">使用球</td><td class="mono">' + esc(m.shuttles) + ' 個</td></tr>' +
+    '</tbody></table>';
+  /* 結果要約 */
+  var lw = 0, rw = 0;
+  rec.gameScores.forEach(function (g, gi) {
+    if (gamesEff[gi] && gamesEff[gi].isFinished === false) return;
+    if (g.left > g.right) lw++; else if (g.right > g.left) rw++;
+  });
+  function summaryRow(name, aff, side) {
+    var h = '<td class="pname-cell"><div>' + esc(name) + '</div>' +
+      (aff ? '<div class="aff">所属: ' + esc(aff) + '</div>' : "") + '</td>';
+    for (var idx = 0; idx < 3; idx++) {
+      var g = rec.gameScores[idx];
+      if (!g) { h += '<td class="gscore">―</td>'; continue; }
+      var v = side === "left" ? g.left : g.right;
+      var win = side === "left" ? g.left > g.right : g.right > g.left;
+      h += '<td class="gscore">' + (win ? '<span class="ss-circle">' + v + '</span>' : "<span>" + v + "</span>") + '</td>';
+    }
+    return h;
+  }
+  html += '<div class="ss-summary"><div class="ss-summary-head">試合結果要約 (MATCH RESULT SUMMARY)</div>' +
+    '<table><thead><tr><th style="width:33%; text-align:left; padding-left:12px;">選手名 / 所属</th>' +
+    '<th style="width:64px;">第1ゲーム</th><th style="width:64px;">第2ゲーム</th><th style="width:64px;">第3ゲーム</th>' +
+    '<th style="width:80px;">ゲームカウント</th><th style="width:25%;">勝者</th></tr></thead><tbody>' +
+    '<tr class="rowline">' + summaryRow(rec.teamLeftName, eff.left, "left") +
+    '<td class="gcount" rowspan="2">' + lw + ' - ' + rw + '</td>' +
+    '<td class="winner-cell" rowspan="2"><span class="ss-winner-chip">' + esc(rec.winnerName) + '</span></td></tr>' +
+    '<tr>' + summaryRow(rec.teamRightName, eff.right, "right") + '</tr>' +
+    '</tbody></table></div>';
+  html += '<div class="ss-games-stack">';
+  gamesEff.forEach(function (g) { html += ssRenderGameGrid(rec, g); });
+  html += '</div>';
+  html += '<div class="ss-remarks"><div class="row"><div><b>特記事項 (REMARKS):</b> ' +
+    '<span class="mono">' + esc(m.remarks || rec.remarks || "特記なし (None)") + '</span></div>' +
+    '<div class="codes">記号凡例: W=警告 F=フォルト D=失格 I=負傷 S=中断 キケン=棄権 C=コート訂正 O=オーバールール</div></div></div>';
+  html += '<div class="ss-footer"><span>大会運営 SCORE SHEET · RECORD ID: ' + esc(rec.id) + '</span>' +
+    '<span>PRINTED: ' + esc(new Date().toLocaleString("ja-JP")) + '</span></div>';
+  html += '</div>';
+  return html;
+}
+/* ---------- 簡易票 ---------- */
+
+// ===== official score sheet (協会準拠) — generator transplanted from the live-score app =====
+var SS = { meta: null };
+var SS_PAPER_CSS = ".ss-paper{min-width:1020px; max-width:1020px; margin:0 auto; background:#fff; padding:32px;\n  border:1px solid #94a3b8; box-shadow:0 4px 6px rgba(0,0,0,.1); color:#000; font-family:sans-serif;}\n.ss-doc-head{text-align:center; border-bottom:2px solid #000; padding-bottom:8px; margin-bottom:12px;}\n.ss-doc-head .sub{font-size:11px; font-weight:700; letter-spacing:.08em; color:#334155;}\n.ss-doc-head h1{font-size:24px; font-weight:900; letter-spacing:.2em; margin:4px 0; color:#000;}\n.ss-doc-head .en{font-size:10px; font-family:ui-monospace,monospace; letter-spacing:.15em; color:#475569;}\n.ss-meta-table{width:100%; border-collapse:collapse; border:1px solid #000; margin-bottom:12px; font-size:12px;}\n.ss-meta-table td{border-right:1px solid #000; padding:4px 8px;}\n.ss-meta-table tr+tr td{border-top:1px solid #000;}\n.ss-meta-table td.k{background:#f1f5f9; font-weight:700; width:64px;}\n.ss-meta-table td.k2{background:#f1f5f9; font-weight:700; width:56px;}\n.ss-meta-table .mono{font-family:ui-monospace,monospace;}\n.ss-meta-table .bold{font-weight:700;}\n.ss-summary{border:1px solid #000; margin-bottom:12px;}\n.ss-summary-head{background:#e2e8f0; border-bottom:1px solid #000; padding:4px 8px; font-weight:700; font-size:12px;}\n.ss-summary table{width:100%; border-collapse:collapse; text-align:center; font-size:12px;}\n.ss-summary th{border-right:1px solid #000; padding:4px; background:#f8fafc; border-bottom:1px solid #000; font-size:11px;}\n.ss-summary th:last-child{border-right:none;}\n.ss-summary td{border-right:1px solid #000; padding:8px;}\n.ss-summary td:last-child{border-right:none;}\n.ss-summary tr.rowline td{border-bottom:1px solid #cbd5e1;}\n.ss-summary .pname-cell{text-align:left; font-weight:700; font-size:14px;}\n.ss-summary .aff{font-size:11px; font-weight:400; color:#475569;}\n.ss-summary .gscore{font-family:ui-monospace,monospace; font-weight:700; font-size:14px;}\n.ss-summary .gcount{font-family:ui-monospace,monospace; font-weight:900; font-size:16px; vertical-align:middle;}\n.ss-summary .winner-cell{vertical-align:middle;}\n.ss-circle{display:inline-block; border:2px solid #000; border-radius:9999px; padding:1px 6px; line-height:1.1;}\n.ss-circle-sm{display:inline-block; border:2px solid #000; border-radius:9999px; padding:0 4px; line-height:1.25;}\n.ss-winner-chip{display:inline-block; border:2px solid #000; border-radius:12px; padding:4px 12px; font-weight:900; font-size:16px;}\n/* --- ゲームグリッド --- */\n.ss-game{border:1px solid #000; margin-bottom:8px; font-size:11px;}\n.ss-game-bar{background:#e2e8f0; border-bottom:1px solid #000; padding:2px 8px; font-weight:700;\n  display:flex; justify-content:space-between; align-items:center; font-size:12px;}\n.ss-game-bar .meta{font-family:ui-monospace,monospace; font-size:11px; font-weight:400; display:flex; gap:16px;}\n.ss-game-scroll{overflow-x:auto;}\n.ss-grid{width:100%; border-collapse:collapse; text-align:center; table-layout:fixed; min-width:700px;}\n.ss-grid th,.ss-grid td{border-right:1px solid #cbd5e1; padding:2px 0;}\n.ss-grid thead tr{border-bottom:1px solid #000; background:#f1f5f9; font-size:10px;}\n.ss-grid th.h-name{border-right:1px solid #000; width:128px; text-align:left; padding-left:4px;}\n.ss-grid th.h-aff{border-right:1px solid #000; width:80px; text-align:left; padding-left:4px;}\n.ss-grid th.h-sr,.ss-grid th.h-lr{border-right:1px solid #000; width:28px;}\n.ss-grid th.h-num{font-family:ui-monospace,monospace; font-size:9px; color:#64748b; width:20px;}\n.ss-grid th.h-final{width:56px; border-right:none;}\n.ss-grid td.c-name{border-right:1px solid #000; text-align:left; padding-left:4px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}\n.ss-grid td.c-aff{border-right:1px solid #000; text-align:left; padding-left:4px; font-size:10px; color:#334155; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; vertical-align:middle;}\n.ss-grid td.c-sr,.ss-grid td.c-lr{border-right:1px solid #000; font-weight:700; font-family:ui-monospace,monospace; font-size:12px;}\n.ss-grid td.c-cell{font-family:ui-monospace,monospace; font-size:12px; color:#0f172a; font-weight:700;}\n.ss-grid td.c-cell.slash{color:#dc2626; font-weight:900;}\n.ss-grid td.c-final{font-family:ui-monospace,monospace; font-weight:900; font-size:12px; border-right:none; vertical-align:middle;}\n.ss-grid tr.r-h28{height:28px;}\n.ss-grid tr.r-h24{height:24px;}\n.ss-grid tr.bb-black{border-bottom:1px solid #000;}\n.ss-grid tr.bb-slate{border-bottom:1px solid #cbd5e1;}\n.ss-grid tr.p2row{background:rgba(248,250,252,.4);}\n.ss-grid td.c-dash{color:#cbd5e1; font-family:ui-monospace,monospace;}\n.ss-breakdown{border-top:1px solid #000; padding:4px 8px; font-size:10px; display:flex; flex-wrap:wrap; column-gap:24px;}\n.ss-breakdown b{font-weight:700;}\n.ss-legacy{background:#fffbeb; border-top:1px solid #fde68a; padding:4px 12px; font-size:10px; color:#92400e;}\n.ss-remarks{border:1px solid #000; padding:10px; margin-bottom:8px; font-size:12px;}\n.ss-remarks .row{display:flex; justify-content:space-between; gap:8px; flex-wrap:wrap;}\n.ss-remarks .codes{font-size:10px; color:#475569; font-family:ui-monospace,monospace;}\n.ss-remarks .mono{font-family:ui-monospace,monospace; color:#1e293b;}\n.ss-footer{display:flex; justify-content:space-between; align-items:center; font-size:9px; color:#64748b; font-family:ui-monospace,monospace; padding-top:4px;}\n.ss-games-stack{display:flex; flex-direction:column; gap:8px; margin-bottom:12px;}";
+var OFFICIAL_FILE_CSS = 'body{margin:0;background:#fff;font-family:sans-serif}@page{size:A4 landscape;margin:8mm}' + SS_PAPER_CSS + '.ss-paper{border:none;box-shadow:none;padding:12px}';
+function ssEnsureStyle(){
+  if (document.getElementById("ssStyle")) return;
+  var st = document.createElement("style"); st.id = "ssStyle";
+  st.textContent = SS_PAPER_CSS;
+  document.head.appendChild(st);
+}
+function ssRecordForMatch(ev, m, rallyGames, initServer, matchFinished){
+  var all = allMatches(ev);
+  var pl = matchPlayers(ev, m, all);
+  var dec = refDec(ev, m);
+  var pA = { id: "p_l1", name: playerName(ev, pl.p1) }, pB = { id: "p_r1", name: playerName(ev, pl.p2) };
+  function synth(winners, initIdx){
+    var a = 0, b = 0, server = initIdx;
+    return winners.map(function(w, i){
+      var ba = a, bb = b; if (w === "A") a++; else b++;
+      var sb = server === 0 ? ba : bb;
+      var r = { rallyNumber: i + 1, scoringSide: w === "A" ? "left" : "right", teamLeftScore: a, teamRightScore: b,
+        serverPlayerId: server === 0 ? "p_l1" : "p_r1", serverPlayerName: server === 0 ? pA.name : pB.name,
+        receiverPlayerId: server === 0 ? "p_r1" : "p_l1", receiverPlayerName: server === 0 ? pB.name : pA.name,
+        nextServerPlayerId: w === "A" ? "p_l1" : "p_r1", nextServerPlayerName: w === "A" ? pA.name : pB.name,
+        servingSide: server === 0 ? "left" : "right", servingCourt: sb % 2 === 0 ? "right" : "left",
+        isServiceOver: (server === 0) !== (w === "A"), timestamp: 0 };
+      server = w === "A" ? 0 : 1; return r;
+    });
+  }
+  var games = [], nextInit = initServer === "B" ? 1 : 0;
+  rallyGames.forEach(function(winners, idx){
+    var c = refCounts(winners);
+    var decided = winners.length > 0 && (refGameWon(c[0], c[1], dec) || refGameWon(c[1], c[0], dec));
+    games.push({ gameIndex: idx, teamLeftScore: c[0], teamRightScore: c[1], winner: c[0] >= c[1] ? "left" : "right",
+      isFinished: decided, initialServerTeam: nextInit === 0 ? "left" : "right",
+      initialServerPlayerId: nextInit === 0 ? "p_l1" : "p_r1", initialServerPlayerName: nextInit === 0 ? pA.name : pB.name,
+      initialReceiverPlayerId: nextInit === 0 ? "p_r1" : "p_l1", initialReceiverPlayerName: nextInit === 0 ? pB.name : pA.name,
+      initialLeftCourtSide: "left", initialRightCourtSide: "right",
+      teamLeftPlayers: [pA], teamRightPlayers: [pB], rallies: synth(winners, nextInit) });
+    if (decided) nextInit = c[0] > c[1] ? 0 : 1;
+  });
+  var r = state.results[m.id] || {};
+  var winnerName = "試合中 (未確定)";
+  if (matchFinished && r.winner) winnerName = playerName(ev, r.winner);
+  else { var gw = refGamesWon({ games: rallyGames }, dec); if (gw[0] || gw[1]) winnerName = (gw[0] > gw[1] ? pA.name : pB.name) + " (リード)"; }
+  return { id: m.id, date: state.meta.date || "", timestamp: Date.now(),
+    tournamentName: state.meta.name || "大会", discipline: "singles", ruleName: dec.label,
+    targetPoints: dec.pts, maxPoints: dec.ext,
+    teamLeftName: pA.name, teamRightName: pB.name, teamLeftPlayers: [pA], teamRightPlayers: [pB],
+    teamLeftAffiliation: playerAff(ev, pl.p1), teamRightAffiliation: playerAff(ev, pl.p2),
+    gameScores: games.map(function(g){ return { left: g.teamLeftScore, right: g.teamRightScore }; }),
+    winnerName: winnerName, isFinished: !!matchFinished, games: games };
+}
+function presentOfficialSheet(ev, m, draft){
+  var r = state.results[m.id] || {};
+  var rallyGames, initServer, finished;
+  if (draft){ rallyGames = draft.games.filter(function(g){ return g.length; }); initServer = draft.init || "A"; finished = false; }
+  else { rallyGames = (r.rallies || []).map(function(s){ return s.split(""); }); initServer = r.initServer || "A"; finished = !!r.winner; }
+  var rec = ssRecordForMatch(ev, m, rallyGames, initServer, finished);
+  if (!draft && !rallyGames.length && r.score){
+    rec.gameScores = (parseScore(r.score) || []).map(function(g){ return { left: g[0], right: g[1] }; });
+  }
+  var sx = schedMap()[m.id];
+  SS.meta = { tournamentName: state.meta.name || "", venue: state.meta.venue || "",
+    courtNumber: sx ? String(sx.court) : "", matchNumber: m.id.split("-").slice(-2).join("-"),
+    shuttles: 2, remarks: r.note === "wo" ? "キケン（試合棄権）" : (r.note === "retire" ? "途中棄権" : ""), affL: "", affR: "", nameA: "", nameB: "" };
+  ssEnsureStyle();
+  var html = '<div style="overflow-x:auto">' + ssRenderOfficial(rec) + '</div>';
+  showPrintPreview(html, "公式スコアシート — " + ev.name, "official-sheet-" + m.id + ".html", OFFICIAL_FILE_CSS, "");
+}
+function printOfficialSheet(mid){
+  var f = findMatchGlobal(mid); if (!f) return;
+  presentOfficialSheet(f.ev, f.m, null);
+}
+function printOfficialSheetDraft(){
+  if (!_refCur) return;
+  var ev = evById(_refCur.evId); if (!ev) return;
+  var all = allMatches(ev);
+  var m = all.find(function(x){ return x.id === _refCur.mid; }); if (!m) return;
+  presentOfficialSheet(ev, m, _refDrafts[_refCur.mid]);
+}
+
 // ===== views =====
 var _lastView = null;
 function countUps(){
