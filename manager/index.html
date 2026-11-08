@@ -241,6 +241,23 @@ input,select,textarea{font-size:16px}
 .mfoot{display:flex;gap:10px;padding:0 14px 16px}
 .mfoot .btn{flex:1;min-height:54px;font-size:16.5px}
 @media print{.moverlay{display:none !important}}
+.roverlay{position:fixed;inset:0;background:#f2f2ef;z-index:210;display:flex;flex-direction:column}
+.rhead{background:#111;color:#fff;padding:10px 14px;display:flex;align-items:flex-start;gap:10px}
+.rhead .rt{font-weight:800;font-size:15px;line-height:1.4}
+.rhead .rs{font-size:12px;opacity:.85;font-weight:600}
+.rstage{flex:1;display:flex;gap:10px;padding:10px;min-height:0}
+.rpanel{flex:1;background:#fff;border:2.5px solid #111;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer;user-select:none;-webkit-user-select:none;touch-action:manipulation;padding:8px;text-align:center}
+.rpanel:active{background:#e8f6fd}
+.rpanel.winp{border-color:var(--cy);background:#eef9fe}
+.rname{font-size:27px;line-height:1.15}
+.raff{font-size:12px;color:#555;font-weight:700}
+.rscore{font-size:94px;font-weight:900;line-height:.95;font-variant-numeric:tabular-nums}
+.rsrv{display:inline-block;min-height:23px;font-size:12.5px;font-weight:800;color:#cf222e}
+.rgames{font-size:13px;font-weight:800;letter-spacing:.06em}
+.rhist{padding:0 10px 8px;display:flex;gap:6px;flex-wrap:wrap;justify-content:center}
+.rfoot{padding:10px;display:flex;gap:8px;flex-wrap:wrap;background:#fff;border-top:2px solid #111}
+.rfoot .btn{flex:1;min-width:96px}
+@media print{.roverlay{display:none !important}}
 
 /* ===== board versus cards ===== */
 .courthead{display:flex;align-items:baseline;gap:8px}
@@ -1001,6 +1018,7 @@ function setResult(mid, rec, isUndo){
   if (!isUndo) _lastUndo = {mid: mid, prev: state.results[mid] ? JSON.parse(JSON.stringify(state.results[mid])) : null};
   if (rec) { rec.ts = Date.now(); state.results[mid] = rec; }
   else delete state.results[mid];
+  if (typeof _refDrafts !== "undefined" && _refDrafts[mid]){ delete _refDrafts[mid]; refSaveDrafts(); }
   if (state.live) delete state.live[mid];
   sync.lastEdit = Date.now(); invalidateCaches(); saveState(); publishState(); render();
   if (!isUndo) showUndoToast();
@@ -1857,6 +1875,7 @@ function scoreModalHTML(ev, m, all){
     (r.winner ? '<div style="margin-top:10px"><button class="linkbtn" style="color:var(--bad)" onclick="clearResult(\'' + m.id + '\');closeScoreModal()">この試合の結果を取り消す</button></div>' : "") +
     '</div>' +
     '<div class="mfoot"><button class="btn ghost" onclick="closeScoreModal()">キャンセル</button>' +
+    '<button class="btn ghost" onclick="openReferee(\'' + ev.id + "','" + m.id + '\')">審判モード</button>' +
     '<button class="btn ghost" onclick="printOneSheet(\'' + m.id + '\')">審判用紙</button>' +
     '<button class="btn" onclick="saveScore(\'' + ev.id + "','" + m.id + '\')">保存</button></div></div>';
 }
@@ -1930,6 +1949,158 @@ function showUndoToast(){
 }
 function hideToast(){ var t = document.getElementById("toast"); if (t) t.className = ""; }
 function jumpMatch(mid){ var f = findMatchGlobal(mid); if (f) openScoreModal(f.ev.id, mid); }
+// ===== referee mode: tap-to-score on the referee's own phone =====
+// Points are tapped rally by rally (like the live-score page); games and
+// the match end are judged by the match's point code. Nothing is applied
+// until the referee presses the finalize button, which stores the result
+// through the normal setResult path. Drafts live only on this device.
+var REF_LS = "tmgr-ref-drafts";
+var _refDrafts = {};
+try { _refDrafts = JSON.parse(localStorage.getItem(REF_LS) || "{}") || {}; } catch(e){ _refDrafts = {}; }
+var _refCur = null;
+function refSaveDrafts(){ try { localStorage.setItem(REF_LS, JSON.stringify(_refDrafts)); } catch(e){} }
+function refDec(ev, m){ var r = state.results[m.id] || {}; return decodePoint(r.point || phasePointCode(ev, m) || ev.pointCode || state.meta.pointDefault || "21330"); }
+function refGameWon(a, b, dec){ return a >= dec.ext || (a >= dec.pts && a - b >= 2); }
+function refCounts(game){ var a = 0, b = 0; for (var i = 0; i < game.length; i++){ if (game[i] === "A") a++; else b++; } return [a, b]; }
+function refGamesWon(st, dec){
+  var ga = 0, gb = 0;
+  st.games.forEach(function(g){ var c = refCounts(g); if (refGameWon(c[0], c[1], dec)) ga++; else if (refGameWon(c[1], c[0], dec)) gb++; });
+  return [ga, gb];
+}
+function refNeed(dec){ return Math.floor(dec.games / 2) + 1; }
+function refWinnerSide(st, dec){ var w = refGamesWon(st, dec), n = refNeed(dec); if (w[0] >= n) return "A"; if (w[1] >= n) return "B"; return null; }
+function refTotal(st){ return st.games.reduce(function(n, g){ return n + g.length; }, 0); }
+function refTap(st, side, dec){
+  if (refWinnerSide(st, dec)) return;
+  var g = st.games[st.games.length - 1];
+  var c = refCounts(g);
+  if (g.length && (refGameWon(c[0], c[1], dec) || refGameWon(c[1], c[0], dec))){ st.games.push([]); g = st.games[st.games.length - 1]; }
+  g.push(side); st.server = side;
+}
+function refUndo(st){
+  for (var i = st.games.length - 1; i >= 0; i--){ if (st.games[i].length){ st.games[i].pop(); break; } }
+  while (st.games.length > 1 && !st.games[st.games.length - 1].length) st.games.pop();
+  for (var j = st.games.length - 1; j >= 0; j--){ if (st.games[j].length){ st.server = st.games[j][st.games[j].length - 1]; break; } }
+  if (!refTotal(st)) st.server = "A";
+}
+function refScoreString(st){
+  return st.games.filter(function(g){ return g.length; }).map(function(g){ var c = refCounts(g); return c[0] + "-" + c[1]; }).join(" ");
+}
+function openReferee(evId, mid){
+  if (VIEWER) return;
+  var ev = evById(evId); if (!ev || ev.teamComp) return;
+  var all = allMatches(ev);
+  var m = all.find(function(x){ return x.id === mid; }); if (!m) return;
+  var pl = matchPlayers(ev, m, all);
+  if (!pl.p1 || !pl.p2 || pl.p1 === "BYE" || pl.p2 === "BYE"){ alert("対戦が確定してから開いてください"); return; }
+  closeScoreModal();
+  if (!state.results[mid] && !(state.live && state.live[mid])) startMatch(mid);
+  if (!_refDrafts[mid]){ _refDrafts[mid] = { games: [[]], server: "A" }; refSaveDrafts(); }
+  _refCur = { evId: evId, mid: mid };
+  renderReferee();
+  var ov = document.getElementById("refOverlay");
+  if (ov) ov.style.display = "flex";
+}
+function closeReferee(){
+  var ov = document.getElementById("refOverlay");
+  if (ov){ ov.style.display = "none"; ov.innerHTML = ""; }
+  _refCur = null;
+}
+function refTapUI(side){
+  if (!_refCur) return;
+  var ev = evById(_refCur.evId); var all = allMatches(ev);
+  var m = all.find(function(x){ return x.id === _refCur.mid; });
+  var st = _refDrafts[_refCur.mid]; if (!st) return;
+  refTap(st, side, refDec(ev, m));
+  refSaveDrafts(); renderReferee();
+}
+function refUndoUI(){
+  if (!_refCur) return;
+  var st = _refDrafts[_refCur.mid]; if (!st) return;
+  refUndo(st); refSaveDrafts(); renderReferee();
+}
+function refServeUI(e){
+  if (e && e.stopPropagation) e.stopPropagation();
+  if (!_refCur) return;
+  var st = _refDrafts[_refCur.mid]; if (!st || refTotal(st) > 0) return;
+  st.server = st.server === "A" ? "B" : "A";
+  refSaveDrafts(); renderReferee();
+}
+function refDiscard(){
+  if (!_refCur) return;
+  if (!confirm("この試合の数え直し（下書き）を破棄しますか？")) return;
+  delete _refDrafts[_refCur.mid]; refSaveDrafts(); closeReferee();
+}
+function refToModal(){
+  if (!_refCur) return;
+  var c = _refCur; closeReferee(); openScoreModal(c.evId, c.mid);
+}
+function refFinalize(){
+  if (!_refCur) return;
+  var ev = evById(_refCur.evId); var all = allMatches(ev);
+  var m = all.find(function(x){ return x.id === _refCur.mid; }); if (!m) return;
+  var pl = matchPlayers(ev, m, all);
+  var st = _refDrafts[_refCur.mid]; if (!st) return;
+  var w = refWinnerSide(st, refDec(ev, m)); if (!w) return;
+  var score = refScoreString(st);
+  var prev = state.results[_refCur.mid];
+  if (prev && prev.score !== score && !confirm("この試合には既存の結果があります。審判モードの結果で上書きしますか？")) return;
+  var rec = { winner: w === "A" ? pl.p1 : pl.p2, score: score };
+  if (prev && prev.point) rec.point = prev.point;
+  var mid = _refCur.mid;
+  closeReferee();
+  setResult(mid, rec);
+}
+function renderReferee(){
+  var ov = document.getElementById("refOverlay"); if (!ov || !_refCur) return;
+  var ev = evById(_refCur.evId); var all = allMatches(ev);
+  var m = all.find(function(x){ return x.id === _refCur.mid; }); if (!m) return;
+  var pl = matchPlayers(ev, m, all);
+  var dec = refDec(ev, m);
+  var st = _refDrafts[_refCur.mid]; if (!st) return;
+  var sx = schedMap()[_refCur.mid];
+  var kind = m.kind === "league" ? m.blockName + "ブロック" : (m.challenge ? "チャレンジ R" + m.round : (m.thirdPlace ? "3位決定戦" : (m.tier === "lower" ? "下位" : "上位") + " R" + m.round));
+  var gw = refGamesWon(st, dec);
+  var win = refWinnerSide(st, dec);
+  var lastG = st.games[st.games.length - 1];
+  var lc = refCounts(lastG);
+  var lastDecided = lastG.length > 0 && (refGameWon(lc[0], lc[1], dec) || refGameWon(lc[1], lc[0], dec));
+  var cur = (lastDecided && !win) ? [0, 0] : lc;
+  var curGameNo = st.games.filter(function(g){ return g.length; }).length + ((lastDecided && !win) ? 1 : 0);
+  if (!lastG.length && st.games.length > 1) curGameNo = st.games.length;
+  var hist = st.games.filter(function(g){ return g.length; }).map(function(g, i){
+    var c = refCounts(g);
+    return '<span class="chip">第' + (i + 1) + 'ゲーム ' + c[0] + "-" + c[1] + '</span>';
+  }).join("");
+  var prev = state.results[_refCur.mid];
+  function panel(side, pid, pts, gamesWon){
+    var isWin = win === side;
+    return '<div class="rpanel' + (isWin ? " winp" : "") + '" onclick="refTapUI(\'' + side + '\')">' +
+      '<div class="rsrv">' + (st.server === side ? "● サーブ" + (refTotal(st) === 0 ? ' <button class="linkbtn" style="color:#cf222e;font-weight:800" onclick="refServeUI(event)">変更</button>' : "") : "") + '</div>' +
+      '<div class="brushname rname">' + esc(playerName(ev, pid)) + '</div>' +
+      '<div class="raff">' + esc(playerAff(ev, pid)) + '</div>' +
+      '<div class="rscore"' + (win && !isWin ? ' style="opacity:.35"' : "") + '>' + pts + '</div>' +
+      '<div class="rgames">ゲーム ' + gamesWon + ' ／ ' + refNeed(dec) + 'で勝利</div>' +
+      (isWin ? '<div style="font-weight:900;color:var(--cy)">勝者</div>' : "") +
+      '</div>';
+  }
+  ov.innerHTML =
+    '<div class="rhead"><div style="flex:1"><div class="rt">審判モード — ' + esc(ev.name) + ' ' + esc(kind) + '</div>' +
+    '<div class="rs">' + esc(dec.label) + (sx ? ' ／ ' + sx.court + 'コート ' + esc(sx.time) : "") + ' ／ タップで得点、下書きはこの端末に自動保存</div></div>' +
+    '<button class="mclose" onclick="closeReferee()">×</button></div>' +
+    (prev && refTotal(st) === 0 ? '<div style="padding:8px 12px;background:#fff8e1;border-bottom:1px solid #e0c56a;font-size:13px">この試合は結果入力済みです（' + esc(playerName(ev, prev.winner)) + ' の勝ち ' + esc(prev.score || "") + '）。このまま数え直して確定すると上書きされます。</div>' : "") +
+    '<div style="padding:8px 10px 0;text-align:center;font-weight:800">第' + curGameNo + 'ゲーム' + (win ? ' — 試合終了' : (lastDecided ? '（前のゲームは終了。タップで開始）' : "")) + '</div>' +
+    '<div class="rstage">' + panel("A", pl.p1, cur[0], gw[0]) + panel("B", pl.p2, cur[1], gw[1]) + '</div>' +
+    (hist ? '<div class="rhist">' + hist + '</div>' : "") +
+    '<div class="rfoot">' +
+    '<button class="btn ghost" onclick="refUndoUI()"' + (refTotal(st) ? "" : " disabled") + '>↩ 1つ戻す</button>' +
+    '<button class="btn ghost" onclick="printOneSheet(\'' + _refCur.mid + '\')">審判用紙</button>' +
+    '<button class="btn ghost" onclick="refToModal()">通常入力</button>' +
+    '<button class="btn" onclick="refFinalize()"' + (win ? "" : " disabled") + '>' + (win ? '確定して適用（' + esc(playerName(ev, win === "A" ? pl.p1 : pl.p2)) + ' の勝ち）' : "確定して適用") + '</button>' +
+    '</div>' +
+    '<div style="padding:0 10px 10px;background:#fff"><button class="linkbtn" style="color:var(--bad)" onclick="refDiscard()">下書きを破棄</button>' +
+    '<span class="mini" style="margin-left:10px">棄権・途中棄権は「通常入力」から記録してください。</span></div>';
+}
 // ===== views =====
 var _lastView = null;
 function countUps(){
@@ -3525,6 +3696,7 @@ render();
 window.__tmgrBooted = true;
 initSync();
 </script>
+<div id="refOverlay" class="roverlay" style="display:none"></div>
 <div id="printPreview" class="pprev" style="display:none">
   <div class="ppbar"><strong id="ppTitle">印刷プレビュー</strong>
     <button class="btn small" onclick="ppPrint()">印刷する</button>
