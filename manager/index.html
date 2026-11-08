@@ -3339,13 +3339,19 @@ function certPageHTMLh(d, guide){
   var OL = guide ? ";outline:.25mm dashed #e0261c" : "";
   function el(css, txt){ return '<div style="position:absolute;color:#000;white-space:nowrap;' + css + OL + '">' + txt + '</div>'; }
   var h = '<div class="certstage"><' + 'section class="certpage" style="width:210mm;height:297mm;position:relative;overflow:hidden;background:#fff">';
+  // Effective sizes in the user's tool are capped by the fixed line-height
+  // boxes (the brush fonts' tall metrics overflow them): measured on the
+  // original tool — title lands at 42pt, award/name at 30pt, and the issuer
+  // line always ends at its 14pt minimum. Reproduce those caps.
+  var yujiT = H.fTitle !== 'mincho';
+  var capTitle = yujiT ? 42 : 47, capHead = yujiT ? 30 : 33;
   var title = H.title || "賞状";
-  h += el('left:' + (55 + ox) + 'mm;top:' + (66 + oy) + 'mm;width:100mm;height:20mm;line-height:20mm;text-align:center;letter-spacing:.3em;text-indent:.3em;font-family:' + FT + ';font-size:' + certFitPt(title, 58, 28, 100, 0.3) + 'pt', esc(title));
+  h += el('left:' + (55 + ox) + 'mm;top:' + (66 + oy) + 'mm;width:100mm;height:20mm;line-height:20mm;text-align:center;letter-spacing:.3em;text-indent:.3em;font-family:' + FT + ';font-size:' + Math.min(certFitPt(title, 58, 28, 100, 0.3), capTitle) + 'pt', esc(title));
   var rank = certSubst("{順位}", d);
-  if (rank) h += el('left:' + (51 + ox) + 'mm;top:' + (96 + oy) + 'mm;height:14mm;line-height:14mm;font-family:' + FT + ';font-size:' + certFitPt(rank, 36, 16, 60, 0) + 'pt', esc(rank));
+  if (rank) h += el('left:' + (51 + ox) + 'mm;top:' + (96 + oy) + 'mm;height:14mm;line-height:14mm;font-family:' + FT + ';font-size:' + Math.min(certFitPt(rank, 36, 16, 60, 0), capHead) + 'pt', esc(rank));
   if (d.name){
     var nm = d.name + (H.suffix || "");
-    h += el('left:' + (92 + ox) + 'mm;top:' + (110 + oy) + 'mm;height:14mm;line-height:14mm;font-family:' + FT + ';font-size:' + certFitPt(nm, 36, 16, 70, 0) + 'pt', esc(nm));
+    h += el('left:' + (92 + ox) + 'mm;top:' + (110 + oy) + 'mm;height:14mm;line-height:14mm;font-family:' + FT + ';font-size:' + Math.min(certFitPt(nm, 36, 16, 70, 0), capHead) + 'pt', esc(nm));
   }
   if (H.showAff && d.aff) h += el('left:' + (92 + ox) + 'mm;top:' + (125 + oy) + 'mm;font-family:' + FB + ';font-size:12pt', esc(d.aff));
   // body: composed lines like the user's tool (breaks are authored, never
@@ -3363,11 +3369,12 @@ function certPageHTMLh(d, guide){
   if (org) h += el('left:' + (55 + ox) + 'mm;top:' + (218 + oy) + 'mm;height:14mm;line-height:14mm;font-family:' + FB + ';font-size:' + certFitPt(org, 26, 12, 110, 0) + 'pt', esc(org));
   var rep = state.meta.representative || "", itT = H.issuerTitle || "";
   if (rep || itT){
-    var ipt = 30, emT = certTextEm(rep) + 0.6 * certTextEm(itT);
-    while (ipt > 14 && ipt * 0.3528 * emT > 93) ipt -= 0.5;
-    h += '<div style="position:absolute;color:#000;left:' + (66 + ox) + 'mm;top:' + (234 + oy) + 'mm;width:95mm;height:16mm;line-height:16mm;text-align:right;white-space:nowrap;' + OL + '">' +
-      (itT ? '<span style="font-family:' + FB + ';font-size:' + (ipt * 0.6).toFixed(1) + 'pt">' + esc(itT) + '</span> ' : '') +
-      '<span style="font-family:' + FT + ';font-size:' + ipt + 'pt">' + esc(rep) + '</span></div>';
+    // In the user's tool this line always ends at its 14pt minimum (its
+    // measured height never fits the 16mm box), so it prints small at the
+    // bottom right — reproduce that: name 14pt, title 0.6x.
+    h += '<div style="position:absolute;color:#000;left:' + (66 + ox) + 'mm;top:' + (234 + oy) + 'mm;width:95mm;height:16mm;line-height:16mm;text-align:right;white-space:nowrap;font-size:14pt;' + OL + '">' +
+      (itT ? '<span style="font-family:' + FB + ';font-size:8.4pt">' + esc(itT) + '</span> ' : '') +
+      '<span style="font-family:' + FT + ';font-size:14pt">' + esc(rep) + '</span></div>';
   }
   if (H.sealOn && SEAL_IMG) h += '<' + 'img alt="唐崎ジュニア朱印" sr' + 'c="' + SEAL_IMG + '" style="position:absolute;left:' + (H.sealX + ox) + 'mm;top:' + (H.sealY + oy) + 'mm;width:' + H.sealS + 'mm;height:' + H.sealS + 'mm">';
   if (guide) h += certGuideHTMLh();
