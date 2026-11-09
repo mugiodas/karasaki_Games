@@ -4184,21 +4184,33 @@ function shojoToolHTML(records, startIdx){
   return tpl.slice(0, at) + inject + "\n" + tpl.slice(at);
 }
 var _shojoRecords = null, _shojoFile = "";
+// Open a complete HTML document as a page instead of downloading it:
+// a new tab when the browser allows one, otherwise this tab navigates
+// to it and the back button returns to the app (state is in storage).
+function openPageHTML(html){
+  var blob = new Blob([html], {type: "text/html;charset=utf-8"});
+  var url = URL.createObjectURL(blob);
+  var w = null;
+  try{ w = window.open(url, "_blank"); }catch(e){}
+  if (w){ setTimeout(function(){ URL.revokeObjectURL(url); }, 300000); return true; }
+  location.href = url;
+  return true;
+}
 function shojoPick(i){
   if (!_shojoRecords) return;
   var tool = shojoToolHTML(_shojoRecords, i);
-  if (tool) downloadFile(_shojoFile, tool, "text/html;charset=utf-8");
+  if (tool) openPageHTML(tool);
 }
 function presentShojoFile(records, fname, heading){
   var tool = shojoToolHTML(records);
   if (!tool){ alert("賞状ツールを読み込めませんでした。"); return false; }
   _shojoRecords = records; _shojoFile = fname;
   var btns = records.map(function(r, i){
-    return '<button class="btn" style="display:block;width:100%;text-align:left;margin:6px 0" onclick="shojoPick(' + i + ')">この人の賞状ファイルを保存：' + esc((r.award || "") + "　" + (r.name || "")) + '</button>';
+    return '<button class="btn" style="display:block;width:100%;text-align:left;margin:6px 0" onclick="shojoPick(' + i + ')">この人の賞状ページを開く：' + esc((r.award || "") + "　" + (r.name || "")) + '</button>';
   }).join("");
   var note = '<div style="padding:20px 18px;max-width:600px;line-height:1.9">' +
     '<h3 style="margin:0 0 8px">' + esc(heading) + '</h3>' +
-    '<p>横書きの賞状は、いただいた「賞状印刷」ツールに受賞データを渡して印刷します。<b>下のボタンで受賞者を選ぶ</b>と、その人の内容が入力済みのツールファイルが保存されます。保存したファイルを開いて、そのまま印刷してください。ファイルを開いたあとでも、ツール左上の「受賞者を切り替え」で別の受賞者に切り替えられます。朱印は元のツールの仕様どおり付きません。</p>' + btns + '</div>';
+    '<p>横書きの賞状は、いただいた「賞状印刷」ツールに受賞データを渡して印刷します。<b>下のボタンで受賞者を選ぶ</b>と、その人の内容が入力済みの賞状ページが開きます。そのまま印刷してください。開いたページの左上にある「受賞者を切り替え」から、別の受賞者にも切り替えられます。ページが開かない環境では、この画面の上の「ファイルで保存」から保存して開いてください。朱印は元のツールの仕様どおり付きません。</p>' + btns + '</div>';
   showPrintPreview(note, heading, fname, "", "");
   _ppRaw = tool;
   return true;
