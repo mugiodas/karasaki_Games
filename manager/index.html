@@ -835,7 +835,12 @@ function decidedIndex(v, dec){
 }
 // --- league standings for one block ---
 // matches: [{id,p1,p2}] results: {id:{winner,score}}
-function blockStandings(block, matches, results){
+// woMode (optional, per-tournament setting state.meta.walkoverMode):
+//   "std" (default) scoreless walkover (note "wo") = 1 game, 0 points
+//   "g30"           scoreless walkover = 2 games, 30-0 points (Biwako style)
+//   "winonly"       scoreless walkover = win/loss only, 0 games, 0 points (Kurashiki style)
+// A walkover entered WITH a score always counts that score, in every mode.
+function blockStandings(block, matches, results, woMode){
   var st = {};
   block.forEach(function(p){ st[p.id] = {pid:p.id, w:0, l:0, gw:0, gl:0, pw:0, pl:0}; });
   matches.forEach(function(mt){
@@ -852,6 +857,10 @@ function blockStandings(block, matches, results){
       var p1IsWinner = (r.winner === mt.p1);
       a.gw += ss.g1; a.gl += ss.g2; b.gw += ss.g2; b.gl += ss.g1;
       a.pw += ss.p1; a.pl += ss.p2; b.pw += ss.p2; b.pl += ss.p1;
+    } else if (r.note === "wo" && woMode === "g30"){
+      win.gw += 2; lose.gl += 2; win.pw += 30; lose.pl += 30;
+    } else if (r.note === "wo" && woMode === "winonly"){
+      // win/loss only: no games, no points
     } else { win.gw += 1; lose.gl += 1; }
   });
   var rows = Object.keys(st).map(function(k){ return st[k]; });
@@ -1134,13 +1143,17 @@ function blockDone(ev, bi, lms){
   var ms = lms.filter(function(m){ return m.block===bi; });
   return ms.length > 0 && ms.every(function(m){ var r = state.results[m.id]; return r && (r.winner || r.note === "draw"); });
 }
+function walkoverMode(){
+  var m = state.meta && state.meta.walkoverMode;
+  return (m === "g30" || m === "winonly") ? m : "std";
+}
 function blockRanking(ev, bi, lms){
   // returns {order:[pid...], decided:bool, ties:[[pid]]}
   var blocks = leagueBlocks(ev); var block = blocks[bi]; if (!block) return {order:[], decided:false, ties:[]};
   var ms = lms.filter(function(m){ return m.block===bi; });
   var manual = ev.manualRank && ev.manualRank[bi];
   if (manual && manual.length === block.length) return {order:manual.slice(), decided:blockDone(ev,bi,lms), ties:[], manual:true};
-  var st = blockStandings(block, ms, state.results);
+  var st = blockStandings(block, ms, state.results, walkoverMode());
   var done = blockDone(ev, bi, lms);
   return { order: st.rows.map(function(r){return r.pid;}), decided: done && st.ties.length===0, ties: st.ties, rows: st.rows };
 }
@@ -2980,7 +2993,7 @@ function vLeague(){
     if (!blocks.length){ h += '<div class="card empty">まだ組合せが作られていません。「参加者・種目」で「組合せを作成」を押してください。</div>'; }
     blocks.forEach(function(block, bi){
       var rank = blockRanking(ev, bi, lms);
-      var rows = rank.rows || blockStandings(block, lms.filter(function(m){return m.block===bi;}), state.results).rows;
+      var rows = rank.rows || blockStandings(block, lms.filter(function(m){return m.block===bi;}), state.results, walkoverMode()).rows;
       var byPid = {}; block.forEach(function(p){ byPid[p.id]=p; });
       h += '<div class="blockband"><div class="blockglyph">' + String.fromCharCode(65+bi) + '</div><div class="blockbody"><div class="row spread"><strong>' + String.fromCharCode(65+bi) + 'ブロック</strong>' +
         (rank.decided ? '<span class="chip green">順位確定</span>' : (blockDone(ev, bi, lms) ? '<span class="chip red">同率・未確定</span>' : '<span class="chip gray">進行中</span>')) + "</div>";
@@ -3329,6 +3342,12 @@ function vConfig(){
     '<div class="grid2"><div><label class="f">開始時刻</label><input type="time" id="cf-start" value="' + esc(state.meta.start||"09:30") + '"></div>' +
     '<div><label class="f">1試合の目安（分）</label><input type="number" id="cf-interval" min="5" max="60" value="' + (state.meta.interval||12) + '"></div></div>' +
     '<label class="f">結果入力</label><div><strong>スコア必須</strong><div class="mini">勝敗だけの記録はできません。勝者をタップしたあと、スコアを入力して保存します。不戦勝は、試合カードの備考で「試合棄権（不戦勝）」を選べばスコアなしで記録できます。</div></div><input type="hidden" id="cf-detail" value="full">' +
+    '<label class="f">不戦勝の集計（スコアなしで記録した「試合棄権」の数え方）</label>' +
+    '<select id="cf-walkover">' +
+    '<option value="std"' + (walkoverMode() === "std" ? " selected" : "") + '>現行：1ゲーム・0点</option>' +
+    '<option value="g30"' + (walkoverMode() === "g30" ? " selected" : "") + '>2ゲーム・30-0点（びわこ式）</option>' +
+    '<option value="winonly"' + (walkoverMode() === "winonly" ? " selected" : "") + '>勝敗のみ：ゲーム・ポイントを数えない（倉敷式）</option></select>' +
+    '<div class="mini">大会ごとに選べます。スコアを入れた不戦勝（例：15-0 15-0）は、どの設定でも入力したスコアで集計します。設定を変えると、すでに入っている結果の順位も新しい数え方で計算し直します。</div>' +
     '<div style="margin-top:12px"><button class="btn" onclick="saveMeta()">保存</button></div></div>';
   h += '<div class="card"><h3 style="margin-top:0">共有リンク</h3><div class="sub">このリンクを開いた端末同士で、結果と設定が同期されます（全員が編集できます）。</div>' +
     '<div class="row" style="margin-top:8px"><input type="text" readonly value="' + esc(link) + '" id="shareLink" style="flex:1"><button class="btn ghost" onclick="copyLink()">コピー</button></div>' +
@@ -3463,6 +3482,7 @@ function saveMeta(){
   state.meta.start = document.getElementById("cf-start").value || "09:30";
   state.meta.interval = Math.max(5, +document.getElementById("cf-interval").value || 12);
   var dt = document.getElementById("cf-detail"); if (dt) state.meta.detail = dt.value;
+  var wo = document.getElementById("cf-walkover"); if (wo) state.meta.walkoverMode = (wo.value === "g30" || wo.value === "winonly") ? wo.value : "std";
   touchConfig(); render();
 }
 function syncPing(){
@@ -3645,7 +3665,7 @@ function exportCsvStandings(){
       var lms = leagueMatchList(ev);
       leagueBlocks(ev).forEach(function(block, bi){
         var rank = blockRanking(ev, bi, lms);
-        var st = blockStandings(block, lms.filter(function(m){ return m.block === bi; }), state.results);
+        var st = blockStandings(block, lms.filter(function(m){ return m.block === bi; }), state.results, walkoverMode());
         var smap2 = {}; st.rows.forEach(function(x){ smap2[x.pid] = x; });
         rank.order.forEach(function(pid, i){
           var srow = smap2[pid] || {};
