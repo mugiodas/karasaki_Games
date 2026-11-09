@@ -1579,7 +1579,7 @@ function initSync(){
   var m = location.hash.match(/r=([a-z0-9]+)/i);
   sync.room = m ? m[1] : randStr(10);
   if (!m) history.replaceState(null, "", location.pathname + location.search + "#r=" + sync.room);
-  try{ sync.bc = new BroadcastChannel("tmgr-" + sync.room); sync.bc.onmessage = function(e){ receiveState(e.data, true); }; }catch(e){}
+  try{ sync.bc = new BroadcastChannel("tmgr-" + sync.room); sync.bc.onmessage = function(e){ dispatchSync(e.data, true); }; }catch(e){}
   connectBroker(0);
 }
 function setConn(cls, text){
@@ -1599,7 +1599,7 @@ function connectBroker(idx){
   catch(e){ connectBroker(idx+1); return; }
   var done = false;
   var timer = setTimeout(function(){ if (!done){ syncDiag.attempts.unshift({url: BROKERS[idx], at: Date.now(), ok: false}); syncDiag.attempts = syncDiag.attempts.slice(0, 6); try{client.end(true);}catch(e){} connectBroker(idx+1); } }, 10000);
-  client.on("connect", function(){ done = true; clearTimeout(timer); sync.client = client; sync.connected = true; syncDiag.broker = BROKERS[idx]; syncDiag.connectedAt = Date.now(); setConn("on", "共有中"); client.subscribe(TOPIC_PREFIX + sync.room, {qos:1}); publishState(); if (view === "config") render(); });
+  client.on("connect", function(){ done = true; clearTimeout(timer); sync.client = client; sync.connected = true; syncDiag.broker = BROKERS[idx]; syncDiag.connectedAt = Date.now(); setConn("on", "共有中"); client.subscribe([TOPIC_PREFIX + sync.room, TOPIC_PREFIX + sync.room + "/c/+"], {qos:1}); publishState(); if (view === "config") render(); });
   client.on("message", function(t, buf){
     try{
       var msg = JSON.parse(buf.toString());
@@ -1608,7 +1608,7 @@ function connectBroker(idx){
         return;
       }
       if (msg && msg.from !== CLIENT_ID) syncDiag.lastMsgAt = Date.now();
-      receiveState(msg, false);
+      dispatchSync(msg, false);
     }catch(e){}
   });
   client.on("error", function(){ if (!done){ clearTimeout(timer); try{client.end(true);}catch(e){} connectBroker(idx+1); } });
@@ -1619,9 +1619,89 @@ function publishState(){
   var payload = {type:"state", from: CLIENT_ID, configTs: state.configTs||0, meta: state.meta, events: state.events, results: state.results, live: state.live||{}, trash: state.trash||[]};
   if (sync.bc) try{ sync.bc.postMessage(payload); }catch(e){}
   if (_pubTimer) clearTimeout(_pubTimer);
-  _pubTimer = setTimeout(function(){
-    if (sync.client && sync.connected) try{ sync.client.publish(TOPIC_PREFIX + sync.room, JSON.stringify(payload), {retain:true, qos:1}); }catch(e){}
-  }, 600);
+  _pubTimer = setTimeout(function(){ mqttSendState(payload); }, 600);
+}
+// --- chunked sending for large states ---
+// Public brokers deliver large messages live, but only RETAIN (store for
+// devices that open the link later) up to roughly 100-128KB per message
+// (measured on EMQX, 2026-11-09: 100KB stored, 128KB not stored). A big
+// tournament's full state is ~360KB, so large states are split into
+// retained chunks on subtopics <room>/c/<i>, with a small retained
+// {type:"chunked"} manifest on the main topic. Older app versions ignore
+// both new message types, so this is backward compatible.
+var SYNC_SINGLE_MAX = 90000;   // at or below this, send one retained message as before
+var SYNC_CHUNK_BYTES = 88000;  // per-chunk budget, measured as wrapped JSON bytes
+var _lastChunkN = 0;
+var _latestCfgSeen = 0;
+function utf8Len(s){
+  if (typeof TextEncoder !== "undefined") return new TextEncoder().encode(s).length;
+  var n = 0;
+  for (var i=0;i<s.length;i++){ var c = s.charCodeAt(i); if (c < 0x80) n+=1; else if (c < 0x800) n+=2; else if (c >= 0xD800 && c <= 0xDBFF){ n+=4; i++; } else n+=3; }
+  return n;
+}
+// Split s so each part, once JSON-escaped inside the chunk envelope, stays
+// within maxBytes. Quotes and backslashes cost one extra byte each.
+function splitSyncString(s, maxBytes){
+  var parts = [], cur = "", curBytes = 0;
+  for (var i=0;i<s.length;i++){
+    var c = s.charCodeAt(i), b;
+    if (c < 0x80) b = 1; else if (c < 0x800) b = 2; else if (c >= 0xD800 && c <= 0xDBFF) b = 4; else b = 3;
+    if (c === 0x22 || c === 0x5C) b += 1;
+    if (curBytes + b > maxBytes && cur){ parts.push(cur); cur = ""; curBytes = 0; }
+    cur += s[i];
+    if (b >= 4 && c >= 0xD800 && c <= 0xDBFF && i + 1 < s.length){ cur += s[i+1]; i++; }
+    curBytes += b;
+  }
+  if (cur) parts.push(cur);
+  return parts;
+}
+function syncStateId(payload, str){
+  var maxTs = 0, rc = 0, rr = payload.results || {};
+  Object.keys(rr).forEach(function(k){ rc++; if ((rr[k].ts||0) > maxTs) maxTs = rr[k].ts||0; });
+  return (payload.configTs||0) + "-" + rc + "-" + maxTs + "-" + utf8Len(str);
+}
+function mqttSendState(payload){
+  if (!sync.client || !sync.connected) return;
+  var topic = TOPIC_PREFIX + sync.room;
+  var str; try{ str = JSON.stringify(payload); }catch(e){ return; }
+  _latestCfgSeen = Math.max(_latestCfgSeen, payload.configTs||0);
+  function pub(t, s){ try{ sync.client.publish(t, s, {retain:true, qos:1}); }catch(e){} }
+  if (utf8Len(str) <= SYNC_SINGLE_MAX){
+    pub(topic, str);
+    for (var i=0;i<_lastChunkN;i++) pub(topic + "/c/" + i, "");
+    _lastChunkN = 0;
+    return;
+  }
+  var parts = splitSyncString(str, SYNC_CHUNK_BYTES);
+  var id = syncStateId(payload, str);
+  for (var j=0;j<parts.length;j++) pub(topic + "/c/" + j, JSON.stringify({type:"chunk", id:id, i:j, n:parts.length, data:parts[j]}));
+  for (var k=parts.length;k<_lastChunkN;k++) pub(topic + "/c/" + k, "");
+  _lastChunkN = parts.length;
+  pub(topic, JSON.stringify({type:"chunked", from:payload.from, id:id, n:parts.length, configTs:payload.configTs||0}));
+}
+// --- receiving: route by message type ---
+var _chunkBuf = {}, _chunkApplied = {};
+function dispatchSync(msg, local){
+  if (!msg || typeof msg !== "object") return;
+  if (msg.type === "state"){ _latestCfgSeen = Math.max(_latestCfgSeen, msg.configTs||0); receiveState(msg, local); }
+  else if (msg.type === "chunked"){ _latestCfgSeen = Math.max(_latestCfgSeen, msg.configTs||0); }
+  else if (msg.type === "chunk"){ noteChunk(msg); }
+}
+function noteChunk(msg){
+  if (!msg.id || !msg.n || typeof msg.data !== "string") return;
+  var b = _chunkBuf[msg.id] || (_chunkBuf[msg.id] = {n: msg.n, parts:{}, got:0});
+  if (b.parts[msg.i] === undefined){ b.parts[msg.i] = msg.data; b.got++; }
+  if (!b.n || b.got < b.n) return;
+  var s = "";
+  for (var i=0;i<b.n;i++){ if (b.parts[i] === undefined) return; s += b.parts[i]; }
+  delete _chunkBuf[msg.id];
+  if (_chunkApplied[msg.id]) return;
+  _chunkApplied[msg.id] = 1;
+  var payload; try{ payload = JSON.parse(s); }catch(e){ return; }
+  if (!payload || payload.type !== "state") return;
+  if ((payload.configTs||0) < _latestCfgSeen) return;   // a newer config was already seen; this set is stale
+  _latestCfgSeen = Math.max(_latestCfgSeen, payload.configTs||0);
+  receiveState(payload, false);
 }
 var CLIENT_ID = randStr(12);
 function receiveState(payload, local){
