@@ -3687,16 +3687,18 @@ function vConfig(){
   var h = "<h1>設定・共有</h1>";
   h += '<div class="card"><h3 style="margin-top:0">大会情報</h3>' +
     '<label class="f">大会名</label><input type="text" id="cf-name" value="' + esc(state.meta.name) + '">' +
-    '<label class="f">主催者名（賞状用・任意）</label><input type="text" id="cf-org" value="' + esc(state.meta.organizer || "") + '">' +
-    '<label class="f">代表者名（賞状用・任意）</label><input type="text" id="cf-rep" value="' + esc(state.meta.representative || "") + '">' +
     '<div class="grid3"><div><label class="f">開催日</label><input type="date" id="cf-date" value="' + esc(state.meta.date) + '"></div>' +
-    '<div><label class="f">会場</label><input type="text" id="cf-venue" value="' + esc(state.meta.venue) + '"></div>' +
-    '<div><label class="f">コート数</label><input type="number" id="cf-courts" min="1" max="30" value="' + (state.meta.courts||4) + '"></div></div>' +
-    '<div class="grid2"><div><label class="f">開始時刻</label><input type="time" id="cf-start" value="' + esc(state.meta.start||"09:30") + '"></div>' +
-    '<div><label class="f">1試合の目安（分）</label><input type="number" id="cf-interval" min="5" max="60" value="' + (state.meta.interval||12) + '"></div></div>' +
-    '<div class="grid2"><div><label class="f">開催日（2日目・任意）</label><input type="date" id="cf-date2" value="' + esc(state.meta.date2 || "") + '"></div>' +
+    '<div><label class="f">開催日（2日目・任意）</label><input type="date" id="cf-date2" value="' + esc(state.meta.date2 || "") + '"></div>' +
     '<div><label class="f">開催日（3日目・任意）</label><input type="date" id="cf-date3" value="' + esc(state.meta.date3 || "") + '"></div></div>' +
+    '<div class="grid3"><div><label class="f">会場</label><input type="text" id="cf-venue" value="' + esc(state.meta.venue) + '"></div>' +
+    '<div><label class="f">コート数</label><input type="number" id="cf-courts" min="1" max="30" value="' + (state.meta.courts||4) + '"></div>' +
+    '<div><label class="f">開始時刻</label><input type="time" id="cf-start" value="' + esc(state.meta.start||"09:30") + '"></div></div>' +
+    '<div class="grid2"><div><label class="f">1試合の目安（分）</label><input type="number" id="cf-interval" min="5" max="60" value="' + (state.meta.interval||12) + '"></div><div></div></div>' +
     '<div class="mini">2日間・3日間の大会では、2日目以降の日付を入れてください。どの種目を何日目に行うかは「参加者・種目」の種目設定で種目ごとに選びます。リーグとトーナメントで日を分けることもできます（例：1日目リーグ、2日目トーナメント）。日を変えても結果は消えません。</div>' +
+    '<div class="grid2"><div><label class="f">主催者名（賞状用・任意）</label><input type="text" id="cf-org" value="' + esc(state.meta.organizer || "") + '"></div>' +
+    '<div><label class="f">代表者名（賞状用・任意）</label><input type="text" id="cf-rep" value="' + esc(state.meta.representative || "") + '"></div></div>' +
+    '<div style="margin-top:12px"><button class="btn" onclick="saveMeta()">保存</button></div></div>';
+  h += '<div class="card"><h3 style="margin-top:0">試合のルール</h3>' +
     '<label class="f">結果入力</label><div><strong>スコア必須</strong><div class="mini">勝敗だけの記録はできません。勝者をタップしたあと、スコアを入力して保存します。不戦勝は、試合カードの備考で「試合棄権（不戦勝）」を選べばスコアなしで記録できます。</div></div><input type="hidden" id="cf-detail" value="full">' +
     '<label class="f">不戦勝の集計（スコアなしで記録した「試合棄権」の数え方）</label>' +
     '<select id="cf-walkover">' +
@@ -3710,12 +3712,13 @@ function vConfig(){
     '<div class="sub" style="margin-top:10px">👀 観戦用リンク（見る専用・入力できません。保護者や観客への配布はこちら）</div>' +
     '<div class="row" style="margin-top:6px"><input type="text" readonly value="' + esc(link + "&v=1") + '" id="watchLink" style="flex:1"><button class="btn ghost" onclick="copyWatchLink()">コピー</button></div>' +
     '<div class="sub" style="margin-top:6px">接続状態は画面上のバッジで確認できます。「共有中」にならない端末では、その端末だけで入力してください。</div>' +
-    '<div class="mini" style="margin-top:10px;border-top:1px solid var(--line);padding-top:8px">' +
+    '<details style="margin-top:10px;border-top:1px solid var(--line);padding-top:8px"><summary class="mini" style="cursor:pointer">接続診断・同期テスト</summary>' +
+    '<div class="mini" style="margin-top:8px">' +
     '接続診断: ' + (sync.connected ? '接続先 ' + esc(syncDiag.broker.replace("wss://", "")) + '（' + new Date(syncDiag.connectedAt).toTimeString().slice(0,5) + '〜）' : '未接続') +
     (syncDiag.lastMsgAt ? ' / 最終受信 ' + new Date(syncDiag.lastMsgAt).toTimeString().slice(0,8) : '') +
     (syncDiag.pingOkAt ? ' / テスト送信OK ' + new Date(syncDiag.pingOkAt).toTimeString().slice(0,8) : '') +
     (syncDiag.attempts.length ? '<br>接続できなかった中継: ' + syncDiag.attempts.map(function(a){ return esc(a.url.replace("wss://", "").split("/")[0]); }).join(", ") : '') +
-    '</div><div style="margin-top:6px"><button class="btn ghost small" onclick="syncPing()">同期テスト送信</button> <span class="mini">押して数秒後に「テスト送信OK」と出れば、この端末から中継へ往復できています。もう1台で同じリンクを開き、片方で結果を1つ入れてもう片方が変われば、別端末間の同期は実証完了です。</span></div></div>';
+    '</div><div style="margin-top:6px"><button class="btn ghost small" onclick="syncPing()">同期テスト送信</button> <span class="mini">押して数秒後に「テスト送信OK」と出れば、この端末から中継へ往復できています。もう1台で同じリンクを開き、片方で結果を1つ入れてもう片方が変われば、別端末間の同期は実証完了です。</span></div></details></div>';
   h += '<div class="card"><h3 style="margin-top:0">印刷・出力</h3>' +
     '<div class="sub">審判用紙は、対戦が確定した試合だけを出すのが当日の運用に合います。賞状は順位が決まった種目だけ出ます。</div>' +
     state.events.map(function(ev){
@@ -3727,7 +3730,6 @@ function vConfig(){
     '<div class="row" style="margin-top:10px"><button class="btn ghost small" onclick="exportCsvResults()">CSV: 全結果</button>' +
     '<button class="btn ghost small" onclick="exportCsvStandings()">CSV: 成績（順位）</button></div></div>';
   var CL = (typeof certLayout === "function") ? certLayout() : null;
-  var CFM = (typeof certFormat === "function") ? certFormat() : null;
   var CST = (typeof certKind === "function") ? certKind() : "v";
   var CH = (typeof certH === "function") ? certH() : { title: "賞状", suffix: "殿", issuerTitle: "", fTitle: "boku", fBody: "syuku", dateBlank: false, showAff: false, sealOn: true, sealX: 166, sealY: 228, sealS: 24 };
   function certFontOpts(sel){
@@ -3735,43 +3737,16 @@ function vConfig(){
       return '<option value="' + o[0] + '"' + (sel === o[0] ? " selected" : "") + '>' + o[1] + '</option>';
     }).join("");
   }
-  function certItemRow(it, i){
-    function num(id, v){ return '<input type="number" step="0.5" id="cc-it-' + i + '-' + id + '" value="' + (v == null ? "" : v) + '" style="width:64px">'; }
-    return '<div style="border:1px solid var(--line);padding:8px 10px;margin-top:8px">' +
-      '<div class="row" style="gap:8px;flex-wrap:wrap;align-items:center">' +
-      '<label class="mini"><input type="checkbox" id="cc-it-' + i + '-on"' + (it.on === false ? "" : " checked") + '> 有効</label>' +
-      '<input type="text" id="cc-it-' + i + '-label" value="' + esc(it.label || "") + '" placeholder="項目名" style="width:120px">' +
-      '<select id="cc-it-' + i + '-kind" style="width:86px"><option value="text"' + (it.kind === "seal" ? "" : " selected") + '>文字</option><option value="seal"' + (it.kind === "seal" ? " selected" : "") + '>朱印</option></select>' +
-      '<select id="cc-it-' + i + '-font" style="width:110px"><option value="kaisho"' + (it.font === "kaisho" ? " selected" : "") + '>楷書</option><option value="kaishoB"' + (it.font === "kaishoB" ? " selected" : "") + '>楷書・太字</option><option value="brush"' + (it.font === "brush" ? " selected" : "") + '>毛筆</option></select>' +
-      '<label class="mini"><input type="checkbox" id="cc-it-' + i + '-nw"' + (it.nw ? " checked" : "") + '> 改行しない</label>' +
-      '<button class="btn ghost small" onclick="certItemDel(' + i + ')">この項目を削除</button></div>' +
-      (it.kind === "seal" ? '<div class="mini" style="margin-top:6px">唐崎ジュニアの朱印画像を置く項目です。</div>' :
-        '<input type="text" id="cc-it-' + i + '-text" value="' + esc(it.text || "") + '" placeholder="表示する文字列" style="margin-top:6px">') +
-      '<div class="row" style="gap:8px;flex-wrap:wrap;margin-top:6px">' +
-      '<label class="mini">右から ' + num('r', it.r) + '</label><label class="mini">上から ' + num('t', it.t) + '</label>' +
-      '<label class="mini">文字/大きさ ' + num('s', it.s) + '</label><label class="mini">字間 ' + num('ls', it.ls) + '</label>' +
-      '<label class="mini">列の長さ ' + num('len', it.len) + '</label><label class="mini">行間 ' + num('lh', it.lh) + '</label></div></div>';
-  }
-  if (CL) h += '<div class="card certset"><h3 style="margin-top:0">賞状の設定</h3>' +
-    '<label class="f">書式（用紙に合わせて選んでください。切り替えると設定画面が変わります）</label>' +
+  if (CL) h += '<div class="card certset"><h3 style="margin-top:0">賞状</h3>' +
+    '<label class="f">書式</label>' +
     '<select id="cc-style" onchange="saveCertSettings(true)">' +
     '<option value="v"' + (CST === "v" ? " selected" : "") + '>縦書き（A3・既製賞状用紙）</option>' +
-    '<option value="h"' + (CST === "h" ? " selected" : "") + '>横書き（A4・専用用紙）</option></select>' +
+    '<option value="h"' + (CST === "h" ? " selected" : "") + '>横書き（A4・専用ツール）</option></select>' +
     (CST === "v" ?
-    '<div class="sub" style="margin-top:8px">鳳凰枠などが印刷済みの市販の賞状用紙に、文字と唐崎ジュニアの朱印だけを印刷します。書式は下の「項目」の並びで定義します（アサミと同じ、設定で書式を決める方式）。各項目は表示する文字列・書体・位置・大きさを個別に変えられ、項目の追加・削除もできます。文字列の中の {大会名} {種目} {区分} {順位} {氏名} {ふりがな} {所属} {日付} {主催者名} {本文} は、受賞者ごとに置き換わります。空になる項目（ふりがな未登録など）は印刷されません。数値はすべてmmで、位置は用紙の右端・上端からの距離です。</div>' +
-    '<label class="f">本文（{本文} の中身。同じ置換が使えます）</label><textarea id="cc-body" rows="3">' + esc(state.meta.certBody || CERT_BODY_DEFAULT) + '</textarea>' +
-    '<div class="grid3"><div><label class="f">全体の横ずれ（mm）</label><input type="number" step="0.5" id="cc-ox" value="' + CL.ox + '"></div>' +
-    '<div><label class="f">全体の縦ずれ（mm）</label><input type="number" step="0.5" id="cc-oy" value="' + CL.oy + '"></div>' +
-    '<div><label class="f">全体の拡大縮小（%）</label><input type="number" step="1" id="cc-scale" value="' + CL.scale + '"></div></div>' +
-    '<label class="f">書式の項目</label>' +
-    CFM.map(certItemRow).join("") +
-    '<div style="margin-top:8px"><button class="btn ghost small" onclick="certItemAdd()">項目を追加</button></div>' +
-    '<div class="sub" style="margin-top:10px">サンプルのガイド枠＝用紙の飾り枠の内側の目安（mm）</div>' +
-    '<div class="row" style="gap:8px;flex-wrap:wrap">' +
-    ["t|上", "b|下", "l|左", "r|右"].map(function(p){ var kv = p.split("|"); return '<label class="mini">' + kv[1] + ' <input type="number" step="1" id="cc-g-' + kv[0] + '" value="' + CL.guide[kv[0]] + '" style="width:64px"></label>'; }).join("") + '</div>' +
-    '<div class="mini" style="margin-top:6px">ふりがなは名前とは別の項目として置くので、用紙に合わせて位置をずらせます。</div>'
+    '<div class="sub" style="margin-top:8px">鳳凰枠などが印刷済みの市販の賞状用紙に、文字と唐崎ジュニアの朱印だけを標準レイアウトで印刷します（用紙への位置合わせ設定は廃止しました）。文字列の中の {大会名} {種目} {区分} {順位} {氏名} {ふりがな} {所属} {日付} {主催者名} {本文} は、受賞者ごとに置き換わります。空になる項目（ふりがな未登録など）は印刷されません。</div>' +
+    '<label class="f">本文（{本文} の中身。同じ置換が使えます）</label><textarea id="cc-body" rows="3">' + esc(state.meta.certBody || CERT_BODY_DEFAULT) + '</textarea>'
     :
-    '<div class="sub" style="margin-top:8px">A4縦の専用用紙向け。横書きは、いただいた「賞状印刷」ツールに受賞データを渡して印刷します。「賞状を印刷」すると受賞者ごとのボタンが出るので、印刷したい人を選ぶと、その人の氏名・順位・本文などが入力済みのツールファイルが保存されます。保存したファイルを開いてそのまま印刷してください（開いたあとでもツール左上で別の受賞者に切り替えられます）。団体名は「大会情報」の主催者名、発行者は「大会情報」の代表者名（と下の役職）を使い、本文の先頭には種目と区分が自動で入ります。朱印は元のツールの仕様どおり付きません。</div>' +
+    '<div class="sub" style="margin-top:8px">A4縦の専用用紙向け。横書きは、いただいた「賞状印刷」ツールに受賞データを渡して印刷します。「賞状を印刷」すると受賞者ごとのボタンが出るので、印刷したい人を選ぶと、その人の賞状ページが開きます（開いたあとでもツール左上で別の受賞者に切り替えられます）。団体名は「大会情報」の主催者名、発行者は「大会情報」の代表者名（と下の役職）を使い、本文の先頭には種目と区分が自動で入ります。朱印は元のツールの仕様どおり付きません。</div>' +
     '<label class="f">本文（{本文} の中身。同じ置換が使えます）</label><textarea id="cc-body" rows="3">' + esc(state.meta.certBody || CERT_BODY_DEFAULT) + '</textarea>' +
     '<div class="grid3"><div><label class="f">全体の横ずれ（mm）</label><input type="number" step="0.5" id="cc-ox" value="' + CL.ox + '"></div>' +
     '<div><label class="f">全体の縦ずれ（mm）</label><input type="number" step="0.5" id="cc-oy" value="' + CL.oy + '"></div><div></div></div>' +
@@ -3787,27 +3762,27 @@ function vConfig(){
     '<button class="btn ghost" onclick="saveCertSettings(false);printCertSample()">サンプルで位置合わせ</button></div>' +
     '<div class="mini" style="margin-top:6px">サンプルには位置合わせ用ガイド（枠・中心線・項目の範囲）が付きます。本番の賞状にはガイドは印刷されません。</div></div>';
   var snaps = listSnapshots();
-  h += '<div class="card"><h3 style="margin-top:0">自動バックアップ（この端末内）</h3>' +
+  var trash = (state.trash || []).filter(function(t){ return Date.now() - t.ts < 30 * 864e5; });
+  h += '<div class="card"><h3 style="margin-top:0">データとバックアップ</h3>' +
+    '<h4 style="margin:4px 0 6px">自動バックアップ（この端末内）</h4>' +
     '<div class="sub">大きな操作の前と、結果が20件増えるごとに自動で保存します（最新8件）。消してしまったときはここから戻せます。</div>' +
     '<div style="margin:8px 0"><button class="btn ghost small" onclick="pushSnapshot(\'手動バックアップ\');render()">今すぐバックアップ</button></div>' +
     (snaps.length ? snaps.map(function(sn, i){
       var d = new Date(sn.ts);
       return '<div class="rankrow"><span>' + d.toLocaleDateString() + " " + d.toTimeString().slice(0,5) + '</span><span>' + esc(sn.label || "バックアップ") + '</span><span class="updown"><button style="width:auto;padding:0 12px;font-size:13px" onclick="restoreSnapshot(' + i + ')">復元</button></span></div>';
-    }).join("") : '<div class="sub">まだバックアップはありません</div>') + "</div>";
-  var trash = (state.trash || []).filter(function(t){ return Date.now() - t.ts < 30 * 864e5; });
-  if (trash.length){
-    h += '<div class="card"><h3 style="margin-top:0">削除した種目（30日以内は復元できます）</h3>' +
-      trash.map(function(t, i){
-        var d = new Date(t.ts);
-        return '<div class="rankrow"><span>' + esc(t.event.name) + '</span><span class="mini">' + d.toLocaleDateString() + " " + d.toTimeString().slice(0,5) + ' に削除</span><span class="updown"><button style="width:auto;padding:0 12px;font-size:13px" onclick="restoreEvent(' + i + ')">復元</button></span></div>';
-      }).join("") + "</div>";
-  }
-  h += '<div class="card"><h3 style="margin-top:0">ファイルのバックアップ</h3><div class="row">' +
+    }).join("") : '<div class="sub">まだバックアップはありません</div>') +
+    '<h4 style="margin:16px 0 6px">ファイル</h4><div class="row">' +
     '<button class="btn ghost" onclick="exportJson()">JSONを書き出し</button>' +
     '<label class="btn ghost" style="display:inline-flex;align-items:center">JSONを読み込み<input type="file" accept=".json" style="display:none" onchange="importJson(this)"></label></div>' +
     '<div class="sub" style="margin-top:10px">次の大会のひな形にするときは複製が便利です（種目と参加者を引き継ぎ、結果は空になります）。</div>' +
     '<div style="margin-top:8px"><button class="btn ghost" onclick="duplicateTournament()">大会を複製（結果なしで作り直す）</button></div>' +
-    '<div style="margin-top:14px"><button class="btn danger" onclick="resetAll()">大会データを全て消す</button></div></div>';
+    (trash.length ?
+      '<h4 style="margin:16px 0 6px">削除した種目（30日以内は復元できます）</h4>' +
+      trash.map(function(t, i){
+        var d = new Date(t.ts);
+        return '<div class="rankrow"><span>' + esc(t.event.name) + '</span><span class="mini">' + d.toLocaleDateString() + " " + d.toTimeString().slice(0,5) + ' に削除</span><span class="updown"><button style="width:auto;padding:0 12px;font-size:13px" onclick="restoreEvent(' + i + ')">復元</button></span></div>';
+      }).join("") : "") +
+    '<div style="margin-top:16px;border-top:1px solid var(--line);padding-top:12px"><button class="btn danger" onclick="resetAll()">大会データを全て消す</button></div></div>';
   return h;
 }
 function restoreEvent(i){
@@ -4146,17 +4121,9 @@ function saveCertSettings(rerender){
   var prev = certLayout();
   state.meta.cert = { ox: gv("cc-ox", prev.ox), oy: gv("cc-oy", prev.oy), scale: gv("cc-scale", prev.scale) || 100,
     guide: { t: gv("cc-g-t", prev.guide.t), b: gv("cc-g-b", prev.guide.b), l: gv("cc-g-l", prev.guide.l), r: gv("cc-g-r", prev.guide.r) } };
-  state.meta.certFormat = certFormat().map(function(it, i){
-    var o = Object.assign({}, it);
-    o.on = gc("cc-it-" + i + "-on", it.on !== false);
-    o.label = gs("cc-it-" + i + "-label", it.label || "");
-    o.kind = gs("cc-it-" + i + "-kind", it.kind || "text");
-    o.font = gs("cc-it-" + i + "-font", it.font || "kaisho");
-    o.nw = gc("cc-it-" + i + "-nw", !!it.nw);
-    var tx = document.getElementById("cc-it-" + i + "-text"); if (tx) o.text = tx.value;
-    ["r", "t", "s", "ls", "len", "lh"].forEach(function(k2){ o[k2] = gv("cc-it-" + i + "-" + k2, it[k2] || 0); });
-    return o;
-  });
+  // The vertical format's item layout is no longer editable (the A3
+  // pre-printed-paper settings were retired); any stored format is kept
+  // as-is and the renderer falls back to the standard layout.
   var b = document.getElementById("cc-body"); if (b) state.meta.certBody = b.value;
   state.meta.certStyle = gs("cc-style", certKind()) === "h" ? "h" : "v";
   var prevH = certH();
@@ -4170,16 +4137,6 @@ function saveCertSettings(rerender){
   };
   touchConfig();
   if (rerender) render();
-}
-function certItemAdd(){
-  saveCertSettings(false);
-  state.meta.certFormat.push({id: "u" + Date.now().toString(36), kind: "text", label: "項目", text: "", font: "kaisho", r: 150, t: 100, s: 8, ls: 1, len: 0, lh: 0, nw: false, on: true});
-  touchConfig(); render();
-}
-function certItemDel(i){
-  saveCertSettings(false);
-  state.meta.certFormat.splice(i, 1);
-  touchConfig(); render();
 }
 function kanjiNum(n){
   var d = ["〇", "一", "二", "三", "四", "五", "六", "七", "八", "九"];
