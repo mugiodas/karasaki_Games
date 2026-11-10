@@ -2576,6 +2576,212 @@ function ssRenderOfficial(rec) {
   html += '</div>';
   return html;
 }
+/* ---------- 滋賀県高体連様式スコアシート ---------- */
+// Layout and conventions follow the Shiga prefectural high-school
+// federation's referee sheet (R6 format): header fields, a summary band
+// (games won + per-game scores + the winner's name circled), three game
+// blocks on a uniform 36-column grid (name 3 + S/R 1 + 32 rally columns,
+// then a 36-column continuation segment), S/R marks, a "/" column when a
+// game enters extension, the final score pair circled, and the signature
+// footer with the form's legend. Rally data comes from ssBuildColumns, so
+// nothing about the rally history is invented: games without a rally
+// record show their final score pair only.
+var SG_SEG1 = 32, SG_COLS = 36;
+var SHIGA_PAPER_CSS = [
+".sg-paper{width:1020px;max-width:1020px;margin:0 auto;background:#fff;padding:26px 28px;border:1px solid #94a3b8;box-shadow:0 4px 6px rgba(0,0,0,.1);color:#000;font-family:'Hiragino Mincho ProN','Yu Mincho','YuMincho',serif;}",
+".sg-head{display:flex;gap:18px;align-items:flex-start;margin-bottom:14px;}",
+".sg-fields{flex:0 0 252px;}",
+".sg-fields .sg-f{display:flex;align-items:flex-end;margin-bottom:7px;font-size:12.5px;}",
+".sg-fields .sg-f .lb{flex:0 0 86px;letter-spacing:.12em;white-space:nowrap;}",
+".sg-fields .sg-f .vl{flex:1;border-bottom:1px solid #000;min-height:17px;padding:0 4px;font-family:sans-serif;font-size:12.5px;}",
+".sg-sum{flex:1;display:flex;gap:10px;align-items:stretch;padding-top:2px;}",
+".sg-pbox{flex:1.35;display:flex;border:1.8px solid #000;min-height:70px;}",
+".sg-rl{flex:0 0 25px;display:flex;align-items:center;justify-content:center;font-family:sans-serif;font-weight:700;}",
+".sg-rl.bd-r{border-right:1.8px solid #000;}.sg-rl.bd-l{border-left:1.8px solid #000;}",
+".sg-pname{flex:1;display:flex;flex-direction:column;justify-content:center;padding:4px 10px;gap:1px;}",
+".sg-pname .nm{font-size:14px;line-height:1.25;white-space:nowrap;}",
+".sg-pname .af{font-size:11.5px;white-space:nowrap;}",
+".sg-pname.win{border:2px solid #000;border-radius:50%;margin:3px;padding:3px 10px;}",
+".sg-mbox{flex:1.15;display:flex;border:1.8px solid #000;min-height:70px;}",
+".sg-gw{flex:0 0 32px;display:flex;align-items:center;justify-content:center;font-size:17px;font-family:sans-serif;font-weight:700;}",
+".sg-gsc{flex:1;display:flex;flex-direction:column;border-left:1.8px solid #000;border-right:1.8px solid #000;}",
+".sg-gsc div{flex:1;display:flex;align-items:center;justify-content:center;font-family:sans-serif;font-size:12.5px;white-space:nowrap;border-bottom:1px solid #000;}",
+".sg-gsc div:last-child{border-bottom:none;}",
+".sg-gsc .blank{color:#888;}",
+".sg-gridwrap{border:2px solid #000;margin-bottom:12px;}",
+"table.sg-grid{width:100%;border-collapse:collapse;table-layout:fixed;}",
+"table.sg-grid td{border-right:0.7pt solid #000;border-bottom:0.7pt solid #000;padding:0;text-align:center;vertical-align:middle;font-family:sans-serif;font-size:13px;height:30px;overflow:hidden;}",
+"table.sg-grid tr:last-child td{border-bottom:none;}",
+"table.sg-grid td:last-child{border-right:none;}",
+"table.sg-grid td.nm{text-align:left;padding:0 4px;font-family:'Hiragino Mincho ProN','Yu Mincho',serif;font-size:11.5px;white-space:nowrap;}",
+"table.sg-grid td.sr{font-weight:700;font-size:12px;}",
+"table.sg-grid td.gray{background:#e7e7e7;-webkit-print-color-adjust:exact;print-color-adjust:exact;}",
+"table.sg-grid td.slash{font-size:30px;font-weight:300;}",
+"table.sg-grid td.ovalcell{padding:1.5px;}",
+".sg-oval{border:1.8px solid #000;border-radius:50%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:700;font-size:13.5px;line-height:1.05;}",
+".sg-oval .os{font-size:11px;line-height:.9;}",
+".sg-dbl td{height:23px;font-size:12px;}",
+".sg-dbl td.nm{font-size:12.5px;}",
+".sg-foot{display:flex;gap:26px;margin-top:2px;font-size:13px;}",
+".sg-foot .sg-sig{display:flex;align-items:flex-end;}",
+".sg-foot .sg-sig .vl{flex:1;border-bottom:1px solid #000;min-height:18px;padding:0 6px;font-size:14px;}",
+".sg-legend{text-align:right;font-size:9.5px;margin-top:5px;font-family:sans-serif;color:#111;}",
+".sg-note{font-size:10.5px;font-family:sans-serif;color:#444;margin-top:8px;}",
+".sg-caption{font-family:sans-serif;font-size:10.5px;color:#111;margin:0 0 4px;}",
+"#ppBody .sheet table.sg-grid td{padding:0;border-bottom:0.7pt solid #000;background:#fff;}",
+"#ppBody .sheet table.sg-grid td.gray{background:#e7e7e7;}"
+].join("\n");
+var SHIGA_FILE_CSS = 'body{margin:0;background:#fff;font-family:sans-serif}@page{size:A4 landscape;margin:8mm}' + SHIGA_PAPER_CSS + '.sg-paper{border:none;box-shadow:none;padding:4px;width:auto;max-width:none}';
+function sgDateText(dstr){
+  var m = /(\d{4})-(\d{1,2})-(\d{1,2})/.exec(dstr || "");
+  if (!m) return dstr || "";
+  var wd = ["日","月","火","水","木","金","土"][new Date(+m[1], +m[2] - 1, +m[3]).getDay()];
+  return m[1] + "年" + (+m[2]) + "月" + (+m[3]) + "日（" + wd + "）";
+}
+function ssRenderShiga(rec, meta){
+  meta = meta || {};
+  var isD = rec.discipline === "doubles";
+  var pts = rec.targetPoints || 21;
+  var gamesEff = ssEffectiveGames(rec);
+  var eff = ssEffAff(rec);
+  var lw = 0, rw = 0, anyFinished = false;
+  gamesEff.forEach(function(g, gi){
+    var fin = g.isFinished === true || (g.isFinished === undefined && !!rec.isFinished && !!rec.gameScores[gi]);
+    if (!fin) return;
+    anyFinished = true;
+    if (g.teamLeftScore > g.teamRightScore) lw++; else if (g.teamRightScore > g.teamLeftScore) rw++;
+  });
+  var winnerSide = "";
+  if (rec.isFinished && rec.winnerName === rec.teamLeftName) winnerSide = "left";
+  if (rec.isFinished && rec.winnerName === rec.teamRightName) winnerSide = "right";
+  function pnameBox(side, rlPos){
+    var players = side === "left" ? (rec.teamLeftPlayers || []) : (rec.teamRightPlayers || []);
+    var names = players.length ? players.map(function(p){ return p.name; }) : [side === "left" ? rec.teamLeftName : rec.teamRightName];
+    var aff = side === "left" ? eff.left : eff.right;
+    var inner = names.map(function(n){ return '<div class="nm">' + esc(n || "") + '</div>'; }).join("") +
+      (aff ? '<div class="af">' + esc(aff) + '</div>' : "");
+    var box = '<div class="sg-pname' + (winnerSide === side ? " win" : "") + '">' + inner + '</div>';
+    var rl = '<div class="sg-rl ' + (rlPos === "l" ? "bd-r" : "bd-l") + '"></div>';
+    return '<div class="sg-pbox">' + (rlPos === "l" ? rl + box : box + rl) + '</div>';
+  }
+  var gsRows = "";
+  for (var gi2 = 0; gi2 < 3; gi2++){
+    var gs = rec.gameScores[gi2];
+    gsRows += gs ? '<div>' + gs.left + ' - ' + gs.right + '</div>' : '<div class="blank">―</div>';
+  }
+  var html = '<div class="sg-paper">';
+  html += '<div class="sg-head"><div class="sg-fields">' +
+    '<div class="sg-f"><span class="lb">大 会 名 称</span><span class="vl">' + esc(meta.tournamentName || rec.tournamentName || "") + '</span></div>' +
+    '<div class="sg-f"><span class="lb">試 合 番 号</span><span class="vl">' + esc(meta.matchNumber || "") + '</span></div>' +
+    '<div class="sg-f"><span class="lb">コート番号</span><span class="vl">' + esc(meta.courtNumber || "") + '</span></div>' +
+    '<div class="sg-f"><span class="lb">日　　付</span><span class="vl">' + esc(sgDateText(rec.date)) + '</span></div>' +
+    '<div class="sg-f"><span class="lb">予定開始時刻</span><span class="vl">' + esc(meta.startPlanned || "") + '</span></div></div>' +
+    '<div class="sg-sum">' + pnameBox("left", "l") +
+    '<div class="sg-mbox"><div class="sg-gw">' + (anyFinished ? lw : "") + '</div><div class="sg-gsc">' + gsRows + '</div><div class="sg-gw">' + (anyFinished ? rw : "") + '</div></div>' +
+    pnameBox("right", "r") + '</div>' +
+    '<div class="sg-fields">' +
+    '<div class="sg-f"><span class="lb">開 始 時 刻</span><span class="vl"></span></div>' +
+    '<div class="sg-f"><span class="lb">終 了 時 刻</span><span class="vl"></span></div>' +
+    '<div class="sg-f"><span class="lb">試 合 時 間</span><span class="vl"></span></div>' +
+    '<div class="sg-f"><span class="lb">シャトル数</span><span class="vl"></span></div>' +
+    '<div class="sg-f"><span class="lb">主　　審</span><span class="vl">' + esc(meta.umpire || "") + '</span></div>' +
+    '<div class="sg-f"><span class="lb">サービスジャッジ</span><span class="vl"></span></div></div></div>';
+
+  function gameHTML(game){
+    var hasRallies = !!(game && game.rallies && game.rallies.length);
+    var fin = !!game && (game.isFinished === true || (game.isFinished === undefined && !!rec.isFinished));
+    var cols = game ? ssBuildColumns(game, rec.discipline, pts).columns : [];
+    var extended = cols.some(function(c){ return Object.keys(c).some(function(k){ return c[k] && c[k].isSlash; }); });
+    if (!hasRallies && fin && game){
+      extended = Math.min(game.teamLeftScore, game.teamRightScore) >= pts - 1 && Math.max(game.teamLeftScore, game.teamRightScore) >= pts;
+    }
+    var finalCol = fin ? (hasRallies ? cols.length - 1 : 0) : -1;
+    var lp = rec.teamLeftPlayers || [], rp = rec.teamRightPlayers || [];
+    function pName(pid){
+      var all = lp.concat(rp);
+      for (var i = 0; i < all.length; i++) if (all[i].id === pid) return all[i].name || "";
+      return "";
+    }
+    var segRows = isD ? [["p_l1","p_l2","p_r1","p_r2"], ["p_l1","p_r1"]] : [["p_l1","p_r1"], ["p_l1","p_r1"]];
+    var grayRow = isD ? [2, 1] : [1, 1];
+    var ovalRow = isD ? [1, 0] : [0, 0];
+    var initSrv = game ? game.initialServerTeam : null;
+    var out = '<div class="sg-gridwrap"><table class="sg-grid' + (isD ? " sg-dbl" : "") + '">';
+    for (var seg = 0; seg < 2; seg++){
+      var rows = segRows[seg];
+      var colStart = seg === 0 ? 0 : SG_SEG1;
+      var rallyCells = seg === 0 ? SG_SEG1 : SG_COLS; // seg2: the name+S zone becomes rally cells too
+      // cell descriptors [row][localCol] over the full 36-column grid
+      var cells = rows.map(function(){ return new Array(SG_COLS).fill(null); });
+      rows.forEach(function(pid, r){
+        if (seg === 0){
+          cells[r][0] = { name: pName(pid), colspan: 3, cls: "nm" };
+          cells[r][1] = { skip: true };
+          cells[r][2] = { skip: true };
+          var sr = "";
+          if (initSrv && (pid === "p_l1" || pid === "p_r1")){
+            var isSrv = (initSrv === "left" && pid === "p_l1") || (initSrv === "right" && pid === "p_r1");
+            sr = isSrv ? "S" : (isD ? "R" : "");
+          }
+          cells[r][3] = { text: sr, cls: "sr" };
+        }
+      });
+      for (var lc = 0; lc < rallyCells; lc++){
+        var gc = colStart + lc;
+        var tc = seg === 0 ? (SG_COLS - SG_SEG1) + lc : lc;
+        if (tc >= SG_COLS) break;
+        var col = cols[gc];
+        if (fin && gc === finalCol){
+          var orow = ovalRow[seg];
+          if (orow < rows.length){
+            var pair = '<div>' + (game ? game.teamLeftScore : "") + '</div>' + (extended ? '<div class="os">/</div>' : "") + '<div>' + (game ? game.teamRightScore : "") + '</div>';
+            cells[orow][tc] = { oval: pair, rowspan: 2, cls: "ovalcell" };
+            if (cells[orow + 1]) cells[orow + 1][tc] = { skip: true };
+            rows.forEach(function(pid, r){ if (r !== orow && r !== orow + 1) cells[r][tc] = { text: "" }; });
+          }
+          continue;
+        }
+        if (col && Object.keys(col).some(function(k){ return col[k] && col[k].isSlash; })){
+          cells[0][tc] = { text: "/", cls: "slash", rowspan: rows.length };
+          for (var r2 = 1; r2 < rows.length; r2++) cells[r2][tc] = { skip: true };
+          continue;
+        }
+        rows.forEach(function(pid, r){
+          var e = col ? col[pid] : null;
+          var txt = e ? e.text : "";
+          if (gc === 0 && hasRallies && (pid === "p_l1" || pid === "p_r1")) txt = "0";
+          cells[r][tc] = { text: txt };
+        });
+      }
+      rows.forEach(function(pid, r){
+        out += '<tr>';
+        for (var c = 0; c < SG_COLS; c++){
+          var d = cells[r][c];
+          if (!d){ out += '<td class="' + (r === grayRow[seg] ? "gray" : "") + '"></td>'; continue; }
+          if (d.skip) continue;
+          var cls = (d.cls || "") + (r === grayRow[seg] ? " gray" : "");
+          var attrs = (d.colspan ? ' colspan="' + d.colspan + '"' : "") + (d.rowspan ? ' rowspan="' + d.rowspan + '"' : "");
+          if (d.oval) out += '<td class="' + cls + '"' + attrs + '><div class="sg-oval">' + d.oval + '</div></td>';
+          else if (d.name !== undefined) out += '<td class="' + cls + '"' + attrs + '>' + esc(d.name) + '</td>';
+          else out += '<td class="' + cls + '"' + attrs + '>' + esc(d.text || "") + '</td>';
+        }
+        out += '</tr>';
+      });
+    }
+    return out + '</table></div>';
+  }
+  var nBlocks = Math.max(3, Math.min(5, gamesEff.length));
+  for (var b = 0; b < nBlocks; b++) html += gameHTML(gamesEff[b] || null);
+  html += '<div class="sg-foot">' +
+    '<div class="sg-sig" style="flex:1.25"><span>勝者：</span><span class="vl">' + esc(rec.isFinished ? rec.winnerName || "" : "") + '</span></div>' +
+    '<div class="sg-sig" style="flex:1"><span>主審署名：</span><span class="vl"></span></div>' +
+    '<div class="sg-sig" style="flex:1"><span>レフェリー署名：</span><span class="vl"></span></div></div>' +
+    '<div class="sg-legend">(凡例) W:警告　F:フォルト　D:失格　S:中断　I:ケガ　キケン:棄権　R:レフェリー　G:オーバールール　C:サービスコート訂正</div>';
+  var anyNoRally = gamesEff.some(function(g){ return !(g.rallies && g.rallies.length); }) && (rec.gameScores || []).length > 0;
+  if (anyNoRally) html += '<div class="sg-note">※ラリー経過が記録されていないゲームは、最終スコアのみを表示しています（経過は推測生成していません）。</div>';
+  return html + '</div>';
+}
+
 /* ---------- 簡易票 ---------- */
 
 // ===== official score sheet (協会準拠) — generator transplanted from the live-score app =====
@@ -2585,7 +2791,7 @@ var OFFICIAL_FILE_CSS = 'body{margin:0;background:#fff;font-family:sans-serif}@p
 function ssEnsureStyle(){
   if (document.getElementById("ssStyle")) return;
   var st = document.createElement("style"); st.id = "ssStyle";
-  st.textContent = SS_PAPER_CSS;
+  st.textContent = SS_PAPER_CSS + "\n" + SHIGA_PAPER_CSS;
   document.head.appendChild(st);
 }
 function ssRecordForMatch(ev, m, rallyGames, initServer, matchFinished){
@@ -2593,6 +2799,19 @@ function ssRecordForMatch(ev, m, rallyGames, initServer, matchFinished){
   var pl = matchPlayers(ev, m, all);
   var dec = refDec(ev, m);
   var pA = { id: "p_l1", name: playerName(ev, pl.p1) }, pB = { id: "p_r1", name: playerName(ev, pl.p2) };
+  // A participant whose name joins two players with "・" is a doubles pair:
+  // split it so the score sheet can give each player their own row.
+  function splitPairPlayers(p, side){
+    var parts = String(p.name || "").split("・").map(function(s){ return s.trim(); }).filter(Boolean);
+    if (parts.length < 2) return [p];
+    return parts.slice(0, 2).map(function(nm, i){ return { id: "p_" + side + (i + 1), name: nm }; });
+  }
+  var leftPlayers = splitPairPlayers(pA, "l"), rightPlayers = splitPairPlayers(pB, "r");
+  var isDoubles = leftPlayers.length > 1 || rightPlayers.length > 1;
+  if (isDoubles){
+    if (leftPlayers.length < 2) leftPlayers = [leftPlayers[0], { id: "p_l2", name: "" }];
+    if (rightPlayers.length < 2) rightPlayers = [rightPlayers[0], { id: "p_r2", name: "" }];
+  }
   function synth(winners, initIdx){
     var a = 0, b = 0, server = initIdx;
     return winners.map(function(w, i){
@@ -2616,7 +2835,7 @@ function ssRecordForMatch(ev, m, rallyGames, initServer, matchFinished){
       initialServerPlayerId: nextInit === 0 ? "p_l1" : "p_r1", initialServerPlayerName: nextInit === 0 ? pA.name : pB.name,
       initialReceiverPlayerId: nextInit === 0 ? "p_r1" : "p_l1", initialReceiverPlayerName: nextInit === 0 ? pB.name : pA.name,
       initialLeftCourtSide: "left", initialRightCourtSide: "right",
-      teamLeftPlayers: [pA], teamRightPlayers: [pB], rallies: synth(winners, nextInit) });
+      teamLeftPlayers: leftPlayers, teamRightPlayers: rightPlayers, rallies: synth(winners, nextInit) });
     if (decided) nextInit = c[0] > c[1] ? 0 : 1;
   });
   var r = state.results[m.id] || {};
@@ -2624,9 +2843,9 @@ function ssRecordForMatch(ev, m, rallyGames, initServer, matchFinished){
   if (matchFinished && r.winner) winnerName = playerName(ev, r.winner);
   else { var gw = refGamesWon({ games: rallyGames }, dec); if (gw[0] || gw[1]) winnerName = (gw[0] > gw[1] ? pA.name : pB.name) + " (リード)"; }
   return { id: m.id, date: dayDate(matchDay(ev, m)) || state.meta.date || "", timestamp: Date.now(),
-    tournamentName: state.meta.name || "大会", discipline: "singles", ruleName: dec.label,
+    tournamentName: state.meta.name || "大会", discipline: isDoubles ? "doubles" : "singles", ruleName: dec.label,
     targetPoints: dec.pts, maxPoints: dec.ext,
-    teamLeftName: pA.name, teamRightName: pB.name, teamLeftPlayers: [pA], teamRightPlayers: [pB],
+    teamLeftName: pA.name, teamRightName: pB.name, teamLeftPlayers: leftPlayers, teamRightPlayers: rightPlayers,
     teamLeftAffiliation: playerAff(ev, pl.p1), teamRightAffiliation: playerAff(ev, pl.p2),
     gameScores: games.map(function(g){ return { left: g.teamLeftScore, right: g.teamRightScore }; }),
     winnerName: winnerName, isFinished: !!matchFinished, games: games };
@@ -2641,12 +2860,14 @@ function presentOfficialSheet(ev, m, draft){
     rec.gameScores = (parseScore(r.score) || []).map(function(g){ return { left: g[0], right: g[1] }; });
   }
   var sx = schedMap()[m.id];
+  var refPid = refereeFor(ev, m, allMatches(ev));
   SS.meta = { tournamentName: state.meta.name || "", venue: state.meta.venue || "",
     courtNumber: sx ? String(sx.court) : "", matchNumber: m.id.split("-").slice(-2).join("-"),
+    startPlanned: sx ? sx.time : "", umpire: refPid ? playerName(ev, refPid) : "",
     shuttles: 2, remarks: r.note === "wo" ? "キケン（試合棄権）" : (r.note === "retire" ? "途中棄権" : ""), affL: "", affR: "", nameA: "", nameB: "" };
   ssEnsureStyle();
-  var html = '<div style="overflow-x:auto">' + ssRenderOfficial(rec) + '</div>';
-  showPrintPreview(html, "公式スコアシート — " + ev.name, "official-sheet-" + m.id + ".html", OFFICIAL_FILE_CSS, "");
+  var html = '<div style="overflow-x:auto">' + ssRenderShiga(rec, SS.meta) + '</div>';
+  showPrintPreview(html, "公式スコアシート — " + ev.name, "official-sheet-" + m.id + ".html", SHIGA_FILE_CSS, "");
 }
 function printOfficialSheet(mid){
   var f = findMatchGlobal(mid); if (!f) return;
@@ -3672,38 +3893,39 @@ function sheetHTML(ev, m, all, smap){
       '<table style="margin-top:8pt"><tr><th>試合</th><th>' + esc(playerName(ev, pl.p1)) + '</th><th>' + esc(playerName(ev, pl.p2)) + '</th><th>スコア</th></tr>' + subRows + '</table>' +
       '<table style="margin-top:10pt"><tr><th style="width:90pt">勝ちチーム</th><td style="width:180pt">' + (rt.winner ? esc(playerName(ev, rt.winner)) : "") + '</td><th style="width:90pt">開始 / 終了</th><td>　:　　〜　:　</td></tr></table></section>';
   }
+  // Blank referee sheet: the same Shiga federation form as the official
+  // filled sheet, with the header and player names pre-printed.
   var r = state.results[m.id] || {};
-  var dec = decodePoint(r.point || phasePointCode(ev, m) || ev.pointCode || state.meta.pointDefault || "21330");
   var sx = smap[m.id];
-  var kind = m.kind === "league" ? m.blockName + "ブロック" : (m.thirdPlace ? "3位決定戦" : (m.tier === "lower" ? "下位" : "上位") + "トーナメント " + m.round + "回戦");
-  function prow(pid, label){
-    if (!pid) return '<tr><td style="width:26pt">' + label + '</td><td class="pname">（未定）</td><td></td></tr>';
-    if (pid === "BYE") return '<tr><td>' + label + '</td><td class="pname">不戦勝（BYE）</td><td></td></tr>';
-    var p = ev.participants.find(function(x){ return x.id === pid; });
-    return '<tr><td>' + label + '</td><td><span class="pname">' + esc(playerName(ev, pid)) + '</span>' +
-      (p && p.kana ? ' <span class="kana">' + esc(p.kana) + '</span>' : "") + '</td><td>' + esc(p ? (p.aff || "") : "") + '</td></tr>';
+  var dec = decodePoint(r.point || phasePointCode(ev, m) || ev.pointCode || state.meta.pointDefault || "21330");
+  function mkPlayers(pid, side){
+    if (!pid) return [{ id: "p_" + side + "1", name: "（未定）" }];
+    if (pid === "BYE") return [{ id: "p_" + side + "1", name: "不戦勝" }];
+    var parts = playerName(ev, pid).split("・").map(function(s){ return s.trim(); }).filter(Boolean);
+    if (parts.length < 2) return [{ id: "p_" + side + "1", name: playerName(ev, pid) }];
+    return parts.slice(0, 2).map(function(s, i){ return { id: "p_" + side + (i + 1), name: s }; });
   }
-  var gamesHtml = "";
-  for (var g = 1; g <= Math.min(3, dec.games); g++){
-    var cells = "";
-    for (var pt = 1; pt <= dec.ext; pt++) cells += "<td>" + pt + "</td>";
-    gamesHtml += '<div style="margin-top:8pt"><strong>第' + g + 'ゲーム</strong>（得点経過を記入）</div>' +
-      '<table class="grid"><tr><th></th>' + cells + '<th style="min-width:26pt">最終</th></tr>' +
-      '<tr><th>A</th>' + cells.replace(/<td>/g, "<td>") + '<td></td></tr>' +
-      '<tr><th>B</th>' + cells + '<td></td></tr></table>';
+  var lpB = mkPlayers(pl.p1, "l"), rpB = mkPlayers(pl.p2, "r");
+  var isDB = lpB.length > 1 || rpB.length > 1;
+  if (isDB){
+    while (lpB.length < 2) lpB.push({ id: "p_l" + (lpB.length + 1), name: "" });
+    while (rpB.length < 2) rpB.push({ id: "p_r" + (rpB.length + 1), name: "" });
   }
-  var ref = refereeFor(ev, m, all);
+  var blankRec = { id: m.id, date: (sx && sx.date) || state.meta.date || "", discipline: isDB ? "doubles" : "singles",
+    targetPoints: dec.pts, maxPoints: dec.ext, tournamentName: state.meta.name || "",
+    teamLeftName: pl.p1 ? playerName(ev, pl.p1) : "", teamRightName: pl.p2 ? playerName(ev, pl.p2) : "",
+    teamLeftPlayers: lpB, teamRightPlayers: rpB,
+    teamLeftAffiliation: pl.p1 && pl.p1 !== "BYE" ? playerAff(ev, pl.p1) : "", teamRightAffiliation: pl.p2 && pl.p2 !== "BYE" ? playerAff(ev, pl.p2) : "",
+    gameScores: [], winnerName: "", isFinished: false, games: [] };
+  var refB = refereeFor(ev, m, all);
+  var metaB = { tournamentName: state.meta.name || "", courtNumber: sx ? String(sx.court) : "",
+    matchNumber: m.id.split("-").slice(-2).join("-"), startPlanned: sx ? sx.time : "",
+    umpire: refB ? playerName(ev, refB) : "" };
+  ssEnsureStyle();
+  var kind = m.kind === "league" ? m.blockName + "ブロック" : (m.challenge ? "チャレンジ R" + m.round : (m.thirdPlace ? "3位決定戦" : (m.tier === "lower" ? "下位" : "上位") + "トーナメント " + m.round + "回戦"));
   return '<section class="sheet">' +
-    '<h2>' + esc(state.meta.name || "大会") + '　審判用紙</h2>' +
-    '<table><tr><th style="width:70pt">種目</th><td>' + esc(ev.name) + '</td><th style="width:70pt">区分</th><td>' + esc(kind) + '</td><th style="width:70pt">試合番号</th><td>' + esc(m.id.split("-").slice(-2).join("-")) + '</td></tr>' +
-    '<tr><th>日時</th><td>' + esc((sx && sx.date) || state.meta.date || "") + (sx ? " " + esc(sx.time) : "") + '</td><th>コート</th><td>' + (sx ? sx.court : "") + '</td><th>ポイント</th><td>' + esc(dec.label) + '</td></tr></table>' +
-    '<table style="margin-top:8pt"><tr><th style="width:26pt"></th><th>選手</th><th style="width:130pt">所属</th></tr>' + prow(pl.p1, "A") + prow(pl.p2, "B") + '</table>' +
-    gamesHtml +
-    '<table style="margin-top:10pt"><tr><th style="width:90pt">勝者</th><td style="width:180pt">' + (r.winner ? esc(playerName(ev, r.winner)) : "") + '</td><th style="width:90pt">スコア</th><td>' + esc(r.score || "") + '</td></tr>' +
-    '<tr><th>審判</th><td>' + (ref ? esc(playerName(ev, ref)) : "") + '</td><th>開始 / 終了</th><td>　:　　〜　:　</td></tr>' +
-    '<tr><th>勝者サイン</th><td style="height:26pt"></td><th>審判サイン</th><td></td></tr></table>' +
-    (r.note ? '<div style="margin-top:6pt">備考: ' + (r.note === "wo" ? "試合棄権" : "途中棄権") + '</div>' : "") +
-    '</section>';
+    '<div class="sg-caption">' + esc(state.meta.name || "大会") + '　審判用紙（滋賀県高体連様式）　' + esc(ev.name) + '　' + esc(kind) + (r.note ? '　備考: ' + (r.note === "wo" ? "試合棄権" : "途中棄権") : "") + '</div>' +
+    '<div style="overflow-x:auto">' + ssRenderShiga(blankRec, metaB) + '</div></section>';
 }
 function printSheets(evId, mode){
   var ev = evById(evId); if (!ev) return;
@@ -3716,7 +3938,7 @@ function printSheets(evId, mode){
   if (!list.length){ alert(mode === "ready" ? "対戦が確定して未入力の試合がありません" : "試合がありません"); return; }
   var smap = schedMap();
   showPrintPreview(list.map(function(m){ return sheetHTML(ev, m, all, smap); }).join(""),
-    "審判用紙 — " + ev.name + (mode === "ready" ? "（確定分）" : "（全試合）"), "scoresheet-" + ev.id + ".html");
+    "審判用紙 — " + ev.name + (mode === "ready" ? "（確定分）" : "（全試合）"), "scoresheet-" + ev.id + ".html", ev.teamComp ? "" : SHIGA_FILE_CSS, "");
 }
 var _ppHTML = "", _ppFile = "print.html", _ppCSS = "", _ppHead = "", _ppRaw = "";
 function showPrintPreview(html, title, fname, css, head){
@@ -3763,7 +3985,7 @@ function printOneSheet(mid){
     var ev = state.events[i];
     var all = allMatches(ev);
     var m = all.find(function(x){ return x.id === mid; });
-    if (m){ showPrintPreview(sheetHTML(ev, m, all, schedMap()), "審判用紙 — " + mid, "scoresheet-" + mid + ".html"); return; }
+    if (m){ showPrintPreview(sheetHTML(ev, m, all, schedMap()), "審判用紙 — " + mid, "scoresheet-" + mid + ".html", ev.teamComp ? "" : SHIGA_FILE_CSS, ""); return; }
   }
 }
 // ===CHUNK===
