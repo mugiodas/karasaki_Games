@@ -554,6 +554,24 @@ button.side:active .plus-badge{transform:scale(.93);}
   .controls .btn{min-height:50px;}
 }
 
+
+/* ---------- スタンプ ---------- */
+.stampbar{display:flex; gap:6px;}
+.stampbar button{flex:1; min-height:56px; font-size:29px; line-height:1; border-radius:14px;
+  border:1px solid var(--line); background:rgba(255,255,255,.05); cursor:pointer;
+  transition:transform .12s ease;}
+.stampbar button:active{transform:scale(.9);}
+#float-layer{position:fixed; inset:0; pointer-events:none; overflow:hidden; z-index:60;}
+.float-stamp{position:absolute; bottom:10vh; font-size:40px; opacity:0;
+  filter:drop-shadow(0 4px 10px rgba(0,0,0,.35)); animation:stampRise 2.8s ease-out forwards;}
+.float-stamp.mine{font-size:47px;}
+@keyframes stampRise{
+  0%{transform:translate(0,24px) scale(.6); opacity:0;}
+  12%{opacity:1; transform:translate(var(--sway,0),-4vh) scale(1.1);}
+  30%{transform:translate(calc(var(--sway,0) * -0.6),-15vh) scale(1);}
+  100%{transform:translate(var(--sway,0),-48vh) scale(1); opacity:0;}
+}
+
 /* ---------- ロビー圧縮 ---------- */
 #view-lobby .card{padding:12px 14px; margin-bottom:10px;}
 #view-lobby .card h2{margin:0 0 8px;}
@@ -794,6 +812,19 @@ button.side:active .plus-badge{transform:scale(.93);}
   </section>
 
   <section class="card">
+    <h2>気持ちを送る</h2>
+    <div class="stampbar" id="v-stamps">
+      <button type="button" data-e="👍" aria-label="グッド">👍</button>
+      <button type="button" data-e="👏" aria-label="拍手">👏</button>
+      <button type="button" data-e="❤️" aria-label="応援">❤️</button>
+      <button type="button" data-e="🔥" aria-label="熱い">🔥</button>
+      <button type="button" data-e="😮" aria-label="おどろき">😮</button>
+      <button type="button" data-e="😢" aria-label="涙">😢</button>
+    </div>
+    <p class="small" style="margin-bottom:0;">タップすると、見ているみんなと会場の操作画面に流れます。名前は出ません。</p>
+  </section>
+
+  <section class="card">
     <h2>スコアシート</h2>
     <p class="small" style="margin-top:0;">この試合の公式記録用スコアシートが見られます（印刷・PDF保存もできます）。</p>
     <div class="btnrow" style="margin-top:0;"><button class="btn" id="v-sheet">スコアシートを見る</button></div>
@@ -850,6 +881,7 @@ button.side:active .plus-badge{transform:scale(.93);}
   </div>
 </div>
 
+<div id="float-layer" aria-hidden="true"></div>
 <div id="toast"></div>
 
 <div class="modal-bg" id="modal-bg">
@@ -1044,7 +1076,11 @@ var Sync = {
     /* BroadcastChannel fallback (same device tabs) */
     try {
       this.bc = new BroadcastChannel("kzscore-" + opts.room);
-      this.bc.onmessage = function(ev){ self.receive(ev.data, "bc"); };
+      this.bc.onmessage = function(ev){
+        var d = ev.data;
+        if (d && d.kind === "stamp"){ Stamps.receive(d, "bc"); return; }
+        self.receive(d, "bc");
+      };
     } catch(e){ this.bc = null; }
     this.setStatus("mid", "接続中…");
     loadScriptSequential([
@@ -1086,12 +1122,17 @@ var Sync = {
       client.subscribe(self.topic, { qos:1 }, function(err){
         if (!err && self.role === "keeper" && self._pendingState) self.publish(self._pendingState);
       });
+      client.subscribe(self.topic + "/stamp", { qos:0 }, function(){});
     });
     client.on("reconnect", function(){ self.connected=false; self.setStatus("mid","再接続中…"); });
     client.on("offline", function(){ self.connected=false; self.setStatus("mid","再接続中…"); });
     client.on("error", function(){ self.setStatus("mid","再接続中…"); });
     client.on("message", function(topic, buf){
-      try { self.receive(JSON.parse(buf.toString()), "mqtt"); } catch(e){}
+      try {
+        var data = JSON.parse(buf.toString());
+        if (data && data.kind === "stamp"){ Stamps.receive(data, "mqtt"); return; }
+        self.receive(data, "mqtt");
+      } catch(e){}
     });
   },
   publish: function(state){
@@ -1118,6 +1159,50 @@ var Sync = {
       self.lastSeq = payload.seq;
       if (self.onState) self.onState(sanitizeState(payload.state), via);
     });
+  }
+};
+
+/* ---------------- stamps (viewer reactions) ---------------- */
+var STAMP_SET = ["👍","👏","❤️","🔥","😮","😢"];
+var Stamps = {
+  seen: {}, lastSend: 0,
+  send: function(emoji){
+    if (STAMP_SET.indexOf(emoji) < 0) return;
+    var now = Date.now();
+    if (now - this.lastSend < 700) return; /* 連打防止 */
+    this.lastSend = now;
+    var msg = { kind:"stamp", e:emoji, n:randStr(10), t:now, v:Sync.verifyHash };
+    this.markSeen(msg.n);
+    this.show(emoji, true);
+    if (Sync.bc){ try { Sync.bc.postMessage(msg); } catch(e){} }
+    if (Sync.client && Sync.connected){
+      try { Sync.client.publish(Sync.topic + "/stamp", JSON.stringify(msg), { retain:false, qos:0 }); } catch(e){}
+    }
+  },
+  receive: function(msg, via){
+    if (!msg || msg.kind !== "stamp") return;
+    if (STAMP_SET.indexOf(msg.e) < 0) return;
+    if (msg.v !== Sync.verifyHash) return; /* この試合のリンクを持つ人だけ */
+    if (!msg.n || this.seen[msg.n]) return;
+    this.markSeen(msg.n);
+    if (Date.now() - (msg.t || 0) > 15000) return; /* 古いスタンプは流さない */
+    this.show(msg.e, false);
+  },
+  markSeen: function(n){
+    this.seen[n] = 1;
+    var ks = Object.keys(this.seen);
+    if (ks.length > 200) delete this.seen[ks[0]];
+  },
+  show: function(emoji, mine){
+    var layer = $("float-layer"); if (!layer) return;
+    if (layer.childElementCount > 24) return;
+    var el = document.createElement("div");
+    el.className = "float-stamp" + (mine ? " mine" : "");
+    el.textContent = emoji;
+    el.style.left = (6 + Math.random() * 80) + "%";
+    el.style.setProperty("--sway", Math.round(Math.random() * 36 - 18) + "px");
+    layer.appendChild(el);
+    setTimeout(function(){ if (el.parentNode) el.parentNode.removeChild(el); }, 3000);
   }
 };
 
@@ -1438,6 +1523,9 @@ function initViewer(room, vhash){
     }
   });
   startUpdatedTicker("v", function(){ return V.state ? V.state.updatedAt : 0; });
+  document.querySelectorAll("#v-stamps button").forEach(function(b){
+    b.onclick = function(){ Stamps.send(b.getAttribute("data-e")); };
+  });
   $("v-to-lobby").onclick = function(){ location.hash = ""; };
   requestWakeLock();
   document.addEventListener("visibilitychange", function(){
