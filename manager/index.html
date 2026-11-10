@@ -1048,7 +1048,7 @@ function defaultState(){
 }
 function normalizeState(st){
   if (!st) return st;
-  st.live = st.live || {}; st.trash = st.trash || [];
+  st.live = st.live || {}; st.liveCourt = st.liveCourt || {}; st.trash = st.trash || [];
   st.meta = st.meta || {}; st.meta.detail = "full"; // score entry is always required
   if (st.configTs == null) st.configTs = 0;
   return st;
@@ -1094,6 +1094,7 @@ function setResult(mid, rec, isUndo){
   else delete state.results[mid];
   if (typeof _refDrafts !== "undefined" && _refDrafts[mid]){ delete _refDrafts[mid]; refSaveDrafts(); }
   if (state.live) delete state.live[mid];
+  if (state.liveCourt) delete state.liveCourt[mid];
   sync.lastEdit = Date.now(); invalidateCaches(); saveState(); publishState(); render();
   if (!isUndo) showUndoToast();
   var n = Object.keys(state.results).length;
@@ -1652,7 +1653,7 @@ function connectBroker(idx){
 }
 var _pubTimer = null;
 function publishState(){
-  var payload = {type:"state", from: CLIENT_ID, configTs: state.configTs||0, meta: state.meta, events: state.events, results: state.results, live: state.live||{}, trash: state.trash||[]};
+  var payload = {type:"state", from: CLIENT_ID, configTs: state.configTs||0, meta: state.meta, events: state.events, results: state.results, live: state.live||{}, liveCourt: state.liveCourt||{}, trash: state.trash||[]};
   if (sync.bc) try{ sync.bc.postMessage(payload); }catch(e){}
   if (_pubTimer) clearTimeout(_pubTimer);
   _pubTimer = setTimeout(function(){ mqttSendState(payload); }, 600);
@@ -1754,7 +1755,7 @@ function receiveState(payload, local){
   });
   // config: newer configTs wins
   if ((payload.configTs||0) > (state.configTs||0) && Date.now() - sync.lastEdit > 2500){
-    state.meta = payload.meta; state.events = payload.events; state.live = payload.live || {}; state.trash = payload.trash || []; state.configTs = payload.configTs; changed = true;
+    state.meta = payload.meta; state.events = payload.events; state.live = payload.live || {}; state.liveCourt = payload.liveCourt || {}; state.trash = payload.trash || []; state.configTs = payload.configTs; changed = true;
   }
   if (changed){ invalidateCaches(); saveState(); render(); }
 }
@@ -1831,8 +1832,8 @@ function teamCard(ev, m, showMeta){
   if (showMeta !== false){
     meta = '<div class="meta">' + kind + '<span>' + esc(m.id.split("-").slice(-2).join("-")) + '</span>' +
       (ref ? '<span class="chip gray">審判: ' + esc(playerName(ev, ref)) + '</span>' : "") +
-      (!r.winner && state.live && state.live[m.id] ? '<span class="chip" style="background:rgba(221,136,0,.1);color:#a86400;border-color:#dd8800">● 試合中</span>' : "") +
-      (!r.winner && !(state.live && state.live[m.id]) && pl.p1 && pl.p2 && pl.p1 !== "BYE" && pl.p2 !== "BYE" ? '<button class="linkbtn" onclick="startMatch(\'' + m.id + '\')">▶ 開始</button>' : "") +
+      (!r.winner && state.live && state.live[m.id] ? '<span class="chip" style="background:rgba(221,136,0,.1);color:#a86400;border-color:#dd8800">● 試合中</span><button class="linkbtn" onclick="cancelMatch(\'' + m.id + '\')">開始取消</button>' : "") +
+      (!r.winner && !(state.live && state.live[m.id]) && pl.p1 && pl.p2 && pl.p1 !== "BYE" && pl.p2 !== "BYE" ? '<button class="linkbtn" onclick="pickCourtAndStart(\'' + m.id + '\')">▶ 開始</button>' : "") +
       (r.winner ? '<button class="linkbtn" onclick="clearResult(\'' + m.id + '\')">取り消し</button>' : "") +
       '<button class="linkbtn" onclick="openScoreModal(\'' + ev.id + "','" + m.id + '\')">オーダー/スコア</button></div>';
   }
@@ -1882,8 +1883,8 @@ function matchCard(ev, m, showMeta){
       (r && r.point ? '<span class="chip gray">' + esc(decodePoint(r.point).label) + '</span>' : "") +
       (r && r.ts ? '<span>' + new Date(r.ts).toTimeString().slice(0,5) + ' 入力</span>' : "") +
       (winner ? '<button class="linkbtn" onclick="clearResult(\'' + m.id + '\')">取り消し</button>' : "") +
-      (!winner && state.live && state.live[m.id] ? '<span class="chip" style="background:rgba(221,136,0,.1);color:#a86400;border-color:#dd8800">● 試合中 ' + Math.max(0, Math.round((Date.now() - state.live[m.id]) / 60000)) + '分</span>' : "") +
-      (!winner && !(state.live && state.live[m.id]) && pl.p1 && pl.p2 && pl.p1 !== "BYE" && pl.p2 !== "BYE" ? '<button class="linkbtn" onclick="startMatch(\'' + m.id + '\')">▶ 開始</button>' : "") +
+      (!winner && state.live && state.live[m.id] ? '<span class="chip" style="background:rgba(221,136,0,.1);color:#a86400;border-color:#dd8800">● 試合中 ' + Math.max(0, Math.round((Date.now() - state.live[m.id]) / 60000)) + '分</span><button class="linkbtn" onclick="cancelMatch(\'' + m.id + '\')">開始取消</button>' : "") +
+      (!winner && !(state.live && state.live[m.id]) && pl.p1 && pl.p2 && pl.p1 !== "BYE" && pl.p2 !== "BYE" ? '<button class="linkbtn" onclick="pickCourtAndStart(\'' + m.id + '\')">▶ 開始</button>' : "") +
       (pl.p1 && pl.p2 && pl.p1 !== "BYE" && pl.p2 !== "BYE" ? '<button class="linkbtn" onclick="printOneSheet(\'' + m.id + '\')">審判用紙</button>' : "") +
       (winner ? '<button class="linkbtn" onclick="printOfficialSheet(\'' + m.id + '\')">スコアシート</button>' : "") +
       '<button class="linkbtn" onclick="openScoreModal(\'' + ev.id + "','" + m.id + '\')">' + (winner || (r && r.score) ? "スコア修正" : "スコア入力") + '</button></div>';
@@ -1986,11 +1987,59 @@ function tapPlayer(evId, mid, pid){
   // The result is recorded when the score is entered and saved.
   _pendingWinner[mid] = pid; openScoreModal(evId, mid);
 }
-function startMatch(mid){
+function startMatch(mid, court){
   if (VIEWER) return;
   state.live = state.live || {}; state.live[mid] = Date.now();
+  state.liveCourt = state.liveCourt || {};
+  if (court) state.liveCourt[mid] = court; else delete state.liveCourt[mid];
   sync.lastEdit = Date.now(); saveState(); publishState(); render();
 }
+// The court a live match is actually played on: an explicit choice made
+// at start time wins over the timetable's scheduled court.
+function liveCourt(mid){
+  if (state.liveCourt && state.liveCourt[mid]) return state.liveCourt[mid];
+  var sx = schedMap()[mid];
+  return sx ? sx.court : null;
+}
+function cancelMatch(mid){
+  if (VIEWER) return;
+  if (!confirm("この試合の開始を取り消しますか？\n（コートが空き、開始前の状態に戻ります）")) return;
+  if (state.live) delete state.live[mid];
+  if (state.liveCourt) delete state.liveCourt[mid];
+  sync.lastEdit = Date.now(); saveState(); publishState(); render();
+}
+// Court picker shown when a match is started from its card or the queue:
+// free courts are tappable, courts already playing are marked and off.
+function pickCourtAndStart(mid){
+  if (VIEWER) return;
+  var f = findMatchGlobal(mid); if (!f) return;
+  var ev = f.ev, m = f.m;
+  var courts = Math.max(1, state.meta.courts || 4);
+  var schedCourt = (schedMap()[mid] || {}).court || null;
+  var occ = {};
+  Object.keys(state.live || {}).forEach(function(x){
+    if (x === mid) return;
+    var r = state.results[x]; if (r && r.winner) return;
+    var c = liveCourt(x); if (c) occ[c] = x;
+  });
+  var pl = matchPlayers(ev, m, null);
+  var ov = document.getElementById("modalOverlay");
+  if (!ov){ ov = document.createElement("div"); ov.id = "modalOverlay"; document.body.appendChild(ov); }
+  ov.className = "moverlay"; ov.style.display = "flex";
+  var btns = "";
+  for (var c = 1; c <= courts; c++){
+    var isOcc = !!occ[c];
+    btns += '<button class="btn' + (c === schedCourt && !isOcc ? "" : " ghost") + '" style="min-height:52px" ' +
+      (isOcc ? "disabled" : 'onclick="startMatchCourt(\'' + mid + '\',' + c + ')"') + '>コート' + c +
+      (c === schedCourt ? '（予定）' : "") + (isOcc ? '・試合中' : "") + '</button>';
+  }
+  ov.innerHTML = '<div class="msheet"><h3 style="margin-top:0">どのコートで開始しますか</h3>' +
+    '<div class="sub">' + esc(playerName(ev, pl.p1)) + ' vs ' + esc(playerName(ev, pl.p2)) + '</div>' +
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px">' + btns + '</div>' +
+    '<div style="margin-top:12px"><button class="btn ghost" onclick="closeScoreModal()">やめる</button></div></div>';
+  ov.onclick = function(e){ if (e.target === ov) closeScoreModal(); };
+}
+function startMatchCourt(mid, court){ closeScoreModal(); startMatch(mid, court); }
 function clearResult(mid){ setResult(mid, null); }
 function toggleScore(mid){ var f = findMatchGlobal(mid); if (f) openScoreModal(f.ev.id, mid); }
 function findMatchGlobal(mid){
@@ -3583,35 +3632,45 @@ function vLive(){
   var h = "<h1>進行ボード</h1><div class=\"sub\">試合中は開始ボタンで記録します。終わったら結果を入れると、次の試合が空きコートに出ます。</div>";
   var dens = courts <= 4 ? "cgd0" : courts <= 8 ? "cgd1" : courts <= 12 ? "cgd2" : "cgd3";
   var liveMids = Object.keys(state.live || {}).filter(function(mid){ var r = state.results[mid]; return !(r && r.winner); });
+  // Each court card shows one live match: the one assigned to that court
+  // (an explicit start-time choice wins over the timetable), earliest first.
+  var shownOnCourt = {}, courtOf = {};
+  liveMids.slice().sort(function(a, b){ return (state.live[a] || 0) - (state.live[b] || 0); }).forEach(function(mid){
+    var c = liveCourt(mid);
+    courtOf[mid] = c;
+    if (c && c >= 1 && c <= courts && !shownOnCourt[c] && byMid[mid]) shownOnCourt[c] = mid;
+  });
   h += '<div class="courtgrid ' + dens + '">';
   for (var c = 1; c <= courts; c++){
-    var cur = liveMids.map(function(mid){ return byMid[mid]; }).filter(function(x){ return x && x.court === c; })[0];
+    var cur = shownOnCourt[c] ? byMid[shownOnCourt[c]] : null;
     h += '<div class="card court-card"><span class="ghostnum">' + c + '</span><div class="courthead"><span class="cl">COURT</span><span class="cn">' + c + '</span></div>';
     if (cur){
       var mins = Math.max(0, Math.round((Date.now() - state.live[cur.match.id]) / 60000));
       var cev = evById(cur.match.evId);
       h += vsHTML(cev, cur.match, "live", '<i class="livedot">●</i> 試合中') +
         '<div class="vsfoot" style="border-top:0;padding-left:2px"><span class="vselap">' + mins + '</span><span style="font-weight:700">分経過</span>' +
-        '<button class="btn" style="margin-left:auto" onclick="jumpMatch(\'' + cur.match.id + '\')">結果を入れる</button></div>';
+        '<button class="btn" style="margin-left:auto" onclick="jumpMatch(\'' + cur.match.id + '\')">結果を入れる</button>' +
+        '<button class="btn ghost" style="margin-left:8px;white-space:nowrap" onclick="cancelMatch(\'' + cur.match.id + '\')">開始を取消</button></div>';
     } else {
       var nxt = sched.filter(function(x){ return x.court === c && ready(x); }).sort(function(a,b){ return (a.day - b.day) || (a.slot - b.slot); })[0];
       if (nxt){
         var nev = evById(nxt.match.evId);
         h += vsHTML(nev, nxt.match, "next", (isMultiDay() ? esc(dayShort(nxt.day)) + " " : "") + esc(nxt.time) + " 開始予定") +
-          '<div style="margin-top:8px"><button class="btn" style="min-height:46px" onclick="startMatch(\'' + nxt.match.id + '\')">▶ このコートで開始</button></div>';
+          '<div style="margin-top:8px"><button class="btn" style="min-height:46px" onclick="startMatch(\'' + nxt.match.id + '\',' + c + ')">▶ このコートで開始</button></div>';
       }
       else h += '<div style="font-weight:700;margin:6px 0;color:var(--sub)">空き</div><div class="mini">入れる試合はありません</div>';
     }
     h += "</div>";
   }
   h += "</div>";
-  var orphans = liveMids.filter(function(mid){ return !byMid[mid]; });
+  var orphans = liveMids.filter(function(mid){ return shownOnCourt[courtOf[mid]] !== mid; });
   if (orphans.length){
-    h += '<div style="margin-top:14px"><h3 style="margin-top:0">試合中（コート未定）</h3>' + orphans.map(function(mid){
+    h += '<div style="margin-top:14px"><h3 style="margin-top:0">試合中（その他）</h3>' + orphans.map(function(mid){
       var f = findMatchGlobal(mid); if (!f) return "";
       var mins = Math.max(0, Math.round((Date.now() - state.live[mid]) / 60000));
-      return vsHTML(f.ev, f.m, "live", '<i class="livedot">●</i> 試合中 ' + mins + '分') +
-        '<div style="margin-top:6px"><button class="btn small" style="min-height:42px" onclick="jumpMatch(\'' + mid + '\')">結果を入れる</button></div>';
+      return vsHTML(f.ev, f.m, "live", '<i class="livedot">●</i> 試合中 ' + mins + '分' + (courtOf[mid] ? ' ・ コート' + courtOf[mid] : "")) +
+        '<div style="margin-top:6px"><button class="btn small" style="min-height:42px" onclick="jumpMatch(\'' + mid + '\')">結果を入れる</button> ' +
+        '<button class="btn ghost small" style="min-height:42px" onclick="cancelMatch(\'' + mid + '\')">開始を取消</button></div>';
     }).join("") + "</div>";
   }
   var queue = sched.filter(ready).sort(function(a,b){ return (a.day - b.day) || (a.slot - b.slot) || (a.court - b.court); }).slice(0, 20);
@@ -3620,7 +3679,7 @@ function vLive(){
       var ev = evById(x.match.evId); var pl = matchPlayers(ev, x.match, null);
       return '<div class="qrow"><span class="qmeta">' + (isMultiDay() ? esc(dayShort(x.day)) + " " : "") + esc(x.time) + " ・ コート" + x.court + '</span>' +
         '<span class="qnames">' + esc(playerName(ev, pl.p1)) + '<i>vs</i>' + esc(playerName(ev, pl.p2)) + '</span>' +
-        '<button class="btn small qstart" onclick="startMatch(\'' + x.match.id + '\')">▶ 開始</button></div>';
+        '<button class="btn small qstart" onclick="pickCourtAndStart(\'' + x.match.id + '\')">▶ 開始</button></div>';
     }).join("") : '<div class="sub">開始できる試合はありません</div>') + "</div>";
   return h;
 }
@@ -3800,7 +3859,7 @@ function duplicateTournament(){
   pushSnapshot("大会複製の前");
   var evs = JSON.parse(JSON.stringify(state.events));
   evs.forEach(function(ev){ ev.blocks = null; ev.manualRank = {}; });
-  state.events = evs; state.results = {}; state.live = {};
+  state.events = evs; state.results = {}; state.live = {}; state.liveCourt = {};
   touchConfig(); go("home");
 }
 function saveMeta(){
