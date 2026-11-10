@@ -315,6 +315,7 @@ input,select,textarea{font-size:16px}
 .rpanel:active{background:#e8f6fd}
 .rpanel.winp{border-color:var(--cy);background:#eef9fe}
 .rname{font-size:27px;line-height:1.15}
+.rkana{font-size:14px;color:#333;font-weight:700;line-height:1.2}
 .raff{font-size:12px;color:#555;font-weight:700}
 .rscore{font-size:94px;font-weight:900;line-height:.95;font-variant-numeric:tabular-nums}
 .rsrv{display:inline-block;min-height:23px;font-size:12.5px;font-weight:800;color:#cf222e}
@@ -1115,6 +1116,10 @@ function playerName(ev, pid){
 function playerAff(ev, pid){
   var p = ev.participants.find(function(x){ return x.id===pid; });
   return p ? (p.aff||"") : "";
+}
+function playerKana(ev, pid){
+  var p = ev.participants.find(function(x){ return x.id===pid; });
+  return p ? (p.kana||"") : "";
 }
 // ===== derived matches =====
 function leagueBlocks(ev){
@@ -2326,6 +2331,7 @@ function renderReferee(){
     return '<div class="rpanel' + (isWin ? " winp" : "") + '" onclick="refTapUI(\'' + side + '\')">' +
       '<div class="rsrv">' + (st.server === side ? "● サーブ" + (refTotal(st) === 0 ? ' <button class="linkbtn" style="color:#cf222e;font-weight:800" onclick="refServeUI(event)">変更</button>' : "") : "") + '</div>' +
       '<div class="brushname rname">' + esc(playerName(ev, pid)) + '</div>' +
+      (playerKana(ev, pid) ? '<div class="rkana">' + esc(playerKana(ev, pid)) + '</div>' : "") +
       '<div class="raff">' + esc(playerAff(ev, pid)) + '</div>' +
       '<div class="rscore"' + (win && !isWin ? ' style="opacity:.35"' : "") + '>' + pts + '</div>' +
       '<div class="rgames">ゲーム ' + gamesWon + ' ／ ' + refNeed(dec) + 'で勝利</div>' +
@@ -2649,8 +2655,9 @@ var SHIGA_PAPER_CSS = [
 ".sg-rl.bd-r{border-right:1.8px solid #000;}.sg-rl.bd-l{border-left:1.8px solid #000;}",
 ".sg-pname{flex:1;display:flex;flex-direction:column;justify-content:center;padding:4px 10px;gap:1px;}",
 ".sg-pname .nm{font-size:14px;line-height:1.25;white-space:nowrap;}",
+".sg-pname .kn{font-size:10.5px;color:#444;font-family:sans-serif;white-space:nowrap;line-height:1.2;}",
 ".sg-pname .af{font-size:11.5px;white-space:nowrap;}",
-".sg-pname.win{border:2px solid #000;border-radius:50%;margin:3px;padding:3px 10px;}",
+".sg-pname.win{border:2px solid #000;border-radius:50%;margin:3px;padding:8px 14px;}",
 ".sg-mbox{flex:1.15;display:flex;border:1.8px solid #000;min-height:70px;}",
 ".sg-gw{flex:0 0 32px;display:flex;align-items:center;justify-content:center;font-size:17px;font-family:sans-serif;font-weight:700;}",
 ".sg-gsc{flex:1;display:flex;flex-direction:column;border-left:1.8px solid #000;border-right:1.8px solid #000;}",
@@ -2707,7 +2714,10 @@ function ssRenderShiga(rec, meta){
     var players = side === "left" ? (rec.teamLeftPlayers || []) : (rec.teamRightPlayers || []);
     var names = players.length ? players.map(function(p){ return p.name; }) : [side === "left" ? rec.teamLeftName : rec.teamRightName];
     var aff = side === "left" ? eff.left : eff.right;
-    var inner = names.map(function(n){ return '<div class="nm">' + esc(n || "") + '</div>'; }).join("") +
+    var inner = names.map(function(n, i){
+        var kn = players[i] && players[i].kana ? '<div class="kn">' + esc(players[i].kana) + '</div>' : "";
+        return kn + '<div class="nm">' + esc(n || "") + '</div>';
+      }).join("") +
       (aff ? '<div class="af">' + esc(aff) + '</div>' : "");
     var box = '<div class="sg-pname' + (winnerSide === side ? " win" : "") + '">' + inner + '</div>';
     var rl = '<div class="sg-rl ' + (rlPos === "l" ? "bd-r" : "bd-l") + '"></div>';
@@ -2821,8 +2831,11 @@ function ssRenderShiga(rec, meta){
   }
   var nBlocks = Math.max(3, Math.min(5, gamesEff.length));
   for (var b = 0; b < nBlocks; b++) html += gameHTML(gamesEff[b] || null);
+  var winnerKana = "";
+  if (rec.isFinished && winnerSide === "left") winnerKana = rec.teamLeftKana || "";
+  if (rec.isFinished && winnerSide === "right") winnerKana = rec.teamRightKana || "";
   html += '<div class="sg-foot">' +
-    '<div class="sg-sig" style="flex:1.25"><span>勝者：</span><span class="vl">' + esc(rec.isFinished ? rec.winnerName || "" : "") + '</span></div>' +
+    '<div class="sg-sig" style="flex:1.25"><span>勝者：</span><span class="vl">' + esc(rec.isFinished ? rec.winnerName || "" : "") + (winnerKana ? ' <span style="font-size:10.5px;color:#444">（' + esc(winnerKana) + '）</span>' : "") + '</span></div>' +
     '<div class="sg-sig" style="flex:1"><span>主審署名：</span><span class="vl"></span></div>' +
     '<div class="sg-sig" style="flex:1"><span>レフェリー署名：</span><span class="vl"></span></div></div>' +
     '<div class="sg-legend">(凡例) W:警告　F:フォルト　D:失格　S:中断　I:ケガ　キケン:棄権　R:レフェリー　G:オーバールール　C:サービスコート訂正</div>';
@@ -2847,13 +2860,15 @@ function ssRecordForMatch(ev, m, rallyGames, initServer, matchFinished){
   var all = allMatches(ev);
   var pl = matchPlayers(ev, m, all);
   var dec = refDec(ev, m);
-  var pA = { id: "p_l1", name: playerName(ev, pl.p1) }, pB = { id: "p_r1", name: playerName(ev, pl.p2) };
+  var pA = { id: "p_l1", name: playerName(ev, pl.p1), kana: playerKana(ev, pl.p1) }, pB = { id: "p_r1", name: playerName(ev, pl.p2), kana: playerKana(ev, pl.p2) };
   // A participant whose name joins two players with "・" is a doubles pair:
   // split it so the score sheet can give each player their own row.
+  // The kana field splits the same way ("やまだ・すずき").
   function splitPairPlayers(p, side){
     var parts = String(p.name || "").split("・").map(function(s){ return s.trim(); }).filter(Boolean);
     if (parts.length < 2) return [p];
-    return parts.slice(0, 2).map(function(nm, i){ return { id: "p_" + side + (i + 1), name: nm }; });
+    var kanas = String(p.kana || "").split("・").map(function(s){ return s.trim(); });
+    return parts.slice(0, 2).map(function(nm, i){ return { id: "p_" + side + (i + 1), name: nm, kana: kanas.length === parts.length ? (kanas[i] || "") : (i === 0 ? (p.kana || "") : "") }; });
   }
   var leftPlayers = splitPairPlayers(pA, "l"), rightPlayers = splitPairPlayers(pB, "r");
   var isDoubles = leftPlayers.length > 1 || rightPlayers.length > 1;
@@ -2895,6 +2910,7 @@ function ssRecordForMatch(ev, m, rallyGames, initServer, matchFinished){
     tournamentName: state.meta.name || "大会", discipline: isDoubles ? "doubles" : "singles", ruleName: dec.label,
     targetPoints: dec.pts, maxPoints: dec.ext,
     teamLeftName: pA.name, teamRightName: pB.name, teamLeftPlayers: leftPlayers, teamRightPlayers: rightPlayers,
+    teamLeftKana: leftPlayers.map(function(p){ return p.kana || ""; }).filter(Boolean).join("・"), teamRightKana: rightPlayers.map(function(p){ return p.kana || ""; }).filter(Boolean).join("・"),
     teamLeftAffiliation: playerAff(ev, pl.p1), teamRightAffiliation: playerAff(ev, pl.p2),
     gameScores: games.map(function(g){ return { left: g.teamLeftScore, right: g.teamRightScore }; }),
     winnerName: winnerName, isFinished: !!matchFinished, games: games };
@@ -3087,7 +3103,7 @@ function eventEntryCard(ev){
     '<span class="sub">' + formatLabel(ev) + " ・ " + ev.participants.length + ' エントリー</span></div>';
   h += '<label class="f">参加者を一括追加（1行に1件: 名前,所属 / ダブルスは1行=1ペア）</label>' +
     '<textarea id="paste-' + ev.id + '" placeholder="山田 太郎,唐崎Jr,やまだ たろう&#10;佐藤 花・鈴木 葉,草津Jr"></textarea>' +
-    '<div class="mini">1行に1エントリー。「名前,所属,ふりがな」の順で、ふりがなは任意です（審判用紙・賞状に出ます）。</div>' +
+    '<div class="mini">1行に1エントリー。「名前,所属,ふりがな」の順で、ふりがなは任意です（公式スコアシート・審判モード・賞状に出ます）。ダブルスはふりがなも「・」でつなげてください。</div>' +
     '<div class="row" style="margin-top:8px"><button class="btn small" onclick="pasteAdd(\'' + ev.id + '\')">追加する</button>' +
     '<input type="text" id="one-name-' + ev.id + '" placeholder="名前" style="flex:2;min-width:140px"><input type="text" id="one-aff-' + ev.id + '" placeholder="所属" style="flex:1;min-width:100px"><input type="text" id="one-kana-' + ev.id + '" placeholder="ふりがな（任意）" style="flex:1;min-width:100px">' +
     '<button class="btn ghost small" onclick="oneAdd(\'' + ev.id + '\')">1件追加</button></div>';
@@ -3247,13 +3263,16 @@ function saveRoster(eid, pid){
 function renamePart(eid, pid){
   var ev = evById(eid); var p = ev.participants.find(function(x){return x.id===pid;}); if (!p) return;
   var nn = prompt("新しい名前を入力してください", p.name);
-  if (nn == null) return; nn = nn.trim(); if (!nn || nn === p.name) return;
+  if (nn == null) return; nn = nn.trim(); if (!nn) return;
+  var nk = prompt("ふりがなを入力してください（任意・スコアシートに出ます）", p.kana || "");
+  if (nk == null) nk = p.kana || ""; else nk = nk.trim();
+  if (nn === p.name && nk === (p.kana || "")) return;
   var old = p.name;
   var others = state.events.filter(function(e){ return e.id !== eid && e.participants.some(function(x){ return x.name === old; }); });
-  var all = others.length && confirm("同じ名前の参加者が他の種目（" + others.map(function(e){return e.name;}).join("・") + "）にもいます。全ての種目で名前を変更しますか？");
+  var all = nn !== old && others.length && confirm("同じ名前の参加者が他の種目（" + others.map(function(e){return e.name;}).join("・") + "）にもいます。全ての種目で名前を変更しますか？");
   state.events.forEach(function(e){
     if (e.id !== eid && !all) return;
-    e.participants.forEach(function(x){ if ((e.id === eid && x.id === pid) || (all && x.name === old)) x.name = nn; });
+    e.participants.forEach(function(x){ if ((e.id === eid && x.id === pid) || (all && x.name === old)){ x.name = nn; x.kana = nk; } });
   });
   touchConfig(); render();
 }
