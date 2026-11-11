@@ -349,6 +349,7 @@ input,select,textarea{font-size:16px}
 .vscard.live .vsmark i{background:var(--cy);color:#06222e}
 .vscard.live .vsfoot{border-top:1.5px dashed rgba(255,255,255,.35)}
 .qrow{display:flex;gap:10px;align-items:center;padding:9px 2px;border-bottom:1px solid #e3e3de}
+.openstrip{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;margin-top:10px;padding:10px 12px;border:1.5px dashed #12a5e5;background:rgba(18,165,229,.06)}
 .qmeta{font-size:12.5px;color:var(--sub);font-weight:700;white-space:nowrap}
 .qnames{flex:1;font-size:16px;font-weight:700;line-height:1.35;min-width:0}
 .qnames i{color:var(--cy-dark);font-style:normal;font-weight:900;margin:0 3px}
@@ -1071,11 +1072,11 @@ try {
 var sync = {client:null, connected:false, room:"", bc:null, lastEdit:0, configTs:0};
 function defaultState(){
   return { meta:{name:"", date:"", venue:"", courts:4, start:"09:30", interval:12, detail:"full"},
-           events:[], results:{}, live:{}, trash:[], configTs:0, created:Date.now() };
+           events:[], results:{}, live:{}, liveCourt:{}, open:{}, trash:[], configTs:0, created:Date.now() };
 }
 function normalizeState(st){
   if (!st) return st;
-  st.live = st.live || {}; st.liveCourt = st.liveCourt || {}; st.trash = st.trash || [];
+  st.live = st.live || {}; st.liveCourt = st.liveCourt || {}; st.trash = st.trash || []; st.open = st.open || {};
   st.meta = st.meta || {}; st.meta.detail = "full"; // score entry is always required
   if (st.configTs == null) st.configTs = 0;
   return st;
@@ -1119,6 +1120,9 @@ function setResult(mid, rec, isUndo){
   if (!isUndo) _lastUndo = {mid: mid, prev: state.results[mid] ? JSON.parse(JSON.stringify(state.results[mid])) : null};
   if (rec) { rec.ts = Date.now(); state.results[mid] = rec; }
   else delete state.results[mid];
+  // an open (exhibition) match only exists while the official result is
+  // a score-less walkover; drop it when that stops being true
+  if (state.open && state.open[mid] && !(rec && rec.winner && rec.note === "wo" && !(rec.score && String(rec.score).trim()))) delete state.open[mid];
   if (typeof _refDrafts !== "undefined" && _refDrafts[mid]){ delete _refDrafts[mid]; refSaveDrafts(); }
   if (state.live) delete state.live[mid];
   if (state.liveCourt) delete state.liveCourt[mid];
@@ -1126,6 +1130,48 @@ function setResult(mid, rec, isUndo){
   if (!isUndo) showUndoToast();
   var n = Object.keys(state.results).length;
   if (!isUndo && n > 0 && n % 20 === 0) pushSnapshot("自動バックアップ（結果" + n + "件時点）");
+}
+// ===== open (exhibition) matches =====
+// When a match ends as a score-less walkover (usually a same-day
+// withdrawal), the desk can attach an exhibition match to the same slot
+// so the waiting player still gets a game: the fill-in comes from the
+// withdrawn player's team, or is a player the waiting player asked for.
+// The official result stays the walkover and standings never see the
+// open match; only its pairing and score live here, keyed by match id.
+function openLoserPid(ev, m){
+  var r = state.results[m.id]; if (!r || !r.winner) return null;
+  var pl = matchPlayers(ev, m, null);
+  var loser = r.winner === pl.p1 ? pl.p2 : pl.p1;
+  return loser && loser !== "BYE" ? loser : null;
+}
+function isOpenEligible(mid){
+  var r = state.results[mid];
+  if (!r || !r.winner || r.note !== "wo" || (r.score && String(r.score).trim())) return false;
+  var f = findMatchGlobal(mid); if (!f) return false;
+  return !!openLoserPid(f.ev, f.m);
+}
+function setOpenMatch(mid, fillPid){
+  if (VIEWER) return;
+  var f = findMatchGlobal(mid); if (!f) return;
+  var r = state.results[mid]; if (!r || !r.winner || !fillPid) return;
+  state.open = state.open || {};
+  state.open[mid] = { a: r.winner, b: fillPid, score: "", winner: null, ts: Date.now() };
+  touchConfig(); render();
+}
+function clearOpenMatch(mid){
+  if (VIEWER) return;
+  if (state.open) delete state.open[mid];
+  if (state.live) delete state.live[mid];
+  if (state.liveCourt) delete state.liveCourt[mid];
+  touchConfig(); render();
+}
+function setOpenScore(mid, winner, score){
+  if (VIEWER) return;
+  var o = state.open && state.open[mid]; if (!o) return;
+  o.winner = winner || null; o.score = score || ""; o.ts = Date.now();
+  if (state.live) delete state.live[mid];
+  if (state.liveCourt) delete state.liveCourt[mid];
+  touchConfig(); render();
 }
 function undoLast(){
   if (!_lastUndo) return;
@@ -1684,7 +1730,7 @@ function connectBroker(idx){
 }
 var _pubTimer = null;
 function publishState(){
-  var payload = {type:"state", from: CLIENT_ID, configTs: state.configTs||0, meta: state.meta, events: state.events, results: state.results, live: state.live||{}, liveCourt: state.liveCourt||{}, trash: state.trash||[]};
+  var payload = {type:"state", from: CLIENT_ID, configTs: state.configTs||0, meta: state.meta, events: state.events, results: state.results, live: state.live||{}, liveCourt: state.liveCourt||{}, trash: state.trash||[], open: state.open||{}};
   if (sync.bc) try{ sync.bc.postMessage(payload); }catch(e){}
   if (_pubTimer) clearTimeout(_pubTimer);
   _pubTimer = setTimeout(function(){ mqttSendState(payload); }, 600);
@@ -1784,9 +1830,15 @@ function receiveState(payload, local){
   Object.keys(state.results).forEach(function(mid){
     // deletions are not propagated in v1 (clear is local + config change); ignore
   });
+  // open (exhibition) matches: per-match merge by ts
+  var oo = payload.open || {};
+  Object.keys(oo).forEach(function(mid){
+    var cur = state.open && state.open[mid];
+    if (!cur || (oo[mid].ts||0) > (cur.ts||0)){ state.open = state.open || {}; state.open[mid] = oo[mid]; changed = true; }
+  });
   // config: newer configTs wins
   if ((payload.configTs||0) > (state.configTs||0) && Date.now() - sync.lastEdit > 2500){
-    state.meta = payload.meta; state.events = payload.events; state.live = payload.live || {}; state.liveCourt = payload.liveCourt || {}; state.trash = payload.trash || []; state.configTs = payload.configTs; changed = true;
+    state.meta = payload.meta; state.events = payload.events; state.live = payload.live || {}; state.liveCourt = payload.liveCourt || {}; state.trash = payload.trash || []; state.open = payload.open || {}; state.configTs = payload.configTs; changed = true;
   }
   if (changed){ invalidateCaches(); saveState(); render(); }
 }
@@ -1922,7 +1974,7 @@ function matchCard(ev, m, showMeta){
       (winner ? '<button class="linkbtn" onclick="printOfficialSheet(\'' + m.id + '\')">スコアシート</button>' : "") +
       '<button class="linkbtn" onclick="openScoreModal(\'' + ev.id + "','" + m.id + '\')">' + (winner || (r && r.score) ? "スコア修正" : "スコア入力") + '</button></div>';
   }
-  return '<div class="match" id="card-' + m.id + '">' + meta + '<div class="vs">' + btn(pl.p1,1) + '<div class="vsmid">vs</div>' + btn(pl.p2,2) + '</div>' + '</div>';
+  return '<div class="match" id="card-' + m.id + '">' + meta + '<div class="vs">' + btn(pl.p1,1) + '<div class="vsmid">vs</div>' + btn(pl.p2,2) + '</div>' + openStripHTML(ev, m) + '</div>';
 }
 // render "21-9 13-21" with the winning side's number in red, game by game
 function scoreHTML(v){
@@ -2227,6 +2279,114 @@ function showUndoToast(){
 }
 function hideToast(){ var t = document.getElementById("toast"); if (t) t.className = ""; }
 function jumpMatch(mid){ var f = findMatchGlobal(mid); if (f) openScoreModal(f.ev.id, mid); }
+// ===== open (exhibition) match UI =====
+function showSheet(html){
+  var ov = document.getElementById("modalOverlay");
+  if (!ov){ ov = document.createElement("div"); ov.id = "modalOverlay"; document.body.appendChild(ov); }
+  ov.className = "moverlay"; ov.style.display = "flex";
+  ov.innerHTML = html;
+  ov.onclick = function(e){ if (e.target === ov) closeScoreModal(); };
+}
+function openBlockLabel(ev, pid){
+  if (!ev.blocks) return "";
+  for (var i = 0; i < ev.blocks.length; i++) if (ev.blocks[i].indexOf(pid) >= 0) return String.fromCharCode(65 + i) + "ブロック";
+  return "";
+}
+function openStripHTML(ev, m){
+  if (ev.teamComp || VIEWER) return "";
+  var o = state.open && state.open[m.id];
+  if (!o){
+    if (!isOpenEligible(m.id)) return "";
+    return '<div class="openstrip"><span class="mini">不戦勝で余った枠です。試合数を確保するためのオープン試合を設定できます（公式結果・順位には影響しません）。</span>' +
+      '<button class="btn ghost small" style="margin-left:auto" onclick="openPairModal(\'' + m.id + '\')">＋ オープン試合を設定</button></div>';
+  }
+  return '<div class="openstrip"><span class="chip" style="background:rgba(18,165,229,.12);color:#0b6fa4;border-color:#12a5e5">オープン試合</span>' +
+    '<span><strong>' + esc(playerName(ev, o.a)) + '</strong> vs <strong>' + esc(playerName(ev, o.b)) + '</strong></span>' +
+    (o.score ? '<span class="chip green">' + scoreHTML(o.score) + '</span>' : "") +
+    (o.winner ? '<span class="mini">' + esc(playerName(ev, o.winner)) + ' の勝ち</span>' : '<span class="mini">結果未入力</span>') +
+    '<span style="margin-left:auto"></span>' +
+    '<button class="linkbtn" onclick="openExScore(\'' + m.id + '\')">' + (o.winner ? "結果を修正" : "結果を入れる") + '</button>' +
+    '<button class="linkbtn" onclick="openPairModal(\'' + m.id + '\')">相手を変更</button>' +
+    '<button class="linkbtn" style="color:var(--bad)" onclick="if(confirm(\'オープン試合を取り消しますか？\'))clearOpenMatch(\'' + m.id + '\')">取消</button></div>';
+}
+function openBlockLineHTML(ev, m){
+  var pl = matchPlayers(ev, m, null);
+  return '<div style="margin-top:8px"><div class="mini">' + esc(m.id.split("-").slice(-2).join("-")) + '：' + esc(playerName(ev, pl.p1)) + ' vs ' + esc(playerName(ev, pl.p2)) + '（不戦勝）の枠</div>' + openStripHTML(ev, m) + '</div>';
+}
+function openPairModal(mid){
+  if (VIEWER) return;
+  var f = findMatchGlobal(mid); if (!f) return;
+  var ev = f.ev, m = f.m;
+  var r = state.results[mid]; if (!r || !r.winner) return;
+  var loser = openLoserPid(ev, m); if (!loser) return;
+  var W = r.winner;
+  var aff = playerAff(ev, loser);
+  var cands = ev.participants.filter(function(p){ return !p.retired && p.id !== loser && p.id !== W; });
+  var same = cands.filter(function(p){ return aff && p.aff === aff; });
+  var o = state.open && state.open[mid];
+  var h = '<div class="msheet"><div class="mhead"><strong>オープン試合の組み合わせ</strong><button class="linkbtn" onclick="closeScoreModal()">閉じる</button></div><div class="mbody">' +
+    '<div class="mini">「' + esc(playerName(ev, loser)) + '」（' + esc(aff || "所属なし") + '）の棄権で不戦勝になった枠です。公式結果は不戦勝のままで、順位には入りません。この枠で試合をする相手を選んでください。</div>' +
+    '<div style="margin-top:12px"><span class="mini">試合をする選手（確定）</span><div class="pbtn win" style="display:block;width:100%;text-align:left;margin-top:4px;cursor:default">' + esc(playerName(ev, W)) + '<span class="aff">' + esc(playerAff(ev, W)) + '</span></div></div>';
+  if (same.length){
+    h += '<div style="margin-top:14px"><span class="mini">棄権した選手と同じ所属（' + esc(aff) + '）から — タップで決定</span>' + same.map(function(p){
+      return '<button class="pbtn" style="display:block;width:100%;text-align:left;margin-top:6px" onclick="setOpenMatch(\'' + mid + "','" + p.id + '\');closeScoreModal()">' + esc(p.name) + '<span class="aff">' + esc(openBlockLabel(ev, p.id) || p.aff || "") + (o && o.b === p.id ? " ・現在の相手" : "") + '</span></button>';
+    }).join("") + '</div>';
+  }
+  h += '<div style="margin-top:14px"><span class="mini">そのほかの選手から選ぶ（希望のリクエストなど）</span><div class="row" style="margin-top:6px"><select id="open-pick" style="flex:1;min-width:0">' +
+    cands.map(function(p){ return '<option value="' + p.id + '"' + (o && o.b === p.id ? " selected" : "") + '>' + esc(p.name) + '（' + esc(p.aff || "") + (openBlockLabel(ev, p.id) ? "・" + openBlockLabel(ev, p.id) : "") + '）</option>'; }).join("") +
+    '</select><button class="btn" onclick="setOpenMatch(\'' + mid + '\',document.getElementById(\'open-pick\').value);closeScoreModal()">この選手にする</button></div></div>';
+  if (o) h += '<div style="margin-top:16px"><button class="linkbtn" style="color:var(--bad)" onclick="if(confirm(\'オープン試合を取り消しますか？\')){clearOpenMatch(\'' + mid + '\');closeScoreModal()}">オープン試合を取り消す</button></div>';
+  showSheet(h + '</div></div>');
+}
+var _exMid = null, _exWin = null;
+function openExScore(mid){
+  if (VIEWER) return;
+  var f = findMatchGlobal(mid); if (!f) return;
+  var ev = f.ev;
+  var o = state.open && state.open[mid]; if (!o) return;
+  _exMid = mid; _exWin = o.winner || null;
+  var dec = decodePoint(phasePointCode(ev, f.m) || ev.pointCode || state.meta.pointDefault || "21330");
+  var opts = gameScoreOptions(dec);
+  function col(pid, flip){
+    return '<div class="qkcol"><div class="mini" style="margin-bottom:6px"><strong>' + esc(playerName(ev, pid)) + '</strong> の勝ちゲーム</div><div class="qkgrid">' +
+      opts.map(function(pr){ var s = flip ? pr[1] + "-" + pr[0] : pr[0] + "-" + pr[1]; return '<button class="qbtn" onclick="exAdd(\'' + s + '\')">' + s + '</button>'; }).join("") + '</div></div>';
+  }
+  var h = '<div class="msheet"><div class="mhead"><strong>オープン試合の結果</strong><button class="linkbtn" onclick="closeScoreModal()">閉じる</button></div><div class="mbody">' +
+    '<div class="mini">公式結果（不戦勝）には影響しません。オープン試合の記録としてだけ残ります。スコアは左の選手から見た得点です。</div>' +
+    '<div class="grid2" style="margin-top:10px"><button class="pbtn" id="exw-a" onclick="exPick(\'a\')">' + esc(playerName(ev, o.a)) + '</button>' +
+    '<button class="pbtn" id="exw-b" onclick="exPick(\'b\')">' + esc(playerName(ev, o.b)) + '</button></div>' +
+    '<label class="f">スコア（任意）</label><input type="text" id="ex-sci" inputmode="numeric" placeholder="例 21-15 21-18" value="' + esc(o.score || "") + '">' +
+    '<div class="qkcols" style="margin-top:10px">' + col(o.a, false) + col(o.b, true) + '</div>' +
+    '</div><div class="mfoot"><button class="btn ghost" onclick="closeScoreModal()">キャンセル</button><button class="btn" onclick="saveExScore(\'' + mid + '\')">保存</button></div></div>';
+  showSheet(h);
+  exMark();
+}
+function exPick(side){ var o = state.open && state.open[_exMid]; if (!o) return; _exWin = side === "a" ? o.a : o.b; exMark(); }
+function exMark(){
+  var o = state.open && state.open[_exMid]; if (!o) return;
+  var a = document.getElementById("exw-a"), b = document.getElementById("exw-b");
+  if (a) a.className = "pbtn" + (_exWin === o.a ? " win" : "");
+  if (b) b.className = "pbtn" + (_exWin === o.b ? " win" : "");
+}
+function exAdd(s){ var inp = document.getElementById("ex-sci"); if (!inp) return; inp.value = (inp.value.trim() ? inp.value.trim() + " " : "") + s; }
+function saveExScore(mid){
+  var o = state.open && state.open[mid]; if (!o) return;
+  var inp = document.getElementById("ex-sci");
+  var score = inp ? inp.value.trim() : "";
+  var winner = _exWin;
+  if (score){
+    var games = parseScore(score);
+    if (!games){ alert("スコアの形式が正しくありません（例 21-15 21-18）"); return; }
+    var st = scoreStats(games);
+    if (st.g1 === st.g2){ alert("ゲーム数が同点です。勝敗が決まるスコアにしてください"); return; }
+    var scoreWinner = st.g1 > st.g2 ? o.a : o.b;
+    if (winner && winner !== scoreWinner){ alert("選んだ勝者とスコアの勝敗が合いません"); return; }
+    winner = scoreWinner;
+  }
+  if (!winner){ alert("勝者を選んでください（またはスコアを入力してください）"); return; }
+  setOpenScore(mid, winner, score);
+  closeScoreModal();
+}
 // ===== referee mode: tap-to-score on the referee's own phone =====
 // Points are tapped rally by rally (like the live-score page); games and
 // the match end are judged by the match's point code. Nothing is applied
@@ -3722,7 +3882,7 @@ function toggleRetire(eid, pid){
       var r = state.results[m.id];
       if (r && r.auto === "retire"){
         var pl = matchPlayers(ev, m, all2);
-        if (pl.p1 === pid || pl.p2 === pid) delete state.results[m.id];
+        if (pl.p1 === pid || pl.p2 === pid){ delete state.results[m.id]; if (state.open) delete state.open[m.id]; }
       }
     });
   }
@@ -3844,7 +4004,12 @@ function vLeague(){
           }).join("") + "</div>";
       }
       if (rank.manual) h += '<div class="mini">手動で確定した順位です <button class="linkbtn" onclick="clearRank(\'' + ev.id + "'," + bi + ')">手動順位を解除</button></div>';
-      if (uiLeagueView === "matrix" && !ev.teamComp) h += matrixHTML(ev, block, bi, lms);
+      if (uiLeagueView === "matrix" && !ev.teamComp){
+        h += matrixHTML(ev, block, bi, lms);
+        // the matrix has no match cards, so walkover slots that can host
+        // an open match get their own line under the matrix
+        lms.filter(function(m){ return m.block === bi && ((state.open && state.open[m.id]) || isOpenEligible(m.id)); }).forEach(function(m){ h += openBlockLineHTML(ev, m); });
+      }
       else lms.filter(function(m){ return m.block===bi; }).forEach(function(m){ h += matchCard(ev, m, false); });
       h += "</div></div>";
     });
@@ -4115,6 +4280,25 @@ function vLive(){
         '<button class="btn ghost small" style="min-height:42px" onclick="cancelMatch(\'' + mid + '\')">開始を取消</button></div>';
     }).join("") + "</div>";
   }
+  var openMids = Object.keys(state.open || {}).filter(function(mid){ return state.open[mid] && findMatchGlobal(mid); });
+  if (openMids.length){
+    openMids.sort(function(a, b){ var sa = byMid[a], sb = byMid[b]; return ((sa ? sa.day : 9) - (sb ? sb.day : 9)) || ((sa ? sa.slot : 999) - (sb ? sb.slot : 999)); });
+    h += '<div class="card" style="margin-top:12px"><h3 style="margin-top:0">オープン試合</h3><div class="sub">不戦勝になった枠のオープン試合です。公式結果・順位には入りません。</div>' + openMids.map(function(mid){
+      var f = findMatchGlobal(mid); var o = state.open[mid]; var sx = byMid[mid];
+      var isLive = !!(state.live && state.live[mid] && !o.winner);
+      var mins = isLive ? Math.max(0, Math.round((Date.now() - state.live[mid]) / 60000)) : 0;
+      return '<div class="qrow"><span class="qmeta">' + (sx ? (isMultiDay() ? esc(dayShort(sx.day)) + " " : "") + esc(sx.time) + " ・ " + (liveCourt(mid) || sx.court) + "コート" : "時刻未定") + " ・ " + esc(f.ev.name) + '</span>' +
+        '<span class="qnames">' + esc(playerName(f.ev, o.a)) + '<i>vs</i>' + esc(playerName(f.ev, o.b)) + '</span>' +
+        (VIEWER
+          ? '<span class="mini">' + (o.winner ? esc(playerName(f.ev, o.winner)) + ' の勝ち' + (o.score ? " " + esc(o.score) : "") : (isLive ? "試合中" : "予定")) + '</span>'
+          : o.winner
+          ? '<span class="mini">' + esc(playerName(f.ev, o.winner)) + ' の勝ち' + (o.score ? " " + esc(o.score) : "") + '</span><button class="btn ghost small" onclick="openExScore(\'' + mid + '\')">修正</button>'
+          : isLive
+            ? '<span class="mini">試合中 ' + mins + '分</span><button class="btn small qstart" onclick="openExScore(\'' + mid + '\')">結果を入れる</button><button class="linkbtn" onclick="cancelMatch(\'' + mid + '\')">開始取消</button>'
+            : '<button class="btn small qstart" onclick="pickCourtAndStart(\'' + mid + '\')">▶ 開始</button><button class="linkbtn" onclick="openExScore(\'' + mid + '\')">結果を入れる</button>') +
+        '</div>';
+    }).join("") + "</div>";
+  }
   var queue = sched.filter(ready).sort(function(a,b){ return (a.day - b.day) || (a.slot - b.slot) || (a.court - b.court); }).slice(0, 20);
   h += '<div class="card" style="margin-top:12px"><h3 style="margin-top:0">待機中の試合（開始できる順）</h3>' +
     (queue.length ? queue.map(function(x){
@@ -4352,7 +4536,7 @@ function duplicateTournament(){
   pushSnapshot("大会複製の前");
   var evs = JSON.parse(JSON.stringify(state.events));
   evs.forEach(function(ev){ ev.blocks = null; ev.manualRank = {}; });
-  state.events = evs; state.results = {}; state.live = {}; state.liveCourt = {};
+  state.events = evs; state.results = {}; state.live = {}; state.liveCourt = {}; state.open = {};
   touchConfig(); go("home");
 }
 function saveMeta(){
