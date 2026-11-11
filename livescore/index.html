@@ -555,6 +555,33 @@ button.side:active .plus-badge{transform:scale(.93);}
 }
 
 
+
+/* ---------- レビュー修正 (目的×頻度) ---------- */
+.conn-alert{position:sticky; top:8px; z-index:58; margin:0 0 10px; padding:11px 12px; border-radius:12px;
+  background:#8c2b1d; color:#fff; font-weight:700; font-size:14px; text-align:center;
+  box-shadow:0 6px 18px rgba(0,0,0,.35); animation:alertPulse 1.6s ease-in-out infinite;}
+@keyframes alertPulse{0%,100%{filter:brightness(1);}50%{filter:brightness(1.28);}}
+#view-viewer{padding-bottom:104px;}
+#v-stamps{position:fixed; left:0; right:0; bottom:0; z-index:55; display:flex; align-items:center; gap:6px;
+  padding:8px 10px calc(8px + env(safe-area-inset-bottom));
+  background:rgba(9,13,26,.94); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+  border-top:1px solid rgba(233,205,143,.35);}
+#v-stamps .stampbar-label{flex:0 0 2.5em; font-size:9px; line-height:1.4; color:var(--gold); text-align:center; letter-spacing:.05em;}
+#v-stamps button{flex:1; min-height:52px; font-size:26px; line-height:1; border-radius:14px;
+  border:1px solid var(--line); background:rgba(255,255,255,.05); cursor:pointer; transition:transform .12s ease;}
+#v-stamps button:active{transform:scale(.9);}
+details.fold > summary{cursor:pointer; list-style:none; font-size:15px; font-weight:700; letter-spacing:.03em;}
+details.fold > summary::-webkit-details-marker, details.fold-sm > summary::-webkit-details-marker{display:none;}
+details.fold > summary::after{content:" ▾"; color:var(--ink2); font-size:12px;}
+details.fold-sm{margin-top:12px;}
+details.fold-sm > summary{cursor:pointer; list-style:none; font-size:13px; font-weight:700;}
+details.fold-sm > summary::after{content:" ▾"; color:var(--ink2); font-size:11px;}
+details.fold-sm .join-row{margin-top:8px;}
+.controls #k-undo{flex:1;}
+.controls #k-swap.mini{flex:0 0 auto; font-size:12px; min-height:38px; padding:0 10px;}
+#v-to-lobby{opacity:.7; font-size:12px; min-height:34px; padding:0 9px;}
+.r.more{width:auto; padding:0 5px;}
+
 /* ---------- スタンプ ---------- */
 .stampbar{display:flex; gap:6px;}
 .stampbar button{flex:1; min-height:56px; font-size:29px; line-height:1; border-radius:14px;
@@ -614,7 +641,7 @@ button.side:active .plus-badge{transform:scale(.93);}
     <p class="small hidden" id="install-howto"></p>
   </section>
 
-  <section class="card">
+  <section class="card" id="create-card">
     <h2>新しい試合を作る</h2>
     <div class="duo"><div>
     <label class="f">コート番号 <span>（任意）</span></label>
@@ -637,14 +664,16 @@ button.side:active .plus-badge{transform:scale(.93);}
     <p class="steps-line">作る → 観戦リンクを家族に送る → タップで加点（選手名は入力しません。表示は「自選手」「相手選手」です）</p>
   </section>
 
-  <section class="card">
+  <section class="card" id="list-card">
     <h2>自分の試合リスト</h2>
     <div id="my-list"><p class="small">まだ試合がありません。</p></div>
-    <h3>観戦リンクから参加する</h3>
-    <div class="join-row">
-      <input type="text" id="f-join" placeholder="観戦リンクを貼り付け" />
-      <button class="btn" id="btn-join">観戦する</button>
-    </div>
+    <details class="fold-sm">
+      <summary>観戦リンクで参加する</summary>
+      <div class="join-row">
+        <input type="text" id="f-join" placeholder="観戦リンクを貼り付け" />
+        <button class="btn" id="btn-join">観戦する</button>
+      </div>
+    </details>
   </section>
 
   <p class="notice">観戦リンクは家族にだけ配ってください。スコアを操作できるのは操作用リンクを持っている人だけです。</p>
@@ -654,6 +683,7 @@ button.side:active .plus-badge{transform:scale(.93);}
 <main id="view-keeper" class="wrap hidden">
   <div class="brand-row"><svg width="27" height="27" viewBox="0 0 48 48" aria-hidden="true"><g stroke="#e9cd8f" stroke-width="2.6" fill="none" stroke-linecap="round"><path d="M24 29 L12.5 10"/><path d="M24 29 L18 6.5"/><path d="M24 29 L24 5.5"/><path d="M24 29 L30 6.5"/><path d="M24 29 L35.5 10"/><path d="M13.5 12.5 Q24 7.5 34.5 12.5"/></g><path d="M16.8 31.5 a7.2 7.2 0 0 0 14.4 0 z" fill="#f5efe3"/></svg><span class="brand-name">BADMINTON LIVE</span><span class="brand-tag">THE ARENA</span></div>
   
+  <div class="conn-alert hidden" id="k-alert">⚠ 配信が止まっています。電波の良い場所で、自動でつなぎ直しています。</div>
   <div class="topbar">
     <span class="conn mid" id="k-conn"><span class="dot"></span><span id="k-conn-text">接続中…</span></span>
     <span class="small" id="k-updated"></span>
@@ -701,7 +731,7 @@ button.side:active .plus-badge{transform:scale(.93);}
     <button class="btn sm" id="k-minus-1">右 −1（誤タップ修正）</button>
   </div>
 
-  <section class="card">
+  <section class="card" id="k-card-history">
     <h2>この試合の記録</h2>
     <div class="small">終わったゲーム</div>
     <div class="game-scores" id="k-games"><span class="small">まだありません</span></div>
@@ -710,13 +740,13 @@ button.side:active .plus-badge{transform:scale(.93);}
   </section>
 
 
-  <section class="card">
+  <section class="card" id="k-card-sheet">
     <h2>スコアシート</h2>
     <p class="small" style="margin-top:0;">公式記録用スコアシート（A4横）を作れます。試合の途中でも、その時点までの記録で出せます。印刷／PDF保存ができます。</p>
     <div class="btnrow" style="margin-top:0;"><button class="btn primary" id="k-sheet">スコアシートを作る</button></div>
   </section>
 
-  <section class="card">
+  <section class="card" id="k-card-share">
     <h2>家族に観戦してもらう</h2>
     <p class="small" style="margin-top:0;">下の<b>観戦用リンク</b>を家族に送ってください。開くだけで、今の点数がそのまま見られます（途中から開いても最新の点数が出ます）。このリンクではスコアは変えられません。</p>
     <div class="linkbox" id="k-viewer-link"></div>
@@ -734,8 +764,8 @@ button.side:active .plus-badge{transform:scale(.93);}
     <div class="btnrow"><button class="btn" id="k-copy-keeper">操作用リンクをコピー</button></div>
   </section>
 
-  <section class="card">
-    <h2>試合の設定（あとから変更できます）</h2>
+  <details class="card fold" id="k-card-settings">
+    <summary>試合の設定（あとから変更できます）</summary>
     <div class="duo">
       <div>
         <label class="f">コート番号</label>
@@ -753,9 +783,9 @@ button.side:active .plus-badge{transform:scale(.93);}
     </div>
     <div class="btnrow"><button class="btn" id="k-settings-apply" style="flex:1;">設定を変更する</button></div>
     <p class="small" style="margin-bottom:0;">終わったゲームの記録はそのまま残ります。進行中のゲームは、新しい形式のルールで判定し直します（すでに決着がつく点数なら、そのゲームは終了します）。試合が終わっている場合は変更できません。間違えたら「1つ取り消す」で戻せます。</p>
-  </section>
+  </details>
 
-  <section class="card">
+  <section class="card" id="k-card-ops">
     <h2>試合の操作</h2>
     <div class="btnrow" style="margin-top:0;">
       <button class="btn danger" id="k-reset">試合を最初からやり直す</button>
@@ -768,6 +798,7 @@ button.side:active .plus-badge{transform:scale(.93);}
 <main id="view-viewer" class="wrap hidden">
   <div class="brand-row"><svg width="27" height="27" viewBox="0 0 48 48" aria-hidden="true"><g stroke="#e9cd8f" stroke-width="2.6" fill="none" stroke-linecap="round"><path d="M24 29 L12.5 10"/><path d="M24 29 L18 6.5"/><path d="M24 29 L24 5.5"/><path d="M24 29 L30 6.5"/><path d="M24 29 L35.5 10"/><path d="M13.5 12.5 Q24 7.5 34.5 12.5"/></g><path d="M16.8 31.5 a7.2 7.2 0 0 0 14.4 0 z" fill="#f5efe3"/></svg><span class="brand-name">BADMINTON LIVE</span><span class="brand-tag">THE ARENA</span></div>
   
+  <div class="conn-alert hidden" id="v-alert">⚠ 接続が切れています。表示は止まっています（自動でつなぎ直しています）。</div>
   <div class="topbar">
     <span class="conn mid" id="v-conn"><span class="dot"></span><span id="v-conn-text">接続中…</span></span>
     <span class="small" id="v-updated"></span>
@@ -811,20 +842,17 @@ button.side:active .plus-badge{transform:scale(.93);}
     <div class="rally-strip" id="v-rally"><span class="small">まだ点が入っていません</span></div>
   </section>
 
-  <section class="card">
-    <h2>気持ちを送る</h2>
-    <div class="stampbar" id="v-stamps">
-      <button type="button" data-e="👍" aria-label="グッド">👍</button>
-      <button type="button" data-e="👏" aria-label="拍手">👏</button>
-      <button type="button" data-e="❤️" aria-label="応援">❤️</button>
-      <button type="button" data-e="🔥" aria-label="熱い">🔥</button>
-      <button type="button" data-e="😮" aria-label="おどろき">😮</button>
-      <button type="button" data-e="😢" aria-label="涙">😢</button>
-    </div>
-    <p class="small" style="margin-bottom:0;">タップすると、見ているみんなと会場の操作画面に流れます。名前は出ません。</p>
-  </section>
+  <div id="v-stamps" role="group" aria-label="気持ちを送る">
+    <span class="stampbar-label">気持ちを送る</span>
+    <button type="button" data-e="👍" aria-label="グッド">👍</button>
+    <button type="button" data-e="👏" aria-label="拍手">👏</button>
+    <button type="button" data-e="❤️" aria-label="応援">❤️</button>
+    <button type="button" data-e="🔥" aria-label="熱い">🔥</button>
+    <button type="button" data-e="😮" aria-label="おどろき">😮</button>
+    <button type="button" data-e="😢" aria-label="涙">😢</button>
+  </div>
 
-  <section class="card">
+  <section class="card hidden" id="v-card-sheet">
     <h2>スコアシート</h2>
     <p class="small" style="margin-top:0;">この試合の公式記録用スコアシートが見られます（印刷・PDF保存もできます）。</p>
     <div class="btnrow" style="margin-top:0;"><button class="btn" id="v-sheet">スコアシートを見る</button></div>
@@ -1249,10 +1277,11 @@ function renderBoard(prefix, state, prev){
     : '<span class="small">まだ終わったゲームはありません</span>';
   $(prefix+"-games").innerHTML = gh;
   /* rally strip */
+  var rOff = Math.max(0, state.rallies.length - 14);
   var rh = state.rallies.length
-    ? state.rallies.map(function(w,i){
+    ? (rOff ? '<span class="r more">…</span>' : "") + state.rallies.slice(rOff).map(function(w,i){
         var dp = dispOrder(state).indexOf(w);
-        return '<span class="r ' + (dp===0?"a":"b") + '">' + (i+1) + "</span>";
+        return '<span class="r ' + (dp===0?"a":"b") + '">' + (rOff+i+1) + "</span>";
       }).join("")
     : '<span class="small">まだ点が入っていません</span>';
   $(prefix+"-rally").innerHTML = rh;
@@ -1315,6 +1344,11 @@ function initLobby(){
 }
 function renderMyList(){
   var list = loadMatches(), box = $("my-list");
+  var lc = $("list-card"), cc = $("create-card");
+  if (lc && cc){
+    if (list.length) $("view-lobby").insertBefore(lc, cc);
+    else $("view-lobby").insertBefore(cc, lc);
+  }
   if (!list.length){ box.innerHTML = '<p class="small">まだ試合がありません。</p>'; return; }
   box.innerHTML = "";
   list.forEach(function(m){
@@ -1496,18 +1530,34 @@ function minusPoint(p){
   if (st.rallies.length) st.server = st.rallies[st.rallies.length-1];
   pushAndRender(prev);
 }
+function keeperPhase(){
+  if (K.state.finished) return "done";
+  return (K.state.games.length === 0 && K.state.cur.a + K.state.cur.b === 0) ? "pre" : "live";
+}
 function renderKeeper(prev){
   renderBoard("k", K.state, prev);
   var sc = $("s-court"), sf = $("s-format");
   if (sc) sc.value = K.state.court || "";
   if (sf) sf.value = K.state.formatKey;
+  var phase = keeperPhase();
+  $("k-swap").classList.toggle("mini", phase === "live");
+  if (K._phase !== phase){
+    K._phase = phase;
+    var orders = {
+      pre:  ["k-card-share","k-card-history","k-card-sheet","k-card-settings","k-card-ops"],
+      live: ["k-card-history","k-card-sheet","k-card-share","k-card-settings","k-card-ops"],
+      done: ["k-card-sheet","k-card-history","k-card-share","k-card-settings","k-card-ops"]
+    };
+    var main = $("view-keeper");
+    orders[phase].forEach(function(id){ var el = $(id); if (el) main.appendChild(el); });
+  }
 }
 
 /* ================= VIEWER ================= */
 var V = { room:null, vhash:null, state:null, wakeLock:null };
 function initViewer(room, vhash){
   show("viewer");
-  V.room = room; V.vhash = vhash; V.state = null;
+  V.room = room; V.vhash = vhash; V.state = null; V.lastAt = null;
   $("v-title").textContent = "試合のスコアを待っています…";
   $("v-sub").textContent = "会場でスコアが付き始めると、ここに表示されます。";
   Sync.start({
@@ -1518,11 +1568,14 @@ function initViewer(room, vhash){
       V.state = state;
       upsertMatch({ room:room, verifyHash:vhash, role:"viewer",
         court: state.court || "", matchName: state.matchName, fixed:true });
+      V.lastAt = Date.now();
       renderBoard("v", state, prev);
+      var vsc = $("v-card-sheet"); if (vsc) vsc.classList.toggle("hidden", !state.finished);
       buzz(30);
     }
   });
   startUpdatedTicker("v", function(){ return V.state ? V.state.updatedAt : 0; });
+  setInterval(updateViewerAlert, 5000);
   document.querySelectorAll("#v-stamps button").forEach(function(b){
     b.onclick = function(){ Stamps.send(b.getAttribute("data-e")); };
   });
@@ -1539,10 +1592,26 @@ function requestWakeLock(){
 }
 
 /* ---------------- shared UI helpers ---------------- */
+function updateViewerAlert(){
+  var a = $("v-alert"); if (!a) return;
+  var stale = !!(V.state && !V.state.finished && V.lastAt && (Date.now() - V.lastAt > 30000));
+  a.classList.toggle("hidden", !stale);
+}
 function setConn(prefix, kind, text){
   var el = $(prefix+"-conn"); if (!el) return;
   el.className = "conn " + (kind==="on" ? "on" : kind==="off" ? "off" : "mid");
   $(prefix+"-conn-text").textContent = text;
+  if (prefix === "k"){
+    var al = $("k-alert");
+    if (al){
+      if (kind === "on"){
+        clearTimeout(window.__kAlertT); window.__kAlertT = null;
+        al.classList.add("hidden");
+      } else if (Sync.everConnected && !window.__kAlertT){
+        window.__kAlertT = setTimeout(function(){ al.classList.remove("hidden"); }, 6000);
+      }
+    }
+  }
 }
 var tickerStarted = {};
 function startUpdatedTicker(prefix, getTs){
