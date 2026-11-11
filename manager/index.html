@@ -323,6 +323,7 @@ input,select,textarea{font-size:16px}
 .rhist{padding:0 10px 8px;display:flex;gap:6px;flex-wrap:wrap;justify-content:center}
 .rfoot{padding:10px;display:flex;gap:8px;flex-wrap:wrap;background:#fff;border-top:2px solid #111}
 .rfoot .btn{flex:1;min-width:96px}
+.rfoot .btn.rfin{flex:1 1 100%}
 @media print{.roverlay{display:none !important}}
 
 /* ===== board versus cards ===== */
@@ -404,8 +405,8 @@ input,select,textarea{font-size:16px}
   .pbtn{font-size:14px;padding:10px 4px}
   .rounds{grid-auto-columns:minmax(210px,86vw)}
   h1{font-size:24px}
-  .hero-band h1{font-size:23px;max-width:60%}
-  .hero-band::after{width:36%}
+  .hero-band h1{font-size:23px;max-width:84%}
+  .hero-band::after{width:18%}
   .hero-ghost{font-size:60px}
   .card{padding:16px}
 }
@@ -548,17 +549,35 @@ input,select,textarea{font-size:16px}
 .courtgrid.cgd3 .court-card .btn{min-height:34px!important;font-size:12.5px}
 .courtgrid.cgd3 .vselap{font-size:20px}
 @media (max-width:640px){
-  .courtgrid{grid-template-columns:repeat(2,1fr);gap:8px}
-  .courtgrid .court-card{padding:10px}
-  .courtgrid .court-card .ghostnum{font-size:52px;top:-12px}
-  .courtgrid .courthead .cn{font-size:18px}
-  .courtgrid .vsname{padding:8px 7px}
-  .courtgrid .vsname .nm{font-size:16px}
-  .courtgrid .vsname .af{font-size:10px}
-  .courtgrid .vsmark{width:36px}
-  .courtgrid .vsmark i{width:27px;height:27px}
-  .courtgrid .vsmark i b{font-size:11px}
-  .courtgrid .vstag{font-size:10.5px;padding:4px 6px}
+  /* One court per row on a phone: at two columns the VS cards squeeze
+     Japanese names into one-character columns and the footer buttons
+     (結果を入れる / 開始を取消) overflow off the card. */
+  .courtgrid,.courtgrid.cgd2,.courtgrid.cgd3{grid-template-columns:1fr;gap:10px}
+  .courtgrid .court-card{padding:12px}
+  .courtgrid .court-card .ghostnum{font-size:64px;top:-14px}
+  .courtgrid .courthead .cn{font-size:20px}
+  .courtgrid .vsname{padding:10px 9px}
+  .courtgrid .vsname .nm,.courtgrid.cgd2 .vsname .nm,.courtgrid.cgd3 .vsname .nm{font-size:19px}
+  .courtgrid .vsname .af{font-size:11px}
+  .courtgrid .vsmark{width:44px}
+  .courtgrid .vsmark i{width:34px;height:34px}
+  .courtgrid .vsmark i b{font-size:13px}
+  .courtgrid .vstag{font-size:11px;padding:4px 7px}
+  .courtgrid .vsfoot{flex-wrap:wrap;row-gap:6px}
+  /* Rows that pair a time/court meta with player names give the names
+     their own full-width line instead of wrapping mid-name. */
+  .qrow{flex-wrap:wrap}
+  .qrow:has(> .qmeta) .qnames{flex:1 1 100%;order:5}
+  .qrow .qstart{margin-left:auto}
+  /* League summary table: keep the name column readable — affiliation
+     drops under the name, numeric columns and padding tighten. */
+  .standsum{font-size:13px}
+  .standsum th,.standsum td{padding:5px 4px}
+  .standsum td .mini{display:block}
+  .standsum td:last-child{width:auto!important}
+  .blockglyph{flex-basis:38px;font-size:30px}
+  .mfoot{flex-wrap:wrap}
+  .rfoot .btn{white-space:nowrap}
 }
 /* --- tournament: round headers as black bands --- */
 .roundcol h4{background:var(--ink);color:#fff;padding:7px 11px;border-left:0;letter-spacing:.1em;
@@ -1042,6 +1061,13 @@ var LS_KEY = "tmgr-v1";
 var state = loadState();
 try{ __step("state"); }catch(e){}
 var view = "home";
+// Once the day is running (a result is in, or a match is on court),
+// land on the live board — the day's cockpit — instead of the setup home.
+try {
+  if (state && state.events && state.events.length &&
+    (Object.keys(state.live || {}).length > 0 ||
+     Object.keys(state.results || {}).some(function(k){ return state.results[k] && state.results[k].winner; }))) view = "live";
+} catch (e) {}
 var sync = {client:null, connected:false, room:"", bc:null, lastEdit:0, configTs:0};
 function defaultState(){
   return { meta:{name:"", date:"", venue:"", courts:4, start:"09:30", interval:12, detail:"full"},
@@ -1768,13 +1794,15 @@ function receiveState(payload, local){
 <script>
 // ===== UI =====
 try{ __step("ui"); }catch(e){}
+// Ordered by how often each screen is needed on the tournament day:
+// the live board is the day's cockpit, setup screens sit at the back.
 var NAV = [
   {id:"home", label:"ホーム", ico:"🏠"},
-  {id:"entry", label:"参加者・種目", ico:"👥"},
+  {id:"live", label:"進行ボード", ico:"📋"},
   {id:"league", label:"リーグ", ico:"🔢"},
   {id:"tour", label:"トーナメント", ico:"🏆"},
-  {id:"live", label:"進行ボード", ico:"📋"},
   {id:"time", label:"タイムテーブル", ico:"🕐"},
+  {id:"entry", label:"参加者・種目", ico:"👥"},
   {id:"config", label:"設定・共有", ico:"⚙️"}
 ];
 var uiOpenScore = {};
@@ -2350,7 +2378,7 @@ function renderReferee(){
     '<button class="btn ghost" onclick="refUndoUI()"' + (refTotal(st) ? "" : " disabled") + '>↩ 1つ戻す</button>' +
     '<button class="btn ghost" onclick="printOfficialSheetDraft()">スコアシート</button>' +
     '<button class="btn ghost" onclick="refToModal()">通常入力</button>' +
-    '<button class="btn" onclick="refFinalize()"' + (win ? "" : " disabled") + '>' + (win ? '確定して適用（' + esc(playerName(ev, win === "A" ? pl.p1 : pl.p2)) + ' の勝ち）' : "確定して適用") + '</button>' +
+    '<button class="btn rfin" onclick="refFinalize()"' + (win ? "" : " disabled") + '>' + (win ? '確定して適用（' + esc(playerName(ev, win === "A" ? pl.p1 : pl.p2)) + ' の勝ち）' : "確定して適用") + '</button>' +
     '</div>' +
     '<div style="padding:0 10px 10px;background:#fff"><button class="linkbtn" style="color:var(--bad)" onclick="refDiscard()">下書きを破棄</button>' +
     '<button class="linkbtn" style="margin-left:12px" onclick="printOneSheet(\'' + _refCur.mid + '\')">審判用紙（白紙）</button>' +
@@ -2979,6 +3007,17 @@ function render(){
     if (view === "home") countUps();
   }
 }
+// The app has two phases with opposite frequencies: setup (before the
+// day) and operations (the day itself). These two checks drive the
+// phase-aware home layout and the boot landing view.
+function fixturesReady(){
+  return state.events.some(function(ev){ return allMatches(ev).length > 0; });
+}
+function dayOpsActive(){
+  if (!state.events.length) return false;
+  if (Object.keys(state.live || {}).some(function(mid){ var r = state.results[mid]; return !(r && r.winner); })) return true;
+  return Object.keys(state.results || {}).some(function(k){ return state.results[k] && state.results[k].winner; });
+}
 function guideInfo(){
   var steps = ["大会設定", "種目・参加者", "組合せ", "リーグ", "トーナメント", "表彰・出力"];
   function act(cur, text, btn, view, evId){ return {steps: steps, cur: cur, act: {text: text, btn: btn, view: view, evId: evId || null}}; }
@@ -2997,9 +3036,63 @@ function guideInfo(){
       if (isLeagueMatch(m)){ lrem++; if (!lEv) lEv = ev; } else { trem++; if (!tEv) tEv = ev; }
     });
   });
+  if (lrem && dayOpsActive()) return act(3, "リーグ進行中です（残り " + lrem + " 試合）。当日の結果入力は進行ボードからが速いです", "進行ボードを開く", "live");
   if (lrem) return act(3, "リーグの結果を入力しましょう（残り " + lrem + " 試合）。勝者をタップ → スコアを入力して保存、の順です", "リーグを開く", "league", lEv && lEv.id);
+  if (trem && dayOpsActive()) return act(4, "トーナメント進行中です（残り " + trem + " 試合）。当日の結果入力は進行ボードからが速いです", "進行ボードを開く", "live");
   if (trem) return act(4, "トーナメントの結果を入力しましょう（残り " + trem + " 試合）", "トーナメントを開く", "tour", tEv && tEv.id);
   return act(5, "全試合が終了しました。成績表CSVと賞状を出力できます", "設定・共有を開く", "config");
+}
+// Day-operations block for the home screen: once fixtures exist, this
+// outranks the setup guide. It is a summary (the live board stays the
+// place to operate): on-court matches, next matches, awards that are
+// ready to print, and the morning's referee-sheet printing.
+function homeOpsHTML(next){
+  var liveMids = Object.keys(state.live || {}).filter(function(mid){ var r = state.results[mid]; return !(r && r.winner); });
+  var h = '<div class="card" style="border:2px solid var(--ink)"><h3 style="margin-top:0">今日の運営</h3>';
+  if (liveMids.length){
+    h += '<div class="en cy">On Court — 試合中</div>' + liveMids.map(function(mid){
+      var f = findMatchGlobal(mid); if (!f) return "";
+      var court = liveCourt(mid);
+      var pl = matchPlayers(f.ev, f.m, null);
+      var mins = Math.max(0, Math.round((Date.now() - (state.live[mid] || Date.now())) / 60000));
+      return '<div class="qrow"><span class="qmeta">' + (court ? court + 'コート' : 'コート未定') + ' ・ ' + esc(f.ev.name) + '</span>' +
+        '<span class="qnames">' + esc(playerName(f.ev, pl.p1)) + '<i>vs</i>' + esc(playerName(f.ev, pl.p2)) + '</span>' +
+        '<span class="mini">' + mins + '分</span>' +
+        (VIEWER ? "" : '<button class="btn small qstart" onclick="jumpMatch(\'' + mid + '\')">結果を入れる</button>') + '</div>';
+    }).join("");
+  } else {
+    h += '<div class="sub">試合中のコートはありません。</div>';
+  }
+  if (next && next.length){
+    h += '<div class="en cy" style="margin-top:10px">Next — 次の試合（要約）</div>' + next.map(function(s){
+      var ev = evById(s.match.evId); var pl = matchPlayers(ev, s.match, null);
+      return '<div class="qrow"><span class="qmeta">' + esc(s.time) + ' ・ ' + s.court + 'コート</span>' +
+        '<span class="qnames">' + esc(playerName(ev, pl.p1)) + '<i>vs</i>' + esc(playerName(ev, pl.p2)) + '</span>' +
+        '<span class="mini">' + esc(ev.name) + '</span></div>';
+    }).join("") +
+    '<div style="margin-top:8px"><button class="btn" onclick="go(\'live\')">' + (VIEWER ? "進行ボードを見る →" : "進行ボードで操作する →") + '</button></div>';
+  }
+  var awards = [];
+  state.events.forEach(function(ev){
+    if ((ev.format === "league2" || ev.format === "tournament" || ev.format === "team") && championOf(ev, "upper")) awards.push({ ev: ev, label: ev.format === "team" ? "優勝" : "上位優勝", pid: championOf(ev, "upper") });
+    if (ev.format === "league2" && championOf(ev, "lower")) awards.push({ ev: ev, label: "下位優勝", pid: championOf(ev, "lower") });
+    if (ev.challengeUntil && challengeChampion(ev)) awards.push({ ev: ev, label: "チャレンジ優勝", pid: challengeChampion(ev) });
+  });
+  if (awards.length){
+    h += '<div class="en cy" style="margin-top:10px">Awards — 表彰の準備</div>' + awards.map(function(a){
+      return '<div class="qrow"><span class="qnames">🏆 ' + esc(a.ev.name) + ' ' + a.label + '：' + esc(playerName(a.ev, a.pid)) + '</span>' +
+        (VIEWER ? "" : '<button class="btn small qstart" onclick="printAwards(\'' + a.ev.id + '\')">賞状</button>') + '</div>';
+    }).join("");
+  }
+  if (!VIEWER){
+    h += '<div class="en cy" style="margin-top:10px">Print — 当日の出力</div>' + state.events.filter(function(ev){ return allMatches(ev).length; }).map(function(ev){
+      return '<div class="qrow"><span class="qnames">' + esc(ev.name) + '</span>' +
+        '<button class="btn ghost small" onclick="printSheets(\'' + ev.id + '\',\'ready\')">審判用紙（確定分）</button>' +
+        '<button class="btn ghost small" onclick="printSheets(\'' + ev.id + '\',\'all\')">審判用紙（全試合）</button></div>';
+    }).join("");
+  }
+  h += '<div style="margin-top:10px"><button class="btn ghost small" onclick="go(\'time\')">' + (VIEWER ? "選手を探す →" : "選手を探す・欠場の処理 →") + '</button></div>';
+  return h + "</div>";
 }
 function vHome(){
   var totalP = state.events.reduce(function(a,e){ return a + e.participants.length; }, 0);
@@ -3018,11 +3111,15 @@ function vHome(){
   var h = '<div class="hero-band"><div class="hero-en">TACTICAL OPERATION SYSTEM</div><h1>' + esc(state.meta.name || "大会運営 Web") + "</h1>" +
     '<div class="sub">' + esc([(isMultiDay() ? metaDates().filter(Boolean).join(" ・ ") : state.meta.date), state.meta.venue].filter(Boolean).join(" ・ ") || "設定タブで大会名・日付・会場を入れられます") + "</div></div>";
   var gd = guideInfo();
-  h += '<div class="guide"><div class="guide-steps">' + gd.steps.map(function(s, i){
+  var guideHTML = '<div class="guide"><div class="guide-steps">' + gd.steps.map(function(s, i){
       return '<span class="gstep' + (i < gd.cur ? " done" : (i === gd.cur ? " cur" : "")) + '"><span class="gnum">' + (i < gd.cur ? "✓" : "0" + (i + 1)) + '</span>' + s + '</span>';
     }).join('<span class="gsep">—</span>') + '</div>' +
     '<div class="guide-act"><div><div class="en cy">Next Action — 次にやること</div><div class="guide-text">' + esc(gd.act.text) + '</div></div>' +
     '<button class="btn" onclick="' + (gd.act.evId ? "goEv('" + gd.act.view + "','" + gd.act.evId + "')" : "go('" + gd.act.view + "')") + '">' + esc(gd.act.btn) + ' →</button></div></div>';
+  // Phase-aware order: with fixtures in place, the day's operations lead
+  // and the setup guide follows; before that, the guide leads.
+  if (fixturesReady()) h += homeOpsHTML(next) + guideHTML;
+  else h += guideHTML;
   var warns0 = validateEvents();
   if (warns0.length) h += '<div class="warnbox"><strong>⚠ チェック ' + warns0.length + ' 件</strong> <span class="mini">「参加者・種目」タブで内容を確認してください。</span></div>';
   if (!state.events.length){
@@ -3033,7 +3130,7 @@ function vHome(){
     };
     h += '<div class="scene corners-w"><div class="scene-head"><span class="en" style="color:var(--cy)">Operation Status</span><span class="scene-frac">消化試合 <b>' + doneM + '</b> / ' + allM + '</span></div>' +
       '<div class="scene-num"><span data-n="' + pct + '">' + pct + '</span><span class="ops-pct">%</span></div>';
-    if (next.length){
+    if (next.length && !fixturesReady()){
       h += '<div class="scene-next"><div class="en" style="color:#8b93a0">Next Operations</div>' + next.map(function(s, i){
         var ev = evById(s.match.evId); var pl = matchPlayers(ev, s.match, null);
         return '<div class="oprow"><span class="opidx">' + ("0" + (i + 1)).slice(-2) + '</span><span class="optime">' + esc(s.time) + '</span><span class="opmeta">' + s.court + 'コート ・ ' + esc(ev.name) + ' ・ ' + esc(playerName(ev, pl.p1)) + ' vs ' + esc(playerName(ev, pl.p2)) + '</span></div>';
@@ -3601,6 +3698,7 @@ function renamePart(eid, pid){
 // Retirement processing: remaining fixtures become walkover wins for the opponent
 // (no re-draw needed). Auto-entered results are marked so un-retiring removes only those.
 function toggleRetire(eid, pid){
+  if (VIEWER) return;
   var ev = evById(eid); var p = ev.participants.find(function(x){return x.id===pid;}); if (!p) return;
   if (!p.retired){
     if (!confirm(p.name + " を棄権にしますか？\\nまだ終わっていない試合は、対戦相手の不戦勝として自動で記録されます（組み直しは不要です）。")) return;
@@ -3896,7 +3994,8 @@ function vTour(){
       var tms = tournamentMatches(ev, tier, lms);
 
       h += '<div class="card"><div class="row"><span class="chip ' + tier + '">' + (tier === "upper" ? (ev.format === "team" ? "決勝トーナメント" : "上位トーナメント") : "下位トーナメント") + "</span>" +
-        (championOf(ev, tier) ? '<span class="chip green">優勝: ' + esc(playerName(ev, championOf(ev, tier))) + "</span>" : "") +
+        (championOf(ev, tier) ? '<span class="chip green">優勝: ' + esc(playerName(ev, championOf(ev, tier))) + "</span>" +
+          (VIEWER ? "" : '<button class="btn ghost small" onclick="printAwards(\'' + ev.id + '\')">賞状</button>') : "") +
         '<span style="margin-left:auto"></span><button class="btn ghost small" onclick="uiTourView=\'bracket\';render()">トーナメント表</button>' +
         '<button class="btn ghost small" onclick="uiTourView=\'cards\';render()">カード</button></div>';
       if (!tms.length){ h += '<div class="empty">リーグの全ブロックの順位が確定すると、ここに組み上がります。</div></div>'; return; }
@@ -3991,7 +4090,8 @@ function vLive(){
       h += vsHTML(cev, cur.match, "live", '<i class="livedot">●</i> 試合中') +
         '<div class="vsfoot" style="border-top:0;padding-left:2px"><span class="vselap">' + mins + '</span><span style="font-weight:700">分経過</span>' +
         '<button class="btn" style="margin-left:auto" onclick="jumpMatch(\'' + cur.match.id + '\')">結果を入れる</button>' +
-        '<button class="btn ghost" style="margin-left:8px;white-space:nowrap" onclick="cancelMatch(\'' + cur.match.id + '\')">開始を取消</button></div>';
+        '<button class="btn ghost" style="margin-left:8px;white-space:nowrap" onclick="cancelMatch(\'' + cur.match.id + '\')">開始を取消</button></div>' +
+        '<div style="margin-top:6px"><button class="btn ghost small" style="min-height:40px" onclick="openReferee(\'' + cev.id + "','" + cur.match.id + '\')">審判モードで数える</button></div>';
     } else {
       var nxt = sched.filter(function(x){ return x.court === c && ready(x); }).sort(function(a,b){ return (a.day - b.day) || (a.slot - b.slot); })[0];
       if (nxt){
@@ -4011,6 +4111,7 @@ function vLive(){
       var mins = Math.max(0, Math.round((Date.now() - state.live[mid]) / 60000));
       return vsHTML(f.ev, f.m, "live", '<i class="livedot">●</i> 試合中 ' + mins + '分' + (courtOf[mid] ? ' ・ コート' + courtOf[mid] : "")) +
         '<div style="margin-top:6px"><button class="btn small" style="min-height:42px" onclick="jumpMatch(\'' + mid + '\')">結果を入れる</button> ' +
+        '<button class="btn ghost small" style="min-height:42px" onclick="openReferee(\'' + f.ev.id + "','" + mid + '\')">審判モード</button> ' +
         '<button class="btn ghost small" style="min-height:42px" onclick="cancelMatch(\'' + mid + '\')">開始を取消</button></div>';
     }).join("") + "</div>";
   }
@@ -4020,15 +4121,66 @@ function vLive(){
       var ev = evById(x.match.evId); var pl = matchPlayers(ev, x.match, null);
       return '<div class="qrow"><span class="qmeta">' + (isMultiDay() ? esc(dayShort(x.day)) + " " : "") + esc(x.time) + " ・ コート" + x.court + '</span>' +
         '<span class="qnames">' + esc(playerName(ev, pl.p1)) + '<i>vs</i>' + esc(playerName(ev, pl.p2)) + '</span>' +
-        '<button class="btn small qstart" onclick="pickCourtAndStart(\'' + x.match.id + '\')">▶ 開始</button></div>';
+        '<button class="btn small qstart" onclick="pickCourtAndStart(\'' + x.match.id + '\')">▶ 開始</button>' +
+        '<button class="linkbtn" onclick="openReferee(\'' + ev.id + "','" + x.match.id + '\')">審判</button></div>';
     }).join("") : '<div class="sub">開始できる試合はありません</div>') + "</div>";
   return h;
 }
 // --- timetable ---
 var ttMode = "auto";
+// Player search: answers the day's most common question at the desk —
+// "when is that player's next match?" — and doubles as the way to
+// process a same-day withdrawal without hunting through the entry list.
+var _searchQ = "";
+function setSearchQ(v){
+  _searchQ = v; render();
+  var i = document.getElementById("psearch");
+  if (i){ i.focus(); try { i.setSelectionRange(i.value.length, i.value.length); } catch (e){} }
+}
+function playerSearchHTML(){
+  var q = (_searchQ || "").trim();
+  var h = '<div class="card"><h3 style="margin-top:0">選手を探す</h3>' +
+    '<input type="text" id="psearch" placeholder="名前・ふりがなで検索（例： やまだ）" value="' + esc(_searchQ) + '" oninput="setSearchQ(this.value)">' +
+    '<div class="mini" style="margin-top:4px">その選手の全試合（時刻・コート・相手・結果）が分かります。' + (VIEWER ? "" : '欠場した選手はここから「棄権にする」こともできます。') + '</div>';
+  if (!q) return h + "</div>";
+  var hits = [];
+  state.events.forEach(function(ev){
+    ev.participants.forEach(function(p){
+      if (p.name.indexOf(q) >= 0 || (p.kana || "").indexOf(q) >= 0) hits.push({ ev: ev, p: p });
+    });
+  });
+  if (!hits.length) return h + '<div class="sub" style="margin-top:8px">「' + esc(q) + '」に合う選手はいません</div></div>';
+  var sm = schedMap();
+  h += hits.slice(0, 12).map(function(hit){
+    var ev = hit.ev, p = hit.p;
+    var ms = allMatches(ev).filter(function(m){ var pl = matchPlayers(ev, m, null); return pl.p1 === p.id || pl.p2 === p.id; });
+    ms.sort(function(a, b){
+      var sa = sm[a.id], sb = sm[b.id];
+      return ((sa ? sa.day : 9) - (sb ? sb.day : 9)) || ((sa ? sa.slot : 999) - (sb ? sb.slot : 999));
+    });
+    var rows = ms.map(function(m){
+      var pl = matchPlayers(ev, m, null);
+      var opp = pl.p1 === p.id ? pl.p2 : pl.p1;
+      var r = state.results[m.id];
+      var sx = sm[m.id];
+      var when = sx ? (isMultiDay() ? dayShort(sx.day) + " " : "") + sx.time + " ・ " + sx.court + "コート" : "時刻未定";
+      var stat = r && r.winner ? (r.winner === p.id ? "勝ち " : "負け ") + (r.score || "") : (state.live && state.live[m.id] ? "試合中" : "予定");
+      return '<div class="qrow"><span class="qmeta">' + esc(when) + '</span>' +
+        '<span class="qnames">vs ' + esc(opp ? playerName(ev, opp) : "未定") + '</span>' +
+        '<span class="mini">' + esc(stat) + '</span>' +
+        (opp && opp !== "BYE" && !VIEWER ? '<button class="btn small qstart" onclick="jumpMatch(\'' + m.id + '\')">開く</button>' : "") + '</div>';
+    }).join("");
+    return '<div style="margin-top:12px"><div class="row spread"><strong>' + esc(p.name) + (p.kana ? ' <span class="mini">' + esc(p.kana) + '</span>' : "") + (p.retired ? ' <span class="chip red">棄権</span>' : "") + '</strong>' +
+      '<span class="sub">' + esc(ev.name) + ' ・ ' + esc(p.aff || "") + '</span>' +
+      (VIEWER ? "" : '<button class="linkbtn" style="color:var(--bad)" onclick="toggleRetire(\'' + ev.id + "','" + p.id + '\')">' + (p.retired ? "棄権を取り消す" : "棄権にする") + '</button>') + '</div>' + rows + '</div>';
+  }).join("");
+  if (hits.length > 12) h += '<div class="sub" style="margin-top:8px">ほか ' + (hits.length - 12) + ' 件あります（検索を絞ってください）</div>';
+  return h + "</div>";
+}
 function vTime(){
   var sched = buildSchedule();
   var h = "<h1>タイムテーブル</h1><div class='sub'>リーグはラウンドごとにブロックを交互に並べ、同じ選手が続けて入らないよう割り付けた目安です（当日の流し込みで前後します）。</div>";
+  h += playerSearchHTML();
   h += '<div class="row" style="margin:10px 0"><button class="btn ghost small" onclick="ttMode=\'list\';render()">リスト</button><button class="btn ghost small" onclick="ttMode=\'grid\';render()">表形式</button></div>';
   if (!sched.length) return h + '<div class="empty">試合がまだありません</div>';
   var wide = window.innerWidth >= 900;
@@ -4303,6 +4455,7 @@ function sheetHTML(ev, m, all, smap){
     '<div style="overflow-x:auto">' + ssRenderShiga(blankRec, metaB) + '</div></section>';
 }
 function printSheets(evId, mode){
+  if (VIEWER) return;
   var ev = evById(evId); if (!ev) return;
   var all = allMatches(ev);
   var list = all.filter(function(m){
@@ -4807,6 +4960,7 @@ function printCertSample(){
 }
 // ===CHUNK===
 function printAwards(evId){
+  if (VIEWER) return;
   var ev = evById(evId); if (!ev) return;
   var list = [];
   if (ev.format === "league"){
