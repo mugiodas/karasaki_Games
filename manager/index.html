@@ -3107,6 +3107,11 @@ function eventEntryCard(ev){
     '<div class="row" style="margin-top:8px"><button class="btn small" onclick="pasteAdd(\'' + ev.id + '\')">追加する</button>' +
     '<input type="text" id="one-name-' + ev.id + '" placeholder="名前" style="flex:2;min-width:140px"><input type="text" id="one-aff-' + ev.id + '" placeholder="所属" style="flex:1;min-width:100px"><input type="text" id="one-kana-' + ev.id + '" placeholder="ふりがな（任意）" style="flex:1;min-width:100px">' +
     '<button class="btn ghost small" onclick="oneAdd(\'' + ev.id + '\')">1件追加</button></div>';
+  if (ev.format !== "team"){
+    h += '<div class="row" style="margin-top:8px"><button class="btn ghost small" onclick="exportTeamSheet(\'' + ev.id + '\')">チーム配布用Excelを出力</button>' +
+      '<button class="btn ghost small" onclick="importParticipants(\'' + ev.id + '\')">Excel・CSVから取り込む</button>' +
+      '<span class="sub">各チームに配る記入用Excel（黄色いセルだけ入力でき、所属はチーム名から自動で入る固定様式）を出し、返ってきたファイルを取り込むと、そのチームの参加者がまとめて登録されます。</span></div>';
+  }
   if (ev.participants.length){
     h += '<table style="margin-top:10px"><tr><th style="width:34px">#</th><th>名前</th><th>所属</th><th style="width:64px">シード</th><th style="width:110px">操作</th></tr>';
     ev.participants.forEach(function(p, i){
@@ -3240,6 +3245,323 @@ function oneAdd(id){
   var kn = document.getElementById("one-kana-" + id);
   ev.participants.push({id: uid("p"), name: n, aff: document.getElementById("one-aff-" + id).value.trim(), kana: kn ? kn.value.trim() : "", seed:false});
   touchConfig(); render();
+}
+// ===== Excel (xlsx) participant import / export =====
+// The distribution workbook is written by hand (stored-zip OOXML with
+// inline strings, no external library) so it opens in Excel and Sheets
+// as-is. Import reads real Excel files back (stored or deflated zip
+// entries, shared or inline strings) and CSV as a fallback.
+function _te(s){ return new TextEncoder().encode(s); }
+var _CRC_T = null;
+function _crc32(buf){
+  if (!_CRC_T){
+    _CRC_T = [];
+    for (var n = 0; n < 256; n++){
+      var c = n;
+      for (var k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+      _CRC_T.push(c >>> 0);
+    }
+  }
+  var crc = 0xFFFFFFFF;
+  for (var i = 0; i < buf.length; i++) crc = _CRC_T[(crc ^ buf[i]) & 0xFF] ^ (crc >>> 8);
+  return (crc ^ 0xFFFFFFFF) >>> 0;
+}
+function _zipStore(files){
+  var chunks = [], central = [], offset = 0;
+  files.forEach(function(f){
+    var nameB = _te(f.name), data = f.data, crc = _crc32(data);
+    var lh = new DataView(new ArrayBuffer(30));
+    lh.setUint32(0, 0x04034b50, true); lh.setUint16(4, 20, true); lh.setUint16(6, 0x0800, true);
+    lh.setUint16(10, 0, true); lh.setUint16(12, 0x21, true);
+    lh.setUint32(14, crc, true); lh.setUint32(18, data.length, true); lh.setUint32(22, data.length, true);
+    lh.setUint16(26, nameB.length, true);
+    chunks.push(new Uint8Array(lh.buffer), nameB, data);
+    var ch = new DataView(new ArrayBuffer(46));
+    ch.setUint32(0, 0x02014b50, true); ch.setUint16(4, 20, true); ch.setUint16(6, 20, true); ch.setUint16(8, 0x0800, true);
+    ch.setUint16(12, 0, true); ch.setUint16(14, 0x21, true);
+    ch.setUint32(16, crc, true); ch.setUint32(20, data.length, true); ch.setUint32(24, data.length, true);
+    ch.setUint16(28, nameB.length, true); ch.setUint32(42, offset, true);
+    central.push(new Uint8Array(ch.buffer), nameB);
+    offset += 30 + nameB.length + data.length;
+  });
+  var cdSize = central.reduce(function(a, c){ return a + c.length; }, 0);
+  var eo = new DataView(new ArrayBuffer(22));
+  eo.setUint32(0, 0x06054b50, true);
+  eo.setUint16(8, files.length, true); eo.setUint16(10, files.length, true);
+  eo.setUint32(12, cdSize, true); eo.setUint32(16, offset, true);
+  var all = chunks.concat(central, [new Uint8Array(eo.buffer)]);
+  var out = new Uint8Array(all.reduce(function(a, c){ return a + c.length; }, 0));
+  var pos = 0;
+  all.forEach(function(c){ out.set(c, pos); pos += c.length; });
+  return out;
+}
+function _xmlEsc(s){
+  return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+function _xmlUnesc(s){
+  return String(s).replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&apos;/g, "'")
+    .replace(/&#x([0-9a-fA-F]+);/g, function(_, h){ return String.fromCodePoint(parseInt(h, 16)); })
+    .replace(/&#(\d+);/g, function(_, d){ return String.fromCodePoint(parseInt(d, 10)); })
+    .replace(/&amp;/g, "&");
+}
+function _colName(i){
+  var s = "";
+  do { s = String.fromCharCode(65 + (i % 26)) + s; i = Math.floor(i / 26) - 1; } while (i >= 0);
+  return s;
+}
+function _sheetXML(rows, widths, styleFor, protect){
+  var s = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">';
+  if (widths) s += "<cols>" + widths.map(function(w, i){ return '<col min="' + (i + 1) + '" max="' + (i + 1) + '" width="' + w + '" customWidth="1"/>'; }).join("") + "</cols>";
+  s += "<sheetData>";
+  rows.forEach(function(row, ri){
+    s += '<row r="' + (ri + 1) + '">';
+    row.forEach(function(val, ci){
+      if (val === "" || val == null) return;
+      var st = styleFor ? styleFor(ri, ci) : 0;
+      s += '<c r="' + _colName(ci) + (ri + 1) + '"' + (st ? ' s="' + st + '"' : "") + ' t="inlineStr"><is><t xml:space="preserve">' + _xmlEsc(val) + "</t></is></c>";
+    });
+    s += "</row>";
+  });
+  s += "</sheetData>";
+  if (protect) s += '<sheetProtection sheet="1" objects="1" scenarios="1"/>';
+  return s + "</worksheet>";
+}
+// The entry sheet is deliberately rigid so a team contact who rarely
+// uses a computer cannot break it: only the yellow cells accept input,
+// the affiliation column is a locked formula fed by one team-name cell,
+// the header/example rows are protected, and name length is validated.
+var TEAM_ROWS = 80;
+function teamSheetXML(team){
+  function txt(ref, val, st){
+    if (val === "" || val == null) return '<c r="' + ref + '"' + (st ? ' s="' + st + '"' : "") + "/>";
+    return '<c r="' + ref + '"' + (st ? ' s="' + st + '"' : "") + ' t="inlineStr"><is><t xml:space="preserve">' + _xmlEsc(val) + "</t></is></c>";
+  }
+  var s = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">';
+  s += '<sheetViews><sheetView workbookViewId="0"><pane ySplit="3" topLeftCell="A4" activePane="bottomLeft" state="frozen"/><selection pane="bottomLeft" activeCell="B1" sqref="B1"/></sheetView></sheetViews>';
+  s += '<cols><col min="1" max="1" width="26" customWidth="1"/><col min="2" max="2" width="26" customWidth="1"/><col min="3" max="3" width="22" customWidth="1"/><col min="4" max="4" width="52" customWidth="1"/></cols>';
+  s += "<sheetData>";
+  s += '<row r="1">' + txt("A1", "チーム名（所属）", 1) + txt("B1", team, 5) + txt("D1", "← まずここにチーム名を入力してください。全員の「所属」に自動で入ります。", 0) + "</row>";
+  s += '<row r="2">' + txt("A2", "下の表に選手を1行に1名ずつ入力してください。黄色いセルだけが入力できます。", 0) + "</row>";
+  s += '<row r="3">' + txt("A3", "名前", 1) + txt("B3", "ふりがな", 1) + txt("C3", "所属", 1) + "</row>";
+  s += '<row r="4">' + txt("A4", "（例）山田 太郎", 2) + txt("B4", "やまだ たろう", 2) + txt("C4", team || "（例）唐崎ジュニア", 2) + "</row>";
+  for (var r = 5; r <= 4 + TEAM_ROWS; r++){
+    s += '<row r="' + r + '">' + txt("A" + r, "", 4) + txt("B" + r, "", 4) +
+      '<c r="C' + r + '" s="6" t="str"><f>$B$1</f>' + (team ? "<v>" + _xmlEsc(team) + "</v>" : "") + "</c></row>";
+  }
+  s += "</sheetData>";
+  s += '<sheetProtection sheet="1" objects="1" scenarios="1"/>';
+  s += '<dataValidations count="2">' +
+    '<dataValidation type="textLength" operator="lessThanOrEqual" allowBlank="1" showInputMessage="1" showErrorMessage="1" errorStyle="stop" errorTitle="入力エラー" error="名前は30文字以内で入力してください" promptTitle="名前" prompt="試合で使う名前を入力してください" sqref="A5:A' + (4 + TEAM_ROWS) + '"><formula1>30</formula1></dataValidation>' +
+    '<dataValidation type="textLength" operator="lessThanOrEqual" allowBlank="1" showInputMessage="1" showErrorMessage="1" errorStyle="stop" errorTitle="入力エラー" error="ふりがなは40文字以内で入力してください" promptTitle="ふりがな" prompt="ひらがなで入力してください（ダブルスは2人を「・」でつないでください）" sqref="B5:B' + (4 + TEAM_ROWS) + '"><formula1>40</formula1></dataValidation>' +
+    "</dataValidations>";
+  return s + "</worksheet>";
+}
+function buildTeamXlsx(team){
+  team = team || "";
+  var notes = [
+    ["参加者登録シートの記入方法"], [""],
+    ["・最初に「参加者」シートの一番上にある黄色いマスへ、チーム名を入力してください。"],
+    ["　「所属」の欄は、チーム名から自動で全員に入ります（入力は不要です）。"],
+    ["・黄色いセルだけが入力できます。見出しや灰色の部分は変更できないよう固定されています。"],
+    ["・選手は1行に1名ずつ入力してください（ダブルスは1行に1ペア）。"],
+    ["・「名前」は試合で使う表記のまま、「ふりがな」はひらがなで入力してください（ふりがなは公式スコアシートに印刷されます）。"],
+    ["・ダブルスの場合は、名前もふりがなも2人を「・」でつないでください。"],
+    ["　例：佐藤 花・鈴木 葉 ／ さとう はな・すずき よう"],
+    ["・（例）の行は入力の見本です。そのまま残してかまいません（取り込み時に自動で除かれます）。"],
+    ["・入力が終わったら、このファイルのまま保存して返送してください。"]];
+  var parts = [
+    { name: "[Content_Types].xml", data: _te('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/worksheets/sheet2.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>') },
+    { name: "_rels/.rels", data: _te('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>') },
+    { name: "xl/workbook.xml", data: _te('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="参加者" sheetId="1" r:id="rId1"/><sheet name="記入方法" sheetId="2" r:id="rId2"/></sheets><calcPr fullCalcOnLoad="1"/></workbook>') },
+    { name: "xl/_rels/workbook.xml.rels", data: _te('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet2.xml"/><Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>') },
+    { name: "xl/styles.xml", data: _te('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="3"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font><font><i/><color rgb="FF808080"/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="5"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFD9E2F3"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFF2F2F2"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFFFF2CC"/></patternFill></fill></fills><borders count="1"><border/></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="7"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/><xf numFmtId="0" fontId="2" fillId="3" borderId="0" xfId="0" applyFont="1" applyFill="1"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/><xf numFmtId="0" fontId="0" fillId="4" borderId="0" xfId="0" applyFill="1" applyProtection="1"><protection locked="0"/></xf><xf numFmtId="0" fontId="1" fillId="4" borderId="0" xfId="0" applyFont="1" applyFill="1" applyProtection="1"><protection locked="0"/></xf><xf numFmtId="0" fontId="0" fillId="3" borderId="0" xfId="0" applyFill="1"><protection locked="1"/></xf></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>') },
+    { name: "xl/worksheets/sheet1.xml", data: _te(teamSheetXML(team)) },
+    { name: "xl/worksheets/sheet2.xml", data: _te(_sheetXML(notes, [90], function(r){ return r === 0 ? 3 : 0; }, true)) }];
+  return _zipStore(parts);
+}
+function exportTeamSheet(evId){
+  var team = prompt("配布するチーム名（所属）を入力してください。空欄なら所属なしの雛形を出します。", "");
+  if (team === null) return;
+  team = team.trim();
+  var blob = new Blob([buildTeamXlsx(team)], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+  var a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "参加者登録" + (team ? "_" + team : "") + ".xlsx";
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); }, 4000);
+}
+async function _inflateRaw(raw){
+  if (typeof DecompressionStream === "undefined") throw new Error("この端末では圧縮されたExcelファイルを読めませんでした。Excelで「CSV UTF-8」形式で保存し直して取り込んでください");
+  var stream = new Blob([raw]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+  return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+async function _zipRead(buf){
+  var dv = new DataView(buf), u8 = new Uint8Array(buf);
+  var eocd = -1;
+  for (var i = u8.length - 22; i >= Math.max(0, u8.length - 22 - 65536); i--){
+    if (dv.getUint32(i, true) === 0x06054b50){ eocd = i; break; }
+  }
+  if (eocd < 0) throw new Error("Excel（zip）形式ではありませんでした");
+  var count = dv.getUint16(eocd + 10, true), off = dv.getUint32(eocd + 16, true), entries = [];
+  for (var n = 0; n < count; n++){
+    if (dv.getUint32(off, true) !== 0x02014b50) break;
+    var nlen = dv.getUint16(off + 28, true), elen = dv.getUint16(off + 30, true), clen = dv.getUint16(off + 32, true);
+    entries.push({ name: new TextDecoder().decode(u8.subarray(off + 46, off + 46 + nlen)),
+      method: dv.getUint16(off + 10, true), csize: dv.getUint32(off + 20, true), lho: dv.getUint32(off + 42, true) });
+    off += 46 + nlen + elen + clen;
+  }
+  var out = {};
+  for (var k = 0; k < entries.length; k++){
+    var e = entries[k];
+    var start = e.lho + 30 + dv.getUint16(e.lho + 26, true) + dv.getUint16(e.lho + 28, true);
+    var raw = u8.subarray(start, start + e.csize);
+    if (e.method === 0) out[e.name] = raw;
+    else if (e.method === 8) out[e.name] = await _inflateRaw(raw);
+  }
+  return out;
+}
+function _sharedStrings(xml){
+  var out = [], m, re = /<si>([\s\S]*?)<\/si>/g;
+  while ((m = re.exec(xml))){
+    var parts = [], tm, tre = /<t[^>]*>([\s\S]*?)<\/t>/g;
+    while ((tm = tre.exec(m[1]))) parts.push(_xmlUnesc(tm[1]));
+    out.push(parts.join(""));
+  }
+  return out;
+}
+function _colIdx(ref){
+  var m = /^([A-Z]+)/.exec(ref || ""); if (!m) return -1;
+  var n = 0;
+  for (var i = 0; i < m[1].length; i++) n = n * 26 + (m[1].charCodeAt(i) - 64);
+  return n - 1;
+}
+function _sheetRows(xml, shared){
+  var rows = [], rm, rowRe = /<row[^>]*>([\s\S]*?)<\/row>|<row[^>]*\/>/g;
+  while ((rm = rowRe.exec(xml))){
+    var body = rm[1] || "", cells = [], cm, cRe = /<c\s([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g;
+    while ((cm = cRe.exec(body))){
+      var attrs = cm[1] || "", cbody = cm[2] || "";
+      var refM = /r="([A-Z]+\d+)"/.exec(attrs), idx = refM ? _colIdx(refM[1]) : cells.length;
+      var tM = /t="(\w+)"/.exec(attrs), t = tM ? tM[1] : "", val = "";
+      if (t === "inlineStr"){
+        var parts = [], tm, tre = /<t[^>]*>([\s\S]*?)<\/t>/g;
+        while ((tm = tre.exec(cbody))) parts.push(_xmlUnesc(tm[1]));
+        val = parts.join("");
+      } else {
+        var vM = /<v>([\s\S]*?)<\/v>/.exec(cbody);
+        if (vM) val = t === "s" ? (shared[parseInt(vM[1], 10)] || "") : _xmlUnesc(vM[1]);
+      }
+      if (idx >= 0) cells[idx] = val;
+    }
+    var dense = [];
+    for (var i = 0; i < cells.length; i++) dense.push(cells[i] || "");
+    rows.push(dense);
+  }
+  return rows;
+}
+function parseParticipantRows(rows){
+  function norm(s){ return String(s == null ? "" : s).replace(/[\s　]/g, ""); }
+  var hi = -1, ci = { name: -1, kana: -1, aff: -1 };
+  for (var r = 0; r < Math.min(rows.length, 10); r++){
+    var found = { name: -1, kana: -1, aff: -1 };
+    (rows[r] || []).forEach(function(cell, c){
+      var n = norm(cell);
+      if (n === "名前" || n === "氏名" || n === "選手名" || n === "選手") found.name = c;
+      else if (n.indexOf("ふりがな") >= 0 || n.indexOf("フリガナ") >= 0 || n === "よみ" || n === "ヨミ") found.kana = c;
+      else if (n === "所属" || n === "チーム" || n === "チーム名" || n === "学校名" || n === "クラブ") found.aff = c;
+    });
+    if (found.name >= 0){ hi = r; ci = found; break; }
+  }
+  var hadHeader = hi >= 0;
+  if (!hadHeader){ ci = { name: 0, aff: 1, kana: 2 }; hi = -1; }
+  // Distribution sheets carry one team-name cell above the table; it
+  // fills any row whose affiliation cell came back empty (e.g. the
+  // formula's cached value was not saved by the sender's app).
+  var teamAff = "";
+  for (var tr = 0; tr < (hi >= 0 ? hi : Math.min(rows.length, 3)); tr++){
+    var trow = rows[tr] || [];
+    for (var tc = 0; tc < trow.length; tc++){
+      var tn = norm(trow[tc]);
+      if (tn === "チーム名" || tn.indexOf("チーム名（") === 0){
+        for (var tv = tc + 1; tv < trow.length; tv++){ if (String(trow[tv] || "").trim()){ teamAff = String(trow[tv]).trim(); break; } }
+      }
+      if (teamAff) break;
+    }
+    if (teamAff) break;
+  }
+  var list = [];
+  for (var r2 = hi + 1; r2 < rows.length; r2++){
+    var row = rows[r2]; if (!row) continue;
+    var name = String(row[ci.name] || "").trim();
+    if (!name) continue;
+    if (name.indexOf("（例）") === 0 || name.indexOf("(例)") === 0) continue;
+    var aff = ci.aff >= 0 ? String(row[ci.aff] || "").trim() : "";
+    list.push({ name: name, kana: ci.kana >= 0 ? String(row[ci.kana] || "").trim() : "", aff: aff || teamAff });
+  }
+  return { list: list, hadHeader: hadHeader };
+}
+function csvToRows(text){
+  var rows = [], row = [], cur = "", inQ = false;
+  text = String(text).replace(/^\uFEFF/, "");
+  for (var i = 0; i < text.length; i++){
+    var ch = text[i];
+    if (inQ){
+      if (ch === '"'){ if (text[i + 1] === '"'){ cur += '"'; i++; } else inQ = false; }
+      else cur += ch;
+    }
+    else if (ch === '"') inQ = true;
+    else if (ch === "," || ch === "\t"){ row.push(cur); cur = ""; }
+    else if (ch === "\n"){ row.push(cur); rows.push(row); row = []; cur = ""; }
+    else if (ch !== "\r") cur += ch;
+  }
+  if (cur !== "" || row.length){ row.push(cur); rows.push(row); }
+  return rows;
+}
+function decodeTextBytes(u8){
+  var t = new TextDecoder("utf-8").decode(u8);
+  if (t.indexOf("\uFFFD") >= 0){ try { return new TextDecoder("shift-jis").decode(u8); } catch (e){} }
+  return t;
+}
+async function readParticipantsFile(file){
+  var buf = await file.arrayBuffer();
+  var u8 = new Uint8Array(buf);
+  if (u8[0] === 0x50 && u8[1] === 0x4B){
+    var files = await _zipRead(buf);
+    var shared = files["xl/sharedStrings.xml"] ? _sharedStrings(new TextDecoder().decode(files["xl/sharedStrings.xml"])) : [];
+    var sheetNames = Object.keys(files).filter(function(n){ return /^xl\/worksheets\/sheet\d+\.xml$/.test(n); }).sort();
+    var fallback = null;
+    for (var k = 0; k < sheetNames.length; k++){
+      var parsed = parseParticipantRows(_sheetRows(new TextDecoder().decode(files[sheetNames[k]]), shared));
+      if (parsed.hadHeader) return parsed.list;
+      if (!fallback && sheetNames[k] === "xl/worksheets/sheet1.xml") fallback = parsed.list;
+    }
+    if (fallback) return fallback;
+    throw new Error("「名前」の見出し行が見つかりませんでした");
+  }
+  return parseParticipantRows(csvToRows(decodeTextBytes(u8))).list;
+}
+function importParticipants(evId){
+  var ev = evById(evId); if (!ev) return;
+  if (!guardPartChange(ev)) return;
+  var inp = document.createElement("input");
+  inp.type = "file"; inp.accept = ".xlsx,.csv,.txt";
+  inp.onchange = async function(){
+    var file = inp.files && inp.files[0]; if (!file) return;
+    try {
+      var list = await readParticipantsFile(file);
+      if (!list.length){ alert("登録できる参加者がファイルに見つかりませんでした"); return; }
+      var existing = {};
+      ev.participants.forEach(function(p){ existing[p.name] = true; });
+      var fresh = list.filter(function(x){ return !existing[x.name]; });
+      var dup = list.length - fresh.length;
+      if (!fresh.length){ alert(list.length + "件すべて、すでに登録済みでした"); return; }
+      if (!confirm(fresh.length + "名を「" + ev.name + "」に登録します" + (dup ? "（" + dup + "名は登録済みのため除きます）" : "") + "。よろしいですか？")) return;
+      fresh.forEach(function(x){ ev.participants.push({ id: uid("p"), name: x.name, aff: x.aff, kana: x.kana, seed: false }); });
+      touchConfig(); render();
+      alert(fresh.length + "名を登録しました");
+    } catch (e){ alert("読み込めませんでした：" + (e && e.message ? e.message : e)); }
+  };
+  inp.click();
 }
 function toggleSeed(eid, pid){ var ev = evById(eid); if (!guardPartChange(ev)) return; var p = ev.participants.find(function(x){return x.id===pid;}); p.seed = !p.seed; touchConfig(); render(); }
 function movePart(eid, pid, d){
