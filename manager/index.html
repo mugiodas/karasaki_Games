@@ -1073,11 +1073,11 @@ try {
 var sync = {client:null, connected:false, room:"", bc:null, lastEdit:0, configTs:0};
 function defaultState(){
   return { meta:{name:"", date:"", venue:"", courts:4, start:"09:30", interval:12, detail:"full"},
-           events:[], results:{}, live:{}, liveCourt:{}, open:{}, trash:[], configTs:0, created:Date.now() };
+           events:[], results:{}, live:{}, liveCourt:{}, open:{}, trash:[], upsetSessions:{}, configTs:0, created:Date.now() };
 }
 function normalizeState(st){
   if (!st) return st;
-  st.live = st.live || {}; st.liveCourt = st.liveCourt || {}; st.trash = st.trash || []; st.open = st.open || {};
+  st.live = st.live || {}; st.liveCourt = st.liveCourt || {}; st.trash = st.trash || []; st.open = st.open || {}; st.upsetSessions = st.upsetSessions || {};
   st.meta = st.meta || {}; st.meta.detail = "full"; // score entry is always required
   if (st.configTs == null) st.configTs = 0;
   return st;
@@ -1180,6 +1180,318 @@ function undoLast(){
   setResult(u.mid, u.prev, true);
   hideToast();
 }
+// ===== upset (gekokujo) practice sessions =====
+// A standalone practice format, fully separate from tournament data:
+// players (or pairs) move between courts by wins and losses, the
+// waiting queue feeds the bottom court, and pairings avoid the same
+// affiliation and recent rematches wherever the rules leave a choice.
+// Movement (where a unit goes) and pairing (who meets whom on a
+// court) are separate steps, in that order. Nothing in this section
+// reads or writes events/results; sessions live in
+// state.upsetSessions and sync through their own per-session merge.
+function upsetAll(){ if (!state.upsetSessions) state.upsetSessions = {}; return state.upsetSessions; }
+function upsetGet(id){ return upsetAll()[id] || null; }
+function upsetTouch(s){ s.ts = Date.now(); touchConfig(); render(); }
+function upsetBlank(meta){
+  return { id: "up" + Date.now().toString(36) + Math.floor(Math.random() * 46656).toString(36), ts: Date.now(),
+    meta: { name: meta.name || "", date: meta.date || "", venue: meta.venue || "", format: meta.format || "singles", doublesMode: meta.doublesMode || "fixed", courtCount: Math.max(2, meta.courtCount || 2) },
+    status: "ready", phase: "setup", round: 0, placementMethod: meta.placementMethod || "skill",
+    seq: 0, participants: [], placement: {}, courtActive: {}, matches: [], waiting: [],
+    stats: {}, recent: {}, recentPartner: {}, history: [], snapshots: [], fixBackup: null, drawOrder: null, prevWaiting: [] };
+}
+function upsetCreate(meta){
+  if (VIEWER) return null;
+  if ((meta.courtCount || 0) < 2){ alert("コートは2面以上で設定してください（1面では開催できません）"); return null; }
+  var s = upsetBlank(meta);
+  upsetAll()[s.id] = s;
+  return s;
+}
+function upsetLog(s, text){ s.history.push({ ts: Date.now(), round: s.round, text: text }); }
+function upsetStats(s, pid){
+  if (!s.stats[pid]) s.stats[pid] = { games: 0, wins: 0, losses: 0, waitRounds: 0, waitCount: 0 };
+  return s.stats[pid];
+}
+function upsetPName(s, pid){ var p = s.participants.find(function(x){ return x.id === pid; }); return p ? p.name : "?"; }
+function upsetPAff(s, pid){ var p = s.participants.find(function(x){ return x.id === pid; }); return p ? (p.aff || "") : ""; }
+// A "unit" is what moves between courts: one player (singles /
+// shuffle doubles) or one fixed pair (fixed doubles).
+function upsetUnits(s){
+  if (s.meta.format === "doubles" && s.meta.doublesMode === "fixed"){
+    var byPair = {};
+    s.participants.forEach(function(p){ if (p.pairId){ (byPair[p.pairId] = byPair[p.pairId] || []).push(p); } });
+    return Object.keys(byPair).filter(function(k){ return byPair[k].length === 2; }).map(function(k){
+      var ps = byPair[k];
+      return { id: "pair:" + k, pids: ps.map(function(p){ return p.id; }), aff: ps.map(function(p){ return p.aff || ""; }).filter(Boolean).join("・"), rank: Math.min(ps[0].rank || 999, ps[1].rank || 999) };
+    });
+  }
+  return s.participants.map(function(p){ return { id: "solo:" + p.id, pids: [p.id], aff: p.aff || "", rank: p.rank || 999 }; });
+}
+function upsetUnitMap(s){ var m = {}; upsetUnits(s).forEach(function(u){ m[u.id] = u; }); return m; }
+function upsetUnitLabel(s, u){ return u.pids.map(function(pid){ return upsetPName(s, pid); }).join("・"); }
+function upsetSize(s){ // units needed per court for one match
+  if (s.meta.format === "singles") return 2;
+  return s.meta.doublesMode === "fixed" ? 2 : 4;
+}
+function upsetActiveCourts(s){
+  var out = [];
+  for (var c = 1; c <= s.meta.courtCount; c++) if (s.courtActive[c] !== false) out.push(c);
+  return out;
+}
+function upsetMaxCourts(s){ return Math.min(s.meta.courtCount, Math.floor(upsetUnits(s).length / upsetSize(s))); }
+function upsetWaitRounds(s, u){ return u.pids.reduce(function(a, pid){ return a + upsetStats(s, pid).waitRounds; }, 0); }
+function upsetWaitCount(s, u){ return u.pids.reduce(function(a, pid){ return a + upsetStats(s, pid).waitCount; }, 0); }
+function upsetGamesOf(s, u){ return u.pids.reduce(function(a, pid){ return a + upsetStats(s, pid).games; }, 0); }
+// Fairness order (§10): longest accumulated waiting first, then
+// fewer waiting turns, then fewer games played.
+function upsetFairSort(s, units){
+  return units.slice().sort(function(a, b){
+    return (upsetWaitRounds(s, b) - upsetWaitRounds(s, a)) || (upsetWaitCount(s, a) - upsetWaitCount(s, b)) || (upsetGamesOf(s, a) - upsetGamesOf(s, b));
+  });
+}
+function upsetPushRecent(s, fromId, toId){
+  var list = s.recent[fromId] || (s.recent[fromId] = []);
+  list.push(toId);
+  while (list.length > 3) list.shift();
+}
+function upsetPushPartner(s, pid, partnerPid){
+  var list = s.recentPartner[pid] || (s.recentPartner[pid] = []);
+  list.push(partnerPid);
+  while (list.length > 3) list.shift();
+}
+function upsetOppPenalty(s, uA, uB){
+  var pen = 0;
+  if (uA.aff && uB.aff && uA.aff === uB.aff) pen += 100;
+  if ((s.recent[uA.id] || []).indexOf(uB.id) >= 0) pen += 50;
+  if ((s.recent[uB.id] || []).indexOf(uA.id) >= 0) pen += 50;
+  return pen;
+}
+// ----- initial placement -----
+function upsetDeal(s, orderedUnits){
+  var size = upsetSize(s), maxC = upsetMaxCourts(s);
+  s.placement = {}; s.waiting = []; s.courtActive = {};
+  for (var c = 1; c <= s.meta.courtCount; c++) s.courtActive[c] = c <= maxC;
+  orderedUnits.forEach(function(u, i){
+    var court = Math.floor(i / size) + 1;
+    if (court <= maxC) s.placement[u.id] = court;
+    else { s.placement[u.id] = 0; s.waiting.push(u.id); }
+  });
+}
+function upsetPlaceInitial(s, method){
+  var units = upsetUnits(s);
+  if (method === "manual"){ s.placementMethod = "manual"; return; }
+  var ordered;
+  if (method === "draw"){
+    ordered = units.slice();
+    for (var i = ordered.length - 1; i > 0; i--){ var j = Math.floor(Math.random() * (i + 1)); var t = ordered[i]; ordered[i] = ordered[j]; ordered[j] = t; }
+    s.drawOrder = ordered.map(function(u){ return u.id; });
+  } else {
+    ordered = units.slice().sort(function(a, b){ return (a.rank - b.rank) || (a.id < b.id ? -1 : 1); });
+  }
+  s.placementMethod = method;
+  upsetDeal(s, ordered);
+  upsetLog(s, "初期配置を作成（" + (method === "draw" ? "抽選" : "実力順") + "）");
+}
+// ----- pairing (per court, from the court's pool) -----
+function upsetPools(s){
+  var pools = {};
+  upsetUnits(s).forEach(function(u){ var c = s.placement[u.id]; if (c) (pools[c] = pools[c] || []).push(u.id); });
+  return pools;
+}
+function upsetShufflePen(s, A, B){
+  var pen = 0;
+  [A, B].forEach(function(pair){
+    if (pair[0].aff && pair[0].aff === pair[1].aff) pen += 100;
+    if ((s.recentPartner[pair[0].pids[0]] || []).indexOf(pair[1].pids[0]) >= 0) pen += 40;
+    if ((s.recentPartner[pair[1].pids[0]] || []).indexOf(pair[0].pids[0]) >= 0) pen += 40;
+  });
+  A.forEach(function(ua){ B.forEach(function(ub){
+    if (ua.aff && ua.aff === ub.aff) pen += 25;
+    if ((s.recent[ua.id] || []).indexOf(ub.id) >= 0) pen += 50;
+  }); });
+  return pen;
+}
+// One proposal per active court: {a:[pids], b:[pids]} or null when
+// the court's pool cannot form a match. Units left over wait.
+function upsetPropose(s){
+  var umap = upsetUnitMap(s), pools = upsetPools(s), out = {}, leftovers = [];
+  upsetActiveCourts(s).forEach(function(c){
+    var pool = upsetFairSort(s, (pools[c] || []).map(function(id){ return umap[id]; }).filter(Boolean));
+    if (s.meta.format === "doubles" && s.meta.doublesMode === "shuffle"){
+      if (pool.length < 4){ pool.forEach(function(u){ leftovers.push(u.id); }); out[c] = null; return; }
+      var four = pool.slice(0, 4);
+      pool.slice(4).forEach(function(u){ leftovers.push(u.id); });
+      var best = null;
+      [[0, 1, 2, 3], [0, 2, 1, 3], [0, 3, 1, 2]].forEach(function(ix){
+        var pA = [four[ix[0]], four[ix[1]]], pB = [four[ix[2]], four[ix[3]]];
+        var pen = upsetShufflePen(s, pA, pB);
+        if (!best || pen < best.pen) best = { pen: pen, a: pA, b: pB };
+      });
+      out[c] = { a: best.a.reduce(function(a, u){ return a.concat(u.pids); }, []), b: best.b.reduce(function(a, u){ return a.concat(u.pids); }, []) };
+      return;
+    }
+    if (pool.length < 2){ pool.forEach(function(u){ leftovers.push(u.id); }); out[c] = null; return; }
+    var first = pool[0], bestI = -1, bestPen = Infinity;
+    for (var i = 1; i < pool.length; i++){
+      var pen = upsetOppPenalty(s, first, pool[i]);
+      if (pen < bestPen){ bestPen = pen; bestI = i; }
+    }
+    var second = pool[bestI];
+    pool.forEach(function(u){ if (u !== first && u !== second) leftovers.push(u.id); });
+    out[c] = { a: first.pids.slice(), b: second.pids.slice() };
+  });
+  return { courts: out, leftovers: leftovers };
+}
+// ----- round lifecycle -----
+function upsetRuntimeData(s){
+  return JSON.stringify({ matches: s.matches, waiting: s.waiting, stats: s.stats, recent: s.recent, recentPartner: s.recentPartner, placement: s.placement, courtActive: s.courtActive });
+}
+function upsetSnapshot(s){
+  s.snapshots = s.snapshots.filter(function(x){ return x.round !== s.round; });
+  s.snapshots.push({ round: s.round, data: upsetRuntimeData(s) });
+  while (s.snapshots.length > 30) s.snapshots.shift();
+}
+function upsetRestoreData(s, data){
+  var d = JSON.parse(data);
+  s.matches = d.matches; s.waiting = d.waiting; s.stats = d.stats; s.recent = d.recent; s.recentPartner = d.recentPartner; s.placement = d.placement; s.courtActive = d.courtActive;
+}
+function upsetCanStart(s){
+  if (s.meta.courtCount < 2) return "コートは2面以上が必要です";
+  var prop = upsetPropose(s);
+  var playable = Object.keys(prop.courts).filter(function(c){ return prop.courts[c]; }).length;
+  if (playable < 2) return "2面以上のコートで試合を組めません（参加者またはペアが不足しています）";
+  return "";
+}
+function upsetStartRound(s){
+  var err = upsetCanStart(s); if (err) return err;
+  var prop = upsetPropose(s);
+  s.round += 1;
+  var made = [], playingPids = {};
+  upsetActiveCourts(s).slice().forEach(function(c){
+    var p = prop.courts[c];
+    if (!p){ s.courtActive[c] = false; return; }
+    made.push({ id: "um" + s.round + "-" + c, round: s.round, court: c, a: p.a, b: p.b, winner: null, score: "" });
+    p.a.concat(p.b).forEach(function(pid){ playingPids[pid] = 1; });
+  });
+  var umap = upsetUnitMap(s);
+  s.waiting = upsetUnits(s).filter(function(u){ return !u.pids.every(function(pid){ return playingPids[pid]; }); }).map(function(u){ return u.id; });
+  var prevW = {}; (s.prevWaiting || []).forEach(function(id){ prevW[id] = 1; });
+  s.waiting.forEach(function(uid){
+    var u = umap[uid]; if (!u) return;
+    u.pids.forEach(function(pid){ var st = upsetStats(s, pid); st.waitRounds += 1; if (!prevW[uid]) st.waitCount += 1; });
+  });
+  s.prevWaiting = s.waiting.slice();
+  s.matches = s.matches.concat(made);
+  s.phase = "playing"; s.status = "live";
+  upsetSnapshot(s);
+  upsetLog(s, "第" + s.round + "ラウンド開始（" + made.length + "試合・待機" + s.waiting.length + "）");
+  return "";
+}
+function upsetSideUnits(s, m, side){
+  var pids = side === "A" ? m.a : m.b;
+  if (s.meta.format === "doubles" && s.meta.doublesMode === "fixed"){
+    var u = upsetUnits(s).find(function(x){ return x.pids.indexOf(pids[0]) >= 0; });
+    return u ? [u] : [];
+  }
+  return pids.map(function(pid){ return { id: "solo:" + pid, pids: [pid], aff: upsetPAff(s, pid), rank: 999 }; });
+}
+function upsetSideLabel(s, m, side){ return (side === "A" ? m.a : m.b).map(function(pid){ return upsetPName(s, pid); }).join("・"); }
+function upsetSetResult(s, mid, winnerSide, score){
+  var m = s.matches.find(function(x){ return x.id === mid; }); if (!m) return;
+  m.winner = winnerSide; m.score = score || "";
+}
+function upsetRoundDone(s){
+  var ms = s.matches.filter(function(m){ return m.round === s.round; });
+  return ms.length > 0 && ms.every(function(m){ return m.winner; });
+}
+function upsetConfirmRound(s){
+  if (!upsetRoundDone(s)) return;
+  s.matches.filter(function(m){ return m.round === s.round; }).forEach(function(m){
+    var winPids = m.winner === "A" ? m.a : m.b, losePids = m.winner === "A" ? m.b : m.a;
+    m.a.concat(m.b).forEach(function(pid){ upsetStats(s, pid).games += 1; });
+    winPids.forEach(function(pid){ upsetStats(s, pid).wins += 1; });
+    losePids.forEach(function(pid){ upsetStats(s, pid).losses += 1; });
+    var uA = upsetSideUnits(s, m, "A"), uB = upsetSideUnits(s, m, "B");
+    uA.forEach(function(ua){ uB.forEach(function(ub){ upsetPushRecent(s, ua.id, ub.id); upsetPushRecent(s, ub.id, ua.id); }); });
+    if (s.meta.format === "doubles" && s.meta.doublesMode === "shuffle"){
+      [m.a, m.b].forEach(function(side){ if (side.length === 2){ upsetPushPartner(s, side[0], side[1]); upsetPushPartner(s, side[1], side[0]); } });
+    }
+    upsetLog(s, "R" + m.round + " コート" + m.court + "：" + upsetSideLabel(s, m, "A") + " vs " + upsetSideLabel(s, m, "B") + " → " + upsetSideLabel(s, m, m.winner) + " の勝ち" + (m.score ? "（" + m.score + "）" : ""));
+  });
+  upsetComputeNext(s);
+  s.phase = "preview";
+}
+// ----- movement: decided purely from wins/losses, before pairing -----
+function upsetComputeNext(s){
+  var size = upsetSize(s), umap = upsetUnitMap(s);
+  var played = s.matches.filter(function(m){ return m.round === s.round; }).sort(function(a, b){ return a.court - b.court; });
+  var playedCourts = played.map(function(m){ return m.court; });
+  var arrivals = {}; playedCourts.forEach(function(c){ arrivals[c] = []; });
+  var toWaiting = [];
+  played.forEach(function(m, idx){
+    var winU = upsetSideUnits(s, m, m.winner), loseU = upsetSideUnits(s, m, m.winner === "A" ? "B" : "A");
+    var dest = function(units, court){ units.forEach(function(u){ (court === 0 ? toWaiting : arrivals[court]).push(u.id); }); };
+    if (idx === 0) dest(winU, m.court); else dest(winU, playedCourts[idx - 1]);
+    if (idx === playedCourts.length - 1) dest(loseU, 0); else dest(loseU, playedCourts[idx + 1]);
+  });
+  var pool = upsetFairSort(s, s.waiting.concat(toWaiting).map(function(id){ return umap[id]; }).filter(Boolean));
+  var totalUnits = upsetUnits(s).length;
+  var nextCourts = playedCourts.slice();
+  for (var c = 1; c <= s.meta.courtCount && nextCourts.length < Math.floor(totalUnits / size); c++){
+    if (nextCourts.indexOf(c) < 0){ nextCourts.push(c); arrivals[c] = []; }
+  }
+  nextCourts.sort(function(a, b){ return a - b; });
+  var finalCourts = [];
+  nextCourts.forEach(function(c){
+    var arr = arrivals[c] || (arrivals[c] = []);
+    while (arr.length < size && pool.length) arr.push(pool.shift().id);
+    if (arr.length >= size) finalCourts.push(c);
+    else pool = arr.map(function(id){ return umap[id]; }).filter(Boolean).concat(pool);
+  });
+  for (var c2 = 1; c2 <= s.meta.courtCount; c2++) s.courtActive[c2] = finalCourts.indexOf(c2) >= 0;
+  s.placement = {};
+  finalCourts.forEach(function(c){ (arrivals[c] || []).forEach(function(uid){ s.placement[uid] = c; }); });
+  var seen = {}; s.waiting = [];
+  pool.forEach(function(u){ if (u && !seen[u.id] && !s.placement[u.id]){ seen[u.id] = 1; s.waiting.push(u.id); } });
+  Object.keys(arrivals).forEach(function(c){
+    if (finalCourts.indexOf(+c) < 0) (arrivals[c] || []).forEach(function(uid){ if (!seen[uid] && !s.placement[uid]){ seen[uid] = 1; s.waiting.push(uid); } });
+  });
+  upsetLog(s, "移動： " + finalCourts.map(function(c){ return "コート" + c + "＝" + (arrivals[c] || []).map(function(uid){ return upsetUnitLabel(s, umap[uid]); }).join("、"); }).join(" ／ ") + (s.waiting.length ? " ／ 待機＝" + s.waiting.map(function(uid){ return upsetUnitLabel(s, umap[uid]); }).join("、") : ""));
+}
+// ----- correction: later results are never deleted silently -----
+function upsetFixInfo(s, mid){
+  var m = s.matches.find(function(x){ return x.id === mid; }); if (!m) return null;
+  var later = s.matches.filter(function(x){ return x.round > m.round && x.winner; });
+  var rounds = []; later.forEach(function(x){ if (rounds.indexOf(x.round) < 0) rounds.push(x.round); });
+  return { match: m, affected: later, affectedRounds: rounds, needsConfirm: s.round > m.round };
+}
+function upsetApplyFix(s, mid, winnerSide, score, confirmed){
+  var info = upsetFixInfo(s, mid); if (!info) return "対象の試合が見つかりません";
+  if (s.phase === "playing" && info.match.round === s.round){ upsetSetResult(s, info.match.id, winnerSide, score); return ""; }
+  if (info.needsConfirm && !confirmed) return "後続の結果への影響確認が必要です";
+  var snap = s.snapshots.find(function(x){ return x.round === info.match.round; });
+  if (!snap) return "訂正の起点データがありません";
+  s.fixBackup = { label: "第" + info.match.round + "ラウンド訂正前の状態", data: JSON.stringify({ round: s.round, phase: s.phase, status: s.status, history: s.history, snapshots: s.snapshots, runtime: upsetRuntimeData(s) }) };
+  var roundResults = s.matches.filter(function(x){ return x.round === info.match.round; }).map(function(x){ return { id: x.id, winner: x.winner, score: x.score }; });
+  upsetRestoreData(s, snap.data);
+  s.round = info.match.round; s.phase = "playing"; s.status = "live";
+  s.snapshots = s.snapshots.filter(function(x){ return x.round <= info.match.round; });
+  roundResults.forEach(function(rm){
+    var mm = s.matches.find(function(x){ return x.id === rm.id; }); if (!mm) return;
+    mm.winner = rm.id === mid ? winnerSide : rm.winner;
+    mm.score = rm.id === mid ? (score || "") : rm.score;
+  });
+  upsetLog(s, "結果訂正：R" + info.match.round + " コート" + info.match.court + " の結果を変更" + (info.affected.length ? "（後続 " + info.affected.length + " 試合の結果を取り消して再計算します）" : ""));
+  return "";
+}
+function upsetUndoFix(s){
+  if (!s.fixBackup) return;
+  var d = JSON.parse(s.fixBackup.data);
+  upsetRestoreData(s, d.runtime);
+  s.round = d.round; s.phase = d.phase; s.status = d.status; s.history = d.history; s.snapshots = d.snapshots;
+  s.fixBackup = null;
+  upsetLog(s, "結果訂正を取り消して、訂正前の状態に戻しました");
+}
+function upsetFinish(s){ s.status = "done"; s.phase = "done"; upsetLog(s, "練習会を終了しました"); }
 function evById(id){ return state.events.find(function(e){ return e.id===id; }); }
 function playerName(ev, pid){
   if (!pid) return "—"; if (pid === "BYE") return "（不戦勝）";
@@ -1731,7 +2043,7 @@ function connectBroker(idx){
 }
 var _pubTimer = null;
 function publishState(){
-  var payload = {type:"state", from: CLIENT_ID, configTs: state.configTs||0, meta: state.meta, events: state.events, results: state.results, live: state.live||{}, liveCourt: state.liveCourt||{}, trash: state.trash||[], open: state.open||{}};
+  var payload = {type:"state", from: CLIENT_ID, configTs: state.configTs||0, meta: state.meta, events: state.events, results: state.results, live: state.live||{}, liveCourt: state.liveCourt||{}, trash: state.trash||[], open: state.open||{}, upset: state.upsetSessions||{}};
   if (sync.bc) try{ sync.bc.postMessage(payload); }catch(e){}
   if (_pubTimer) clearTimeout(_pubTimer);
   _pubTimer = setTimeout(function(){ mqttSendState(payload); }, 600);
@@ -1837,9 +2149,15 @@ function receiveState(payload, local){
     var cur = state.open && state.open[mid];
     if (!cur || (oo[mid].ts||0) > (cur.ts||0)){ state.open = state.open || {}; state.open[mid] = oo[mid]; changed = true; }
   });
+  // upset practice sessions: per-session merge by ts
+  var uu = payload.upset || {};
+  Object.keys(uu).forEach(function(sid){
+    var curS = state.upsetSessions && state.upsetSessions[sid];
+    if (!curS || (uu[sid].ts||0) > (curS.ts||0)){ state.upsetSessions = state.upsetSessions || {}; state.upsetSessions[sid] = uu[sid]; changed = true; }
+  });
   // config: newer configTs wins
   if ((payload.configTs||0) > (state.configTs||0) && Date.now() - sync.lastEdit > 2500){
-    state.meta = payload.meta; state.events = payload.events; state.live = payload.live || {}; state.liveCourt = payload.liveCourt || {}; state.trash = payload.trash || []; state.open = payload.open || {}; state.configTs = payload.configTs; changed = true;
+    state.meta = payload.meta; state.events = payload.events; state.live = payload.live || {}; state.liveCourt = payload.liveCourt || {}; state.trash = payload.trash || []; state.open = payload.open || {}; state.upsetSessions = payload.upset || {}; state.configTs = payload.configTs; changed = true;
   }
   if (changed){ invalidateCaches(); saveState(); render(); }
 }
@@ -1860,7 +2178,7 @@ var NAV = [
 ];
 var uiOpenScore = {};
 function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
-function go(v){ if (VIEWER && (v === "entry" || v === "config")) v = "home"; view = v; render(); window.scrollTo(0,0); }
+function go(v){ if (VIEWER && (v === "entry" || v === "config" || v.indexOf("upset") === 0)) v = "home"; view = v; render(); window.scrollTo(0,0); }
 function renderNav(){
   var html = NAV.map(function(n){ return '<button class="navbtn' + (view===n.id?" active":"") + '" onclick="go(\'' + n.id + '\')"><span class="ico">' + n.ico + '</span>' + n.label + '</button>'; }).join("");
   document.getElementById("sideNav").innerHTML = html + '<div style="padding:12px 10px 0"><span class="conn" id="connSide">…</span></div>';
@@ -3162,6 +3480,10 @@ function render(){
   else if (view === "live") el.innerHTML = banner + vLive();
   else if (view === "time") el.innerHTML = banner + vTime();
   else if (view === "config") el.innerHTML = banner + vConfig();
+  else if (view === "upset") el.innerHTML = banner + vUpset();
+  else if (view === "upsetSetup") el.innerHTML = banner + vUpsetSetup();
+  else if (view === "upsetPlay") el.innerHTML = banner + vUpsetPlay();
+  else if (view === "upsetView") el.innerHTML = banner + vUpsetView();
   if (view !== _lastView){
     _lastView = view;
     el.classList.remove("enter"); void el.offsetWidth; el.classList.add("enter");
@@ -3271,6 +3593,7 @@ function vHome(){
   var pct = allM ? Math.round(doneM / allM * 100) : 0;
   var h = '<div class="hero-band"><div class="hero-en">TACTICAL OPERATION SYSTEM</div><h1>' + esc(state.meta.name || "大会運営 Web") + "</h1>" +
     '<div class="sub">' + esc([(isMultiDay() ? metaDates().filter(Boolean).join(" ・ ") : state.meta.date), state.meta.venue].filter(Boolean).join(" ・ ") || "設定タブで大会名・日付・会場を入れられます") + "</div></div>";
+  if (!VIEWER) h += '<div class="row" style="gap:10px;margin-bottom:14px"><div style="flex:1;text-align:center;padding:13px 6px;border:2px solid var(--ink);background:var(--ink);color:#fff;font-weight:800;min-height:52px;display:flex;align-items:center;justify-content:center">大会運営</div><button class="btn" style="flex:1;min-height:52px" onclick="go(\'upset\')">下克上練習会 →</button></div>';
   var gd = guideInfo();
   var guideHTML = '<div class="guide"><div class="guide-steps">' + gd.steps.map(function(s, i){
       return '<span class="gstep' + (i < gd.cur ? " done" : (i === gd.cur ? " cur" : "")) + '"><span class="gnum">' + (i < gd.cur ? "✓" : "0" + (i + 1)) + '</span>' + s + '</span>';
@@ -4419,6 +4742,474 @@ function vTime(){
   return h;
 }
 // --- config ---
+// ===== upset practice sessions: UI =====
+var uiUpsetId = null, uiUpsetSel = null, _upS = null;
+function upsetCur(){ return uiUpsetId ? upsetGet(uiUpsetId) : null; }
+function upsetOpenSession(id){
+  var s = upsetGet(id); if (!s) return;
+  uiUpsetId = id; uiUpsetSel = null;
+  go(s.status === "done" ? "upsetView" : s.status === "live" ? "upsetPlay" : "upsetSetup");
+}
+function upsetHead(s, title){
+  return '<button class="btn ghost small" onclick="go(\'upset\')">← 下克上練習会の一覧</button>' +
+    '<div class="hero-band" style="margin-top:10px"><div class="hero-en">GEKOKUJO PRACTICE</div><h1>' + esc(s.meta.name || "下克上練習会") + '</h1>' +
+    '<div class="sub">' + esc([s.meta.date, s.meta.venue, s.meta.format === "doubles" ? ("ダブルス（" + (s.meta.doublesMode === "fixed" ? "固定ペア" : "ペア組み替え") + "）") : "シングルス", s.meta.courtCount + "面"].filter(Boolean).join(" ・ ")) + '</div></div>' +
+    (title ? '<div class="sec-band">' + esc(title) + '</div>' : "");
+}
+function vUpset(){
+  var all = Object.keys(upsetAll()).map(function(id){ return upsetAll()[id]; }).sort(function(a, b){ return (b.ts || 0) - (a.ts || 0); });
+  var live = all.filter(function(s){ return s.status !== "done"; });
+  var past = all.filter(function(s){ return s.status === "done"; });
+  var h = '<button class="btn ghost small" onclick="go(\'home\')">← 大会運営に戻る</button>';
+  h += '<div class="hero-band" style="margin-top:10px"><div class="hero-en">GEKOKUJO PRACTICE</div><h1>下克上練習会</h1><div class="sub">勝てば上のコートへ、負ければ下へ。待機の公平さと再戦・同所属の回避を自動で調整します。大会運営とは別の記録です。</div></div>';
+  h += '<div class="card"><h3>新しい練習会を作る</h3>' +
+    '<label class="fld">練習会名<input id="up-name" placeholder="例：11月 下克上練習会"></label>' +
+    '<div class="row"><label class="fld" style="flex:1">開催日<input id="up-date" type="date"></label><label class="fld" style="flex:1">会場<input id="up-venue" placeholder="体育館名など"></label></div>' +
+    '<div class="row"><label class="fld" style="flex:1">競技形式<select id="up-format" onchange="document.getElementById(\'up-dmode\').disabled = this.value!==\'doubles\'"><option value="singles">シングルス</option><option value="doubles">ダブルス</option></select></label>' +
+    '<label class="fld" style="flex:1">ダブルス方式<select id="up-dmode" disabled><option value="fixed">固定ペア</option><option value="shuffle">ペア組み替え</option></select></label></div>' +
+    '<div class="row"><label class="fld" style="flex:1">コート数（2面以上）<input id="up-courts" type="number" min="2" max="20" value="4"></label>' +
+    '<label class="fld" style="flex:1">初期配置<select id="up-method"><option value="skill">実力順</option><option value="draw">抽選</option><option value="manual">手動</option></select></label></div>' +
+    '<button class="btn" style="width:100%;margin-top:10px" onclick="upsetCreateFromForm()">作成して参加者登録へ</button></div>';
+  if (live.length){
+    h += '<div class="sec-band"><span class="sec-no">01</span>開催中・準備中の練習会</div>';
+    live.forEach(function(s){
+      h += '<div class="card"><div class="row" style="justify-content:space-between;align-items:flex-start"><div><strong style="font-size:17px">' + esc(s.meta.name || "（名称未設定）") + '</strong><div class="mini">' + esc([s.meta.date, s.meta.venue, s.participants.length + "名", s.meta.courtCount + "面", s.status === "live" ? ("第" + s.round + "ラウンド") : "準備中"].filter(Boolean).join(" ・ ")) + '</div></div>' +
+        '<div class="row"><button class="btn" onclick="upsetOpenSession(\'' + s.id + '\')">' + (s.status === "live" ? "進行画面を開く" : "準備を開く") + '</button>' +
+        (s.status === "ready" ? '<button class="btn ghost" onclick="upsetDeleteReady(\'' + s.id + '\')">削除</button>' : "") + '</div></div></div>';
+    });
+  }
+  if (past.length){
+    h += '<div class="sec-band"><span class="sec-no">02</span>過去の練習会（記録）</div>';
+    past.forEach(function(s){
+      h += '<div class="card"><div class="row" style="justify-content:space-between;align-items:flex-start"><div><strong style="font-size:17px">' + esc(s.meta.name || "（名称未設定）") + '</strong><div class="mini">' + esc([s.meta.date, s.meta.venue, s.participants.length + "名", "全" + s.round + "ラウンド"].filter(Boolean).join(" ・ ")) + '</div></div>' +
+        '<button class="btn ghost" onclick="upsetOpenSession(\'' + s.id + '\')">記録を見る</button></div></div>';
+    });
+  }
+  if (!all.length) h += '<div class="card"><p class="mini">まだ練習会がありません。上のフォームから作成してください。参加者は練習会ごとに新規登録します（大会の名簿とは連動しません）。</p></div>';
+  return h;
+}
+function upsetCreateFromForm(){
+  var courts = parseInt((document.getElementById("up-courts") || {}).value, 10) || 0;
+  var s = upsetCreate({
+    name: (document.getElementById("up-name") || {}).value || "",
+    date: (document.getElementById("up-date") || {}).value || "",
+    venue: (document.getElementById("up-venue") || {}).value || "",
+    format: (document.getElementById("up-format") || {}).value || "singles",
+    doublesMode: (document.getElementById("up-dmode") || {}).value || "fixed",
+    courtCount: courts,
+    placementMethod: (document.getElementById("up-method") || {}).value || "skill"
+  });
+  if (!s) return;
+  uiUpsetId = s.id;
+  touchConfig();
+  go("upsetSetup");
+}
+function upsetDeleteReady(id){
+  var s = upsetGet(id); if (!s || s.status !== "ready") return;
+  if (!confirm("この練習会（未開始）を削除しますか？")) return;
+  delete upsetAll()[id];
+  if (uiUpsetId === id) uiUpsetId = null;
+  touchConfig(); render();
+}
+// ----- setup screen -----
+function vUpsetSetup(){
+  var s = upsetCur();
+  if (!s) return '<div class="card"><p>練習会が選ばれていません。</p><button class="btn" onclick="go(\'upset\')">一覧へ</button></div>';
+  if (s.status !== "ready"){ upsetOpenSession(s.id); return ""; }
+  var h = upsetHead(s, "準備：参加者・ペア・初期配置");
+  h += '<div class="card"><h3>基本情報</h3>' +
+    '<label class="fld">練習会名<input id="upm-name" value="' + esc(s.meta.name) + '"></label>' +
+    '<div class="row"><label class="fld" style="flex:1">開催日<input id="upm-date" type="date" value="' + esc(s.meta.date) + '"></label><label class="fld" style="flex:1">会場<input id="upm-venue" value="' + esc(s.meta.venue) + '"></label>' +
+    '<label class="fld" style="flex:0 0 130px">コート数<input id="upm-courts" type="number" min="2" max="20" value="' + s.meta.courtCount + '"></label></div>' +
+    '<div class="mini">形式：' + (s.meta.format === "doubles" ? ("ダブルス（" + (s.meta.doublesMode === "fixed" ? "固定ペア" : "ペア組み替え") + "）") : "シングルス") + '／得点方式は大会運営の基本設定（' + esc(decodePoint(state.meta.pointDefault || "21330").label) + '）に従います</div>' +
+    '<button class="btn ghost" style="margin-top:8px" onclick="upsetSaveMeta(\'' + s.id + '\')">基本情報を保存</button></div>';
+  // participants
+  h += '<div class="card"><h3>参加者（' + s.participants.length + '名）</h3>' +
+    '<div class="mini">この練習会専用の登録です。大会の名簿からは読み込みません。</div>' +
+    '<label class="fld">まとめて貼り付け（1行に1人：名前,所属,実力順位）<textarea id="up-paste" rows="4" placeholder="山田太郎,唐崎,1&#10;鈴木花子,唐崎,2"></textarea></label>' +
+    '<button class="btn ghost" onclick="upsetAddParts(\'' + s.id + '\')">貼り付けから追加</button>' +
+    '<div class="row" style="margin-top:10px"><label class="fld" style="flex:2">名前<input id="up-pname"></label><label class="fld" style="flex:1">所属<input id="up-paff"></label><label class="fld" style="flex:0 0 90px">実力順位<input id="up-prank" type="number" min="1"></label></div>' +
+    '<button class="btn ghost" onclick="upsetAddOne(\'' + s.id + '\')">1人追加</button>';
+  if (s.participants.length){
+    h += '<div style="margin-top:10px">' + s.participants.map(function(p){
+      var pair = p.pairId ? s.participants.find(function(x){ return x.pairId === p.pairId && x.id !== p.id; }) : null;
+      return '<div class="qrow"><span class="qnames"><strong>' + esc(p.name) + '</strong>' + (p.aff ? '<span class="mini"> ' + esc(p.aff) + '</span>' : "") + (p.rank ? '<span class="mini"> ／ 実力' + p.rank + '位</span>' : "") + (pair ? '<span class="mini"> ／ ペア：' + esc(pair.name) + '</span>' : "") + '</span>' +
+        '<button class="linkbtn" onclick="upsetEditPart(\'' + s.id + '\',\'' + p.id + '\')">編集</button>' +
+        '<button class="linkbtn" onclick="upsetDelPart(\'' + s.id + '\',\'' + p.id + '\')">削除</button></div>';
+    }).join("") + '</div>';
+  }
+  h += '</div>';
+  // fixed pairs
+  if (s.meta.format === "doubles" && s.meta.doublesMode === "fixed"){
+    var unpaired = s.participants.filter(function(p){ return !p.pairId; });
+    var pairs = {}; s.participants.forEach(function(p){ if (p.pairId) (pairs[p.pairId] = pairs[p.pairId] || []).push(p); });
+    h += '<div class="card"><h3>固定ペア</h3><div class="mini">ペアは2人1組で勝敗・移動します。未登録の選手は試合に出られません。</div>';
+    Object.keys(pairs).forEach(function(k){
+      if (pairs[k].length === 2) h += '<div class="qrow"><span class="qnames"><strong>' + esc(pairs[k][0].name) + '・' + esc(pairs[k][1].name) + '</strong></span><button class="linkbtn" onclick="upsetBreakPair(\'' + s.id + '\',\'' + k + '\')">ペア解消</button></div>';
+    });
+    if (unpaired.length){
+      h += '<div style="margin-top:8px">' + unpaired.map(function(p){ return '<label style="display:inline-block;margin:0 8px 8px 0"><input type="checkbox" class="up-pairpick" value="' + p.id + '" style="width:20px;height:20px;vertical-align:-4px"> ' + esc(p.name) + '</label>'; }).join("") + '</div>' +
+        '<button class="btn ghost" onclick="upsetMakePair(\'' + s.id + '\')">選んだ2人でペアを作る</button>';
+    }
+    h += '</div>';
+  }
+  // initial placement
+  var units = upsetUnits(s);
+  h += '<div class="card"><h3>初期配置</h3>' +
+    '<div class="row"><button class="btn' + (s.placementMethod === "skill" ? "" : " ghost") + '" style="flex:1" onclick="upsetDoPlace(\'' + s.id + '\',\'skill\')">実力順で配置</button>' +
+    '<button class="btn' + (s.placementMethod === "draw" ? "" : " ghost") + '" style="flex:1" onclick="upsetDoPlace(\'' + s.id + '\',\'draw\')">抽選で配置</button>' +
+    '<button class="btn' + (s.placementMethod === "manual" ? "" : " ghost") + '" style="flex:1" onclick="upsetDoPlace(\'' + s.id + '\',\'manual\')">手動で配置</button></div>' +
+    '<div class="mini" style="margin-top:6px">' + (s.placementMethod === "draw" && s.drawOrder ? "抽選結果は保存され、後から確認できます。" : s.placementMethod === "manual" ? "選手を選んでから、移動先のコート（または待機）を押してください。選手を2人続けて選ぶと入れ替わります。" : "実力順位の上位から第1コートへ順に配置します。") + '</div>' +
+    upsetPlacementHTML(s, true) +
+    '<div id="up-start-err" style="margin-top:10px"></div>' +
+    '<button class="btn" style="width:100%;min-height:56px;font-size:17px" onclick="upsetStart(\'' + s.id + '\')">練習会を開始する</button>' +
+    '<div class="mini" style="margin-top:6px">開始できるのは、2面以上のコートで試合が組めるときだけです。人数が足りないコートは自動で休止し、余った選手は待機になります。</div></div>';
+  return h;
+}
+function upsetSaveMeta(id){
+  var s = upsetGet(id); if (!s) return;
+  s.meta.name = (document.getElementById("upm-name") || {}).value || "";
+  s.meta.date = (document.getElementById("upm-date") || {}).value || "";
+  s.meta.venue = (document.getElementById("upm-venue") || {}).value || "";
+  var courts = Math.max(2, parseInt((document.getElementById("upm-courts") || {}).value, 10) || 2);
+  if (courts !== s.meta.courtCount){
+    s.meta.courtCount = courts;
+    Object.keys(s.placement).forEach(function(uid){ if ((s.placement[uid] || 0) > courts) s.placement[uid] = 0; });
+    upsetSyncWaiting(s);
+  }
+  upsetTouch(s);
+}
+function upsetAddParts(id){
+  var s = upsetGet(id); if (!s) return;
+  var text = (document.getElementById("up-paste") || {}).value || "";
+  var added = 0;
+  text.split(/\n/).forEach(function(line){
+    var cells = line.split(/[,、\t]/).map(function(x){ return x.trim(); });
+    if (!cells[0]) return;
+    s.seq += 1;
+    s.participants.push({ id: "p" + s.seq, name: cells[0], aff: cells[1] || "", rank: parseInt(cells[2], 10) || null, pairId: null });
+    added++;
+  });
+  if (!added){ alert("追加できる行がありませんでした"); return; }
+  if (s.placementMethod === "skill") upsetPlaceInitial(s, "skill");
+  upsetTouch(s);
+}
+function upsetAddOne(id){
+  var s = upsetGet(id); if (!s) return;
+  var name = ((document.getElementById("up-pname") || {}).value || "").trim();
+  if (!name){ alert("名前を入れてください"); return; }
+  s.seq += 1;
+  s.participants.push({ id: "p" + s.seq, name: name, aff: ((document.getElementById("up-paff") || {}).value || "").trim(), rank: parseInt((document.getElementById("up-prank") || {}).value, 10) || null, pairId: null });
+  if (s.placementMethod === "skill") upsetPlaceInitial(s, "skill");
+  upsetTouch(s);
+}
+function upsetEditPart(id, pid){
+  var s = upsetGet(id); if (!s) return;
+  var p = s.participants.find(function(x){ return x.id === pid; }); if (!p) return;
+  var name = prompt("名前", p.name); if (name === null) return;
+  var aff = prompt("所属（なしは空欄）", p.aff || ""); if (aff === null) return;
+  var rank = prompt("実力順位（数字。なしは空欄）", p.rank || ""); if (rank === null) return;
+  p.name = name.trim() || p.name; p.aff = aff.trim(); p.rank = parseInt(rank, 10) || null;
+  upsetTouch(s);
+}
+function upsetDelPart(id, pid){
+  var s = upsetGet(id); if (!s) return;
+  var p = s.participants.find(function(x){ return x.id === pid; }); if (!p) return;
+  if (!confirm(p.name + " を参加者から削除しますか？")) return;
+  s.participants = s.participants.filter(function(x){ return x.id !== pid; });
+  delete s.stats[pid];
+  upsetTouch(s);
+}
+function upsetMakePair(id){
+  var s = upsetGet(id); if (!s) return;
+  var picks = [].slice.call(document.querySelectorAll(".up-pairpick:checked")).map(function(el){ return el.value; });
+  if (picks.length !== 2){ alert("ペアにする2人を選んでください"); return; }
+  s.seq += 1;
+  var pairId = "pair" + s.seq;
+  s.participants.forEach(function(p){ if (picks.indexOf(p.id) >= 0) p.pairId = pairId; });
+  upsetTouch(s);
+}
+function upsetBreakPair(id, pairId){
+  var s = upsetGet(id); if (!s) return;
+  s.participants.forEach(function(p){ if (p.pairId === pairId) p.pairId = null; });
+  upsetTouch(s);
+}
+function upsetDoPlace(id, method){
+  var s = upsetGet(id); if (!s) return;
+  if (method === "manual" && !Object.keys(s.placement).length){
+    s.placement = {}; s.waiting = [];
+    upsetUnits(s).forEach(function(u){ s.placement[u.id] = 0; s.waiting.push(u.id); });
+    for (var c = 1; c <= s.meta.courtCount; c++) s.courtActive[c] = true;
+    s.placementMethod = "manual";
+  } else {
+    upsetPlaceInitial(s, method);
+  }
+  uiUpsetSel = null;
+  upsetTouch(s);
+}
+function upsetStart(id){
+  var s = upsetGet(id); if (!s) return;
+  if (!Object.keys(s.placement).length){
+    if (s.placementMethod === "manual"){
+      var el0 = document.getElementById("up-start-err");
+      if (el0) el0.innerHTML = '<div class="warnbox"><strong>開始できません</strong><div class="mini">手動配置で、選手をコートへ入れてください。</div></div>';
+      return;
+    }
+    upsetPlaceInitial(s, s.placementMethod);
+  }
+  var err = upsetStartRound(s);
+  if (err){ var el = document.getElementById("up-start-err"); if (el) el.innerHTML = '<div class="warnbox"><strong>開始できません</strong><div class="mini">' + esc(err) + '</div></div>'; return; }
+  upsetTouch(s);
+  go("upsetPlay");
+}
+// ----- placement editor (setup + next-round preview) -----
+function upsetPlacementHTML(s, editable){
+  var umap = upsetUnitMap(s), pools = upsetPools(s);
+  var prop = (s.phase === "preview" || s.status === "ready") ? upsetPropose(s) : null;
+  var h = '<div style="margin-top:10px">';
+  for (var c = 1; c <= s.meta.courtCount; c++){
+    var active = s.courtActive[c] !== false;
+    var pool = (pools[c] || []).map(function(uid){ return umap[uid]; }).filter(Boolean);
+    h += '<div style="border:2px solid ' + (active ? "var(--ink)" : "#bbb") + ';padding:8px 10px;margin-bottom:8px;background:' + (active ? "#fff" : "#f2f2f2") + '">' +
+      '<div class="row" style="justify-content:space-between"><strong>第' + c + 'コート</strong>' +
+      (editable && s.phase === "preview" ? '<button class="linkbtn" onclick="upsetCourtToggle(\'' + s.id + '\',' + c + ')">' + (active ? "このコートを休止" : "このコートを再開") + '</button>' : '<span class="mini">' + (active ? "" : "休止") + '</span>') + '</div>' +
+      '<div style="margin-top:6px">' + (pool.length ? pool.map(function(u){ return upsetUnitChip(s, u, editable); }).join("") : '<span class="mini">（選手なし）</span>') + '</div>';
+    if (prop && active && prop.courts[c]){
+      var pr = prop.courts[c];
+      h += '<div class="mini" style="margin-top:6px">対戦： <strong>' + esc(pr.a.map(function(pid){ return upsetPName(s, pid); }).join("・")) + '</strong> vs <strong>' + esc(pr.b.map(function(pid){ return upsetPName(s, pid); }).join("・")) + '</strong></div>';
+    } else if (prop && active){
+      h += '<div class="mini" style="margin-top:6px;color:#c0392b">人数が足りず、このコートは次のラウンド休止になります</div>';
+    }
+    h += '</div>';
+  }
+  var waitingUnits = s.waiting.map(function(uid){ return umap[uid]; }).filter(Boolean);
+  h += '<div style="border:2px dashed #999;padding:8px 10px"><strong>待機</strong><div style="margin-top:6px">' +
+    (waitingUnits.length ? waitingUnits.map(function(u){ return upsetUnitChip(s, u, editable); }).join("") : '<span class="mini">（なし）</span>') + '</div></div>';
+  if (editable && uiUpsetSel && umap[uiUpsetSel]){
+    var sel = umap[uiUpsetSel];
+    h += '<div class="warnbox" style="margin-top:10px"><strong>' + esc(upsetUnitLabel(s, sel)) + '</strong> の移動先<div class="row" style="margin-top:8px;flex-wrap:wrap;gap:8px">';
+    for (var c2 = 1; c2 <= s.meta.courtCount; c2++) h += '<button class="btn ghost" onclick="upsetMoveSel(\'' + s.id + '\',' + c2 + ')">コート' + c2 + 'へ</button>';
+    h += '<button class="btn ghost" onclick="upsetMoveSel(\'' + s.id + '\',0)">待機へ</button><button class="btn ghost" onclick="uiUpsetSel=null;render()">やめる</button></div>' +
+      '<div class="mini" style="margin-top:6px">別の選手を選ぶと、その選手と入れ替わります。</div></div>';
+  }
+  h += '</div>';
+  return h;
+}
+function upsetUnitChip(s, u, editable){
+  var sel = uiUpsetSel === u.id;
+  var st = u.pids.map(function(pid){ return upsetStats(s, pid); });
+  var games = st.reduce(function(a, x){ return a + x.games; }, 0);
+  var style = 'display:inline-block;margin:0 6px 6px 0;padding:9px 12px;border:2px solid ' + (sel ? "var(--cy,#12a5e5)" : "var(--ink)") + ';background:' + (sel ? "#e8f6fd" : "#fff") + ';font-weight:700;min-height:44px';
+  var label = esc(upsetUnitLabel(s, u)) + (u.aff ? ' <span class="mini">' + esc(u.aff) + '</span>' : "") + (games ? ' <span class="mini">' + games + '試合</span>' : "");
+  if (!editable) return '<span style="' + style + '">' + label + '</span>';
+  return '<button style="' + style + '" onclick="upsetTapUnit(\'' + s.id + '\',\'' + u.id + '\')">' + label + '</button>';
+}
+function upsetSyncWaiting(s){
+  s.waiting = upsetUnits(s).filter(function(u){ return !s.placement[u.id]; }).map(function(u){ return u.id; });
+}
+function upsetTapUnit(id, uid){
+  var s = upsetGet(id); if (!s) return;
+  if (uiUpsetSel && uiUpsetSel !== uid){
+    var a = s.placement[uiUpsetSel] || 0, b = s.placement[uid] || 0;
+    s.placement[uiUpsetSel] = b; s.placement[uid] = a;
+    upsetSyncWaiting(s);
+    upsetLog(s, "手動移動（入れ替え）");
+    uiUpsetSel = null;
+    upsetTouch(s);
+    return;
+  }
+  uiUpsetSel = uiUpsetSel === uid ? null : uid;
+  render();
+}
+function upsetMoveSel(id, court){
+  var s = upsetGet(id); if (!s || !uiUpsetSel) return;
+  s.placement[uiUpsetSel] = court;
+  upsetSyncWaiting(s);
+  upsetLog(s, "手動移動：" + upsetUnitLabel(s, upsetUnitMap(s)[uiUpsetSel]) + " → " + (court ? "コート" + court : "待機"));
+  uiUpsetSel = null;
+  upsetTouch(s);
+}
+function upsetCourtToggle(id, c){
+  var s = upsetGet(id); if (!s) return;
+  var umap = upsetUnitMap(s);
+  if (s.courtActive[c] !== false){
+    s.courtActive[c] = false;
+    Object.keys(s.placement).forEach(function(uid){ if (s.placement[uid] === c) s.placement[uid] = 0; });
+    upsetSyncWaiting(s);
+    upsetLog(s, "コート" + c + " を休止");
+  } else {
+    s.courtActive[c] = true;
+    var ordered = upsetFairSort(s, s.waiting.map(function(uid){ return umap[uid]; }).filter(Boolean));
+    var size = upsetSize(s);
+    for (var i = 0; i < Math.min(size, ordered.length); i++){ s.placement[ordered[i].id] = c; }
+    upsetSyncWaiting(s);
+    upsetLog(s, "コート" + c + " を再開");
+  }
+  upsetTouch(s);
+}
+// ----- play screen -----
+function vUpsetPlay(){
+  var s = upsetCur();
+  if (!s) return '<div class="card"><p>練習会が選ばれていません。</p><button class="btn" onclick="go(\'upset\')">一覧へ</button></div>';
+  if (s.status === "ready"){ upsetOpenSession(s.id); return ""; }
+  if (s.status === "done"){ upsetOpenSession(s.id); return ""; }
+  var h = upsetHead(s, s.phase === "preview" ? ("第" + (s.round + 1) + "ラウンドの配置確認") : ("第" + s.round + "ラウンド進行中"));
+  if (s.fixBackup) h += '<div class="warnbox"><strong>結果訂正を行いました</strong><div class="mini">間違っていたら、訂正前の状態に戻せます。</div><button class="btn ghost" style="margin-top:8px" onclick="upsetUndoFixBtn(\'' + s.id + '\')">訂正を取り消して元に戻す</button></div>';
+  var playing = s.participants.length, activeC = upsetActiveCourts(s).length;
+  h += '<div class="row" style="gap:8px;margin-bottom:10px"><span class="tag">参加者 ' + playing + '名</span><span class="tag">稼働 ' + activeC + '面</span><span class="tag">待機 ' + s.waiting.length + '</span></div>';
+  if (s.phase === "playing"){
+    var ms = s.matches.filter(function(m){ return m.round === s.round; }).sort(function(a, b){ return a.court - b.court; });
+    ms.forEach(function(m){
+      h += '<div style="border:2.5px solid var(--ink);margin-bottom:10px;background:#fff"><div style="background:var(--ink);color:#fff;padding:6px 12px;font-weight:800">第' + m.court + 'コート' + (m.winner ? ' <span style="float:right">結果入力済み</span>' : "") + '</div>' +
+        '<div style="padding:12px"><div style="font-size:19px;font-weight:800;text-align:center">' + esc(upsetSideLabel(s, m, "A")) + '<div class="mini" style="font-weight:400">VS</div>' + esc(upsetSideLabel(s, m, "B")) + '</div>' +
+        (m.winner ? '<div style="text-align:center;margin-top:8px"><span class="tag">勝者：' + esc(upsetSideLabel(s, m, m.winner)) + '</span>' + (m.score ? '<div style="font-size:17px;font-weight:800;margin-top:6px">' + esc(m.score) + '</div>' : "") + '</div>' : "") +
+        '<button class="btn" style="width:100%;margin-top:10px" onclick="upsetScoreModal(\'' + s.id + '\',\'' + m.id + '\',false)">' + (m.winner ? "結果を修正" : "結果を入れる") + '</button></div></div>';
+    });
+    var umap2 = upsetUnitMap(s);
+    if (s.waiting.length) h += '<div class="card"><h3>待機中</h3><div>' + s.waiting.map(function(uid){ return umap2[uid] ? upsetUnitChip(s, umap2[uid], false) : ""; }).join("") + '</div><div class="mini">待機が長い選手から、次のラウンドで最下位コートに入ります。</div></div>';
+    if (upsetRoundDone(s)){
+      h += '<button class="btn" style="width:100%;min-height:58px;font-size:17px" onclick="upsetConfirmBtn(\'' + s.id + '\')">結果を確定して、次の配置を作る</button>';
+    } else {
+      h += '<div class="mini">全コートの結果が入ると、確定ボタンが出ます。確定すると勝敗に応じて次の配置が自動で作られます。</div>';
+    }
+  } else if (s.phase === "preview"){
+    h += '<div class="card"><h3>次の配置（自動作成済み）</h3><div class="mini">勝者は上へ・敗者は下へ・最下位の敗者は待機へ、待機が長い選手は最下位コートへ入っています。必要なら選手を選んで手動で直せます。</div>' +
+      upsetPlacementHTML(s, true) +
+      '<button class="btn" style="width:100%;min-height:58px;font-size:17px;margin-top:10px" onclick="upsetNextRound(\'' + s.id + '\')">この配置で第' + (s.round + 1) + 'ラウンドを開始</button></div>';
+  }
+  h += upsetRecordHTML(s, true);
+  h += '<div class="card"><h3>練習会の操作</h3><button class="btn ghost" style="width:100%" onclick="upsetFinishBtn(\'' + s.id + '\')">練習会を終了する（記録として保存）</button></div>';
+  return h;
+}
+function upsetConfirmBtn(id){
+  var s = upsetGet(id); if (!s) return;
+  upsetConfirmRound(s);
+  upsetTouch(s);
+}
+function upsetNextRound(id){
+  var s = upsetGet(id); if (!s) return;
+  var err = upsetStartRound(s);
+  if (err){ alert(err); return; }
+  uiUpsetSel = null;
+  upsetTouch(s);
+}
+function upsetFinishBtn(id){
+  var s = upsetGet(id); if (!s) return;
+  if (!confirm("練習会を終了しますか？記録は保存され、一覧の「過去の練習会」から見られます。")) return;
+  upsetFinish(s);
+  upsetTouch(s);
+  go("upsetView");
+}
+function upsetUndoFixBtn(id){
+  var s = upsetGet(id); if (!s) return;
+  if (!confirm("訂正を取り消して、訂正前の状態に戻しますか？")) return;
+  upsetUndoFix(s);
+  upsetTouch(s);
+}
+// ----- record (shared by play + past view) -----
+function upsetRecordHTML(s, withFix){
+  var h = '<div class="card"><h3>記録</h3>';
+  var rounds = []; s.matches.forEach(function(m){ if (rounds.indexOf(m.round) < 0) rounds.push(m.round); });
+  rounds.sort(function(a, b){ return b - a; });
+  if (!rounds.length) h += '<div class="mini">まだ試合がありません。</div>';
+  rounds.forEach(function(r){
+    h += '<div style="margin-top:8px"><strong>第' + r + 'ラウンド</strong></div>';
+    s.matches.filter(function(m){ return m.round === r; }).sort(function(a, b){ return a.court - b.court; }).forEach(function(m){
+      h += '<div class="qrow"><span class="qnames">コート' + m.court + '：' + esc(upsetSideLabel(s, m, "A")) + ' vs ' + esc(upsetSideLabel(s, m, "B")) +
+        (m.winner ? ' → <strong>' + esc(upsetSideLabel(s, m, m.winner)) + '</strong>' + (m.score ? '（' + esc(m.score) + '）' : "") : ' <span class="mini">未入力</span>') + '</span>' +
+        (withFix && m.winner ? '<button class="linkbtn" onclick="upsetFixModal(\'' + s.id + '\',\'' + m.id + '\')">訂正</button>' : "") + '</div>';
+    });
+  });
+  if (s.participants.length){
+    h += '<div style="margin-top:12px"><strong>選手の記録</strong></div>' + s.participants.map(function(p){
+      var st = upsetStats(s, p.id);
+      return '<div class="qrow"><span class="qnames">' + esc(p.name) + (p.aff ? '<span class="mini"> ' + esc(p.aff) + '</span>' : "") + '</span><span class="mini">' + st.games + '試合 ' + st.wins + '勝 ' + st.losses + '敗 ／ 待機' + st.waitCount + '回</span></div>';
+    }).join("");
+  }
+  if (s.history.length){
+    h += '<details style="margin-top:12px"><summary style="font-weight:700;cursor:pointer">移動・操作の履歴（' + s.history.length + '件）</summary><div style="margin-top:8px">' +
+      s.history.slice().reverse().map(function(x){ return '<div class="mini" style="padding:3px 0;border-bottom:1px solid #eee">' + esc(x.text) + '</div>'; }).join("") + '</div></details>';
+  }
+  h += '</div>';
+  return h;
+}
+function vUpsetView(){
+  var s = upsetCur();
+  if (!s) return '<div class="card"><p>練習会が選ばれていません。</p><button class="btn" onclick="go(\'upset\')">一覧へ</button></div>';
+  var umap = upsetUnitMap(s);
+  var h = upsetHead(s, "記録（閲覧用）");
+  h += '<div class="row" style="gap:8px;margin-bottom:10px"><span class="tag">参加者 ' + s.participants.length + '名</span><span class="tag">全' + s.round + 'ラウンド</span><span class="tag">初期配置：' + (s.placementMethod === "draw" ? "抽選" : s.placementMethod === "manual" ? "手動" : "実力順") + '</span></div>';
+  h += '<div class="card"><h3>終了時点の配置</h3>' + upsetPlacementHTML(s, false) + '</div>';
+  h += upsetRecordHTML(s, false);
+  return h;
+}
+// ----- score & correction modals -----
+function upsetScoreModal(sid, mid, isFix){
+  var s = upsetGet(sid); if (!s) return;
+  var m = s.matches.find(function(x){ return x.id === mid; }); if (!m) return;
+  var info = isFix ? upsetFixInfo(s, mid) : null;
+  _upS = { sid: sid, mid: mid, win: m.winner || null, isFix: !!isFix, needsConfirm: info ? info.needsConfirm : false };
+  var dec = decodePoint(state.meta.pointDefault || "21330");
+  var chips = gameScoreOptions(dec).map(function(g){ return g[0] + "-" + g[1]; });
+  var labelA = upsetSideLabel(s, m, "A"), labelB = upsetSideLabel(s, m, "B");
+  var html = '<h3 style="margin:0 0 4px">' + (isFix ? "結果の訂正" : "結果入力") + '（コート' + m.court + '）</h3>' +
+    '<div class="mini" style="margin-bottom:10px">勝者を選んでください。スコアは任意です（大会の基本設定：' + esc(dec.label) + '）。</div>' +
+    '<div class="row"><button class="btn' + (_upS.win === "A" ? "" : " ghost") + '" id="up-win-a" style="flex:1;min-height:56px" onclick="upPick(\'A\')">' + esc(labelA) + '</button>' +
+    '<button class="btn' + (_upS.win === "B" ? "" : " ghost") + '" id="up-win-b" style="flex:1;min-height:56px" onclick="upPick(\'B\')">' + esc(labelB) + '</button></div>' +
+    '<label class="fld" style="margin-top:12px">スコア（例：21-15 21-18）<input id="up-score" value="' + esc(m.score || "") + '" placeholder="空欄でも可"></label>' +
+    '<div class="mini">候補を押すとゲームが追加されます（左が ' + esc(labelA) + ' の得点）:</div><div style="margin-top:6px">' +
+    chips.map(function(c){ return '<button class="btn ghost small" style="margin:0 6px 6px 0" onclick="upAddScore(\'' + c + '\')">' + c + '</button>'; }).join("") + '</div>' +
+    '<div class="row" style="margin-top:6px"><button class="btn ghost small" onclick="document.getElementById(\'up-score\').value=\'\'">スコアを消す</button></div>';
+  if (isFix && info && info.needsConfirm){
+    html += '<div class="warnbox" style="margin-top:12px"><strong>後続の結果への影響</strong><div class="mini">この試合より後の 第' + info.affectedRounds.join("・") + 'ラウンド（' + info.affected.length + '試合）の結果は取り消され、配置は作り直しになります。取り消される結果は元に戻せませんが、この訂正自体は「訂正を取り消す」で戻せます。</div></div>';
+  }
+  html += '<div class="row" style="margin-top:14px"><button class="btn" style="flex:1;min-height:54px" onclick="saveUpsetScore()">' + (isFix ? (info && info.needsConfirm ? "後続を取り消して訂正する" : "訂正する") : "保存する") + '</button>' +
+    '<button class="btn ghost" style="flex:1" onclick="closeScoreModal()">やめる</button></div>';
+  showSheet(html);
+  _upS.chipsA = chips;
+}
+function upPick(side){
+  if (!_upS) return;
+  _upS.win = side;
+  var a = document.getElementById("up-win-a"), b = document.getElementById("up-win-b");
+  if (a && b){ a.className = "btn" + (side === "A" ? "" : " ghost"); b.className = "btn" + (side === "B" ? "" : " ghost"); }
+}
+function upAddScore(c){
+  var inp = document.getElementById("up-score"); if (!inp || !_upS) return;
+  var games = inp.value.trim().split(/\s+/).filter(Boolean);
+  if (games.length >= 3){ alert("3ゲームまでです"); return; }
+  inp.value = (inp.value.trim() ? inp.value.trim() + " " : "") + c;
+}
+function saveUpsetScore(){
+  if (!_upS) return;
+  var s = upsetGet(_upS.sid); if (!s) return;
+  var m = s.matches.find(function(x){ return x.id === _upS.mid; }); if (!m) return;
+  if (!_upS.win){ alert("勝者を選んでください"); return; }
+  var score = ((document.getElementById("up-score") || {}).value || "").trim();
+  if (score){
+    var parsed = parseScore(score);
+    if (!parsed || !parsed.games || !parsed.games.length){ alert("スコアの形式が読み取れません（例：21-15 21-18）"); return; }
+    var st = scoreStats(parsed.games);
+    var derived = st.g1 > st.g2 ? "A" : st.g2 > st.g1 ? "B" : null;
+    if (!derived){ alert("ゲーム数が同点です。勝敗が決まるスコアにしてください"); return; }
+    if (derived !== _upS.win){ alert("スコアと勝者が合いません（スコアでは " + (derived === "A" ? upsetSideLabel(s, m, "A") : upsetSideLabel(s, m, "B")) + " の勝ちです）"); return; }
+  }
+  if (_upS.isFix){
+    var err = upsetApplyFix(s, _upS.mid, _upS.win, score, true);
+    if (err){ alert(err); return; }
+  } else {
+    upsetSetResult(s, _upS.mid, _upS.win, score);
+  }
+  _upS = null;
+  closeScoreModal();
+  upsetTouch(s);
+}
+function upsetFixModal(sid, mid){
+  var s = upsetGet(sid); if (!s) return;
+  var info = upsetFixInfo(s, mid); if (!info) return;
+  if (s.phase === "playing" && info.match.round === s.round){ upsetScoreModal(sid, mid, false); return; }
+  upsetScoreModal(sid, mid, true);
+}
 function vConfig(){
   var link = location.origin + location.pathname + "#r=" + sync.room;
   var h = "<h1>設定・共有</h1>";
