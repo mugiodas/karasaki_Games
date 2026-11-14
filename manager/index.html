@@ -3642,6 +3642,7 @@ function render(){
     el.classList.remove("enter"); void el.offsetWidth; el.classList.add("enter");
     if (view === "home") countUps();
   }
+  fitNameLines();
 }
 // The app has two phases with opposite frequencies: setup (before the
 // day) and operations (the day itself). These two checks drive the
@@ -4398,8 +4399,53 @@ function fitScale(seg, fit){
 function nameLinesHTML(name, fit){
   return String(name == null ? "" : name).split("・").map(function(seg){
     var sc = fitScale(seg, fit);
-    return '<span style="display:block;white-space:nowrap' + (sc < 1 ? ";font-size:" + Math.round(sc * 100) + "%" : "") + '">' + esc(seg) + '</span>';
+    return '<span class="fitline" style="display:block;white-space:nowrap' + (sc < 1 ? ";font-size:" + Math.round(sc * 100) + "%" : "") + '">' + esc(seg) + '</span>';
   }).join("");
+}
+// Measured fit: the character-count estimate cannot know the real
+// column width (court grids get narrower on tablets), so after
+// every render each name line is measured and its font shrunk
+// until it truly fits on one line. Right-aligned lines (the right
+// side of a VS card) overflow towards the left, which scrollWidth
+// under-reports, so those are measured with an off-screen ruler.
+var _fitRuler = null;
+function fitTextWidth(el, cs){
+  if (!_fitRuler){
+    _fitRuler = document.createElement("span");
+    _fitRuler.style.cssText = "position:absolute;left:-9999px;top:0;visibility:hidden;white-space:nowrap;";
+    document.body.appendChild(_fitRuler);
+  }
+  _fitRuler.style.fontFamily = cs.fontFamily;
+  _fitRuler.style.fontWeight = cs.fontWeight;
+  _fitRuler.style.fontStyle = cs.fontStyle;
+  _fitRuler.style.fontSize = cs.fontSize;
+  _fitRuler.style.letterSpacing = cs.letterSpacing;
+  _fitRuler.textContent = el.textContent;
+  return _fitRuler.getBoundingClientRect().width;
+}
+function fitNameLines(){
+  try{
+    var els = document.querySelectorAll(".fitline");
+    for (var i = 0; i < els.length; i++){
+      var el = els[i];
+      el.style.fontSize = "";
+      var w = el.clientWidth;
+      if (!w) continue;
+      var cs = window.getComputedStyle(el);
+      var tw;
+      if (el.closest && el.closest(".vsname.right")) tw = fitTextWidth(el, cs);
+      else { var sw = el.scrollWidth; tw = (sw > w) ? sw : 0; }
+      if (tw > w){
+        var cur = parseFloat(cs.fontSize) || 16;
+        el.style.fontSize = Math.max(9, Math.floor(cur * w / tw * 0.98 * 10) / 10) + "px";
+      }
+    }
+  }catch(e){}
+}
+if (typeof window !== "undefined" && window.addEventListener){
+  var _fitRzT = null;
+  window.addEventListener("resize", function(){ clearTimeout(_fitRzT); _fitRzT = setTimeout(fitNameLines, 150); });
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(function(){ fitNameLines(); });
 }
 function playerMatrixName(ev, p){
   var nm = playerName(ev, p.id);
@@ -4411,7 +4457,7 @@ function playerMatrixName(ev, p){
       col = g === "男" ? "#2563eb" : (g === "女" ? "#dc2626" : "");
     }
     var sc = fitScale(seg, 7);
-    return '<span style="display:block;white-space:nowrap' + (col ? ";color:" + col : "") + (sc < 1 ? ";font-size:" + Math.round(sc * 100) + "%" : "") + '">' + esc(seg) + '</span>';
+    return '<span class="fitline" style="display:block;white-space:nowrap' + (col ? ";color:" + col : "") + (sc < 1 ? ";font-size:" + Math.round(sc * 100) + "%" : "") + '">' + esc(seg) + '</span>';
   }).join("");
   var suf = playerGradeSuffix(p);
   return lines + (suf ? '<span style="display:block" class="mini">' + esc(suf) + '</span>' : "");
