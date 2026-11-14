@@ -1190,13 +1190,23 @@ function undoLast(){
 // reads or writes events/results; sessions live in
 // state.upsetSessions and sync through their own per-session merge.
 function upsetAll(){ if (!state.upsetSessions) state.upsetSessions = {}; return state.upsetSessions; }
-function upsetGet(id){ return upsetAll()[id] || null; }
+function upsetGet(id){
+  var s = upsetAll()[id] || null;
+  if (s){
+    if (!s.meta.mode) s.meta.mode = "ladder";
+    if (!s.settings) s.settings = { showGrade: true, showGender: false, colorGender: false };
+    if (!s.leagues) s.leagues = [];
+    if (!s.leagueMatches) s.leagueMatches = [];
+  }
+  return s;
+}
 function upsetTouch(s){ s.ts = Date.now(); touchConfig(); render(); }
 function upsetBlank(meta){
   return { id: "up" + Date.now().toString(36) + Math.floor(Math.random() * 46656).toString(36), ts: Date.now(),
-    meta: { name: meta.name || "", date: meta.date || "", venue: meta.venue || "", format: meta.format || "singles", doublesMode: meta.doublesMode || "fixed", courtCount: Math.max(2, meta.courtCount || 2) },
+    meta: { name: meta.name || "", date: meta.date || "", venue: meta.venue || "", format: meta.format || "singles", doublesMode: meta.doublesMode || "fixed", courtCount: Math.max(2, meta.courtCount || 2), mode: meta.mode || "ladder", startTime: meta.startTime || "10:00", intervalMin: meta.intervalMin || 20 },
+    settings: { showGrade: true, showGender: false, colorGender: false },
     status: "ready", phase: "setup", round: 0, placementMethod: meta.placementMethod || "skill",
-    seq: 0, participants: [], placement: {}, courtActive: {}, matches: [], waiting: [],
+    seq: 0, participants: [], placement: {}, courtActive: {}, matches: [], waiting: [], leagues: [], leagueMatches: [],
     stats: {}, recent: {}, recentPartner: {}, history: [], snapshots: [], fixBackup: null, drawOrder: null, prevWaiting: [] };
 }
 function upsetCreate(meta){
@@ -1492,6 +1502,99 @@ function upsetUndoFix(s){
   upsetLog(s, "結果訂正を取り消して、訂正前の状態に戻しました");
 }
 function upsetFinish(s){ s.status = "done"; s.phase = "done"; upsetLog(s, "練習会を終了しました"); }
+// ----- league round-robin mode -----
+// A session can run as level-based leagues playing a full
+// round-robin instead of the court ladder. Leagues hold unit ids;
+// leagueMatches are generated once (ring method) with a global
+// match number, from which the displayed court/time is derived.
+function upsetSameTeam(s, uA, uB){
+  var a = {};
+  uA.pids.forEach(function(pid){ var x = upsetPAff(s, pid); if (x) a[x] = 1; });
+  return uB.pids.some(function(pid){ var x = upsetPAff(s, pid); return !!x && !!a[x]; });
+}
+function upsetLeagueById(s, lid){ return (s.leagues || []).find(function(x){ return x.id === lid; }) || null; }
+function upsetUnitIdOfPids(s, pids){
+  var u = upsetUnits(s).find(function(x){ return x.pids.indexOf(pids[0]) >= 0; });
+  return u ? u.id : null;
+}
+function upsetAutoLeagues(s){
+  var units = upsetUnits(s);
+  function groupOf(u){
+    var gs = u.pids.map(function(pid){ var p = s.participants.find(function(x){ return x.id === pid; }); return p ? (p.gender || "") : ""; });
+    if (gs.indexOf("女") >= 0) return "女子";
+    if (gs.length && gs.every(function(g){ return g === "男"; })) return "男子";
+    return "混合";
+  }
+  var groups = {};
+  units.forEach(function(u){ (groups[groupOf(u)] = groups[groupOf(u)] || []).push(u); });
+  var leagues = [], seq = 0;
+  ["男子", "女子", "混合"].forEach(function(g){
+    var arr = (groups[g] || []).slice().sort(function(a, b){ return (a.rank - b.rank) || (a.id < b.id ? -1 : 1); });
+    if (!arr.length) return;
+    if (arr.length >= 6){
+      var half = Math.ceil(arr.length / 2);
+      seq++; leagues.push({ id: "lg" + (++seq), name: g + "A", unitIds: arr.slice(0, half).map(function(u){ return u.id; }), skipSameTeam: false });
+      leagues.push({ id: "lg" + (++seq), name: g + "B", unitIds: arr.slice(half).map(function(u){ return u.id; }), skipSameTeam: false });
+    } else {
+      leagues.push({ id: "lg" + (++seq), name: g, unitIds: arr.map(function(u){ return u.id; }), skipSameTeam: false });
+    }
+  });
+  s.leagues = leagues;
+  return leagues;
+}
+function upsetGenLeagueMatches(s){
+  if ((s.leagueMatches || []).some(function(m){ return m.winner; })) return "結果が入力済みのため、対戦表を作り直せません";
+  var umap = upsetUnitMap(s), out = [], no = 0;
+  (s.leagues || []).forEach(function(lg){
+    var ring = lg.unitIds.slice();
+    if (ring.length < 2) return;
+    if (ring.length % 2) ring.push(null);
+    var n = ring.length;
+    for (var r = 0; r < n - 1; r++){
+      for (var i = 0; i < n / 2; i++){
+        var A = ring[i], B = ring[n - 1 - i];
+        if (!A || !B) continue;
+        no++;
+        var uA = umap[A], uB = umap[B];
+        out.push({ id: "lm" + no, leagueId: lg.id, no: no, a: uA.pids.slice(), b: uB.pids.slice(), winner: null, score: "", skip: !!(lg.skipSameTeam && uA && uB && upsetSameTeam(s, uA, uB)) });
+      }
+      var last = ring.pop(); ring.splice(1, 0, last);
+    }
+  });
+  s.leagueMatches = out;
+  return "";
+}
+function upsetLeagueStandings(s, lg){
+  var rows = {};
+  lg.unitIds.forEach(function(uid){ rows[uid] = { uid: uid, w: 0, l: 0, gf: 0, ga: 0, pf: 0, pa: 0, played: 0 }; });
+  (s.leagueMatches || []).filter(function(m){ return m.leagueId === lg.id && !m.skip && m.winner; }).forEach(function(m){
+    var rA = rows[upsetUnitIdOfPids(s, m.a)], rB = rows[upsetUnitIdOfPids(s, m.b)];
+    if (!rA || !rB) return;
+    rA.played++; rB.played++;
+    if (m.winner === "A"){ rA.w++; rB.l++; } else { rB.w++; rA.l++; }
+    if (m.score){
+      var games = parseScore(m.score);
+      if (games && games.length){
+        var st = scoreStats(games);
+        rA.gf += st.g1; rA.ga += st.g2; rA.pf += st.p1; rA.pa += st.p2;
+        rB.gf += st.g2; rB.ga += st.g1; rB.pf += st.p2; rB.pa += st.p1;
+      }
+    }
+  });
+  var arr = Object.keys(rows).map(function(k){ return rows[k]; });
+  arr.sort(function(x, y){
+    return (y.w - x.w) || ((y.gf - y.ga) - (x.gf - x.ga)) || ((y.pf - y.pa) - (x.pf - x.pa)) || (lg.unitIds.indexOf(x.uid) - lg.unitIds.indexOf(y.uid));
+  });
+  arr.forEach(function(r, i){ r.rank = i + 1; });
+  return arr;
+}
+function upsetSlotLabel(s, no){
+  var per = Math.max(1, s.meta.courtCount || 1);
+  var slot = Math.floor((no - 1) / per), court = ((no - 1) % per) + 1;
+  var t = String(s.meta.startTime || "10:00").split(":");
+  var mins = (+t[0] || 10) * 60 + (+t[1] || 0) + slot * (s.meta.intervalMin || 20);
+  return Math.floor(mins / 60) + ":" + ("0" + (mins % 60)).slice(-2) + " 第" + court + "コート";
+}
 function evById(id){ return state.events.find(function(e){ return e.id===id; }); }
 function playerName(ev, pid){
   if (!pid) return "—"; if (pid === "BYE") return "（不戦勝）";
@@ -4768,12 +4871,13 @@ function vUpset(){
     '<div class="row"><label class="fld" style="flex:1">競技形式<select id="up-format" onchange="document.getElementById(\'up-dmode\').disabled = this.value!==\'doubles\'"><option value="singles">シングルス</option><option value="doubles">ダブルス</option></select></label>' +
     '<label class="fld" style="flex:1">ダブルス方式<select id="up-dmode" disabled><option value="fixed">固定ペア</option><option value="shuffle">ペア組み替え</option></select></label></div>' +
     '<div class="row"><label class="fld" style="flex:1">コート数（2面以上）<input id="up-courts" type="number" min="2" max="20" value="4"></label>' +
-    '<label class="fld" style="flex:1">初期配置<select id="up-method"><option value="skill">実力順</option><option value="draw">抽選</option><option value="manual">手動</option></select></label></div>' +
+    '<label class="fld" style="flex:1">初期配置（下克上方式）<select id="up-method"><option value="skill">実力順</option><option value="draw">抽選</option><option value="manual">手動</option></select></label></div>' +
+    '<label class="fld">方式<select id="up-mode"><option value="ladder">下克上（勝てば上のコートへ）</option><option value="league">リーグ総当たり（レベル別リーグ）</option></select></label>' +
     '<button class="btn" style="width:100%;margin-top:10px" onclick="upsetCreateFromForm()">作成して参加者登録へ</button></div>';
   if (live.length){
     h += '<div class="sec-band"><span class="sec-no">01</span>開催中・準備中の練習会</div>';
     live.forEach(function(s){
-      h += '<div class="card"><div class="row" style="justify-content:space-between;align-items:flex-start"><div><strong style="font-size:17px">' + esc(s.meta.name || "（名称未設定）") + '</strong><div class="mini">' + esc([s.meta.date, s.meta.venue, s.participants.length + "名", s.meta.courtCount + "面", s.status === "live" ? ("第" + s.round + "ラウンド") : "準備中"].filter(Boolean).join(" ・ ")) + '</div></div>' +
+      h += '<div class="card"><div class="row" style="justify-content:space-between;align-items:flex-start"><div><strong style="font-size:17px">' + esc(s.meta.name || "（名称未設定）") + '</strong><div class="mini">' + esc([s.meta.date, s.meta.venue, s.meta.mode === "league" ? "リーグ総当たり" : "下克上", s.participants.length + "名", s.meta.courtCount + "面", s.meta.mode === "league" ? (s.status === "live" ? "開催中" : "準備中") : (s.status === "live" ? ("第" + s.round + "ラウンド") : "準備中")].filter(Boolean).join(" ・ ")) + '</div></div>' +
         '<div class="row"><button class="btn" onclick="upsetOpenSession(\'' + s.id + '\')">' + (s.status === "live" ? "進行画面を開く" : "準備を開く") + '</button>' +
         (s.status === "ready" ? '<button class="btn ghost" onclick="upsetDeleteReady(\'' + s.id + '\')">削除</button>' : "") + '</div></div></div>';
     });
@@ -4797,7 +4901,8 @@ function upsetCreateFromForm(){
     format: (document.getElementById("up-format") || {}).value || "singles",
     doublesMode: (document.getElementById("up-dmode") || {}).value || "fixed",
     courtCount: courts,
-    placementMethod: (document.getElementById("up-method") || {}).value || "skill"
+    placementMethod: (document.getElementById("up-method") || {}).value || "skill",
+    mode: (document.getElementById("up-mode") || {}).value || "ladder"
   });
   if (!s) return;
   uiUpsetId = s.id;
@@ -4811,11 +4916,79 @@ function upsetDeleteReady(id){
   if (uiUpsetId === id) uiUpsetId = null;
   touchConfig(); render();
 }
+// ----- shared roster / display helpers -----
+function upsetNameHTML(s, pid){
+  var p = s.participants.find(function(x){ return x.id === pid; });
+  if (!p) return "?";
+  var name = esc(p.name);
+  if (s.settings && s.settings.colorGender && p.gender) name = '<span style="color:' + (p.gender === "男" ? "#2563eb" : "#dc2626") + '">' + name + '</span>';
+  var extra = [];
+  if (s.settings && s.settings.showGrade && p.grade) extra.push(p.grade);
+  if (s.settings && s.settings.showGender && p.gender) extra.push(p.gender);
+  return name + (extra.length ? '<span class="mini">（' + extra.join("・") + '）</span>' : "");
+}
+function upsetSideHTML(s, m, side){ return (side === "A" ? m.a : m.b).map(function(pid){ return upsetNameHTML(s, pid); }).join("・"); }
+function upsetUnitHTML(s, u){ return u.pids.map(function(pid){ return upsetNameHTML(s, pid); }).join("・"); }
+function upsetGradeOptions(sel){
+  var grades = ["", "小1", "小2", "小3", "小4", "小5", "小6", "中1", "中2", "中3", "高1", "高2", "高3"];
+  return grades.map(function(g){ return '<option value="' + g + '"' + (g === sel ? " selected" : "") + '>' + (g || "学年なし") + '</option>'; }).join("");
+}
+function upsetParticipantsHTML(s){
+  var h = '<div class="card"><h3>参加者（' + s.participants.length + '名）</h3>' +
+    '<div class="mini">この練習会専用の登録です。大会の名簿からは読み込みません。</div>' +
+    '<label class="fld">まとめて貼り付け（1行に1人：名前,所属,実力順位,学年,性別／後ろの列は省略可）<textarea id="up-paste" rows="4" placeholder="山田太郎,唐崎,1,小4,男&#10;鈴木花子,唐崎,2,小5,女"></textarea></label>' +
+    '<button class="btn ghost" onclick="upsetAddParts(\'' + s.id + '\')">貼り付けから追加</button>' +
+    '<div class="row" style="margin-top:10px"><label class="fld" style="flex:2">名前<input id="up-pname"></label><label class="fld" style="flex:1">所属<input id="up-paff"></label><label class="fld" style="flex:0 0 84px">実力順位<input id="up-prank" type="number" min="1"></label></div>' +
+    '<div class="row"><label class="fld" style="flex:1">学年<select id="up-pgrade">' + upsetGradeOptions("") + '</select></label><label class="fld" style="flex:1">性別<select id="up-psex"><option value="">なし</option><option value="男">男</option><option value="女">女</option></select></label></div>' +
+    '<button class="btn ghost" onclick="upsetAddOne(\'' + s.id + '\')">1人追加</button>';
+  if (s.participants.length){
+    h += '<div style="margin-top:10px">' + s.participants.map(function(p){
+      var pair = p.pairId ? s.participants.find(function(x){ return x.pairId === p.pairId && x.id !== p.id; }) : null;
+      return '<div class="qrow"><span class="qnames"><strong>' + esc(p.name) + '</strong>' + (p.aff ? '<span class="mini"> ' + esc(p.aff) + '</span>' : "") + (p.grade ? '<span class="mini"> ／ ' + esc(p.grade) + '</span>' : "") + (p.gender ? '<span class="mini"> ／ ' + esc(p.gender) + '</span>' : "") + (p.rank ? '<span class="mini"> ／ 実力' + p.rank + '位</span>' : "") + (pair ? '<span class="mini"> ／ ペア：' + esc(pair.name) + '</span>' : "") + '</span>' +
+        '<button class="linkbtn" onclick="upsetEditPart(\'' + s.id + '\',\'' + p.id + '\')">編集</button>' +
+        '<button class="linkbtn" onclick="upsetDelPart(\'' + s.id + '\',\'' + p.id + '\')">削除</button></div>';
+    }).join("") + '</div>';
+  }
+  h += '</div>';
+  return h;
+}
+function upsetPairsHTML(s){
+  if (!(s.meta.format === "doubles" && s.meta.doublesMode === "fixed")) return "";
+  var unpaired = s.participants.filter(function(p){ return !p.pairId; });
+  var pairs = {}; s.participants.forEach(function(p){ if (p.pairId) (pairs[p.pairId] = pairs[p.pairId] || []).push(p); });
+  var h = '<div class="card"><h3>固定ペア</h3><div class="mini">ペアは2人1組で勝敗・移動（または対戦）します。未登録の選手は試合に出られません。</div>';
+  Object.keys(pairs).forEach(function(k){
+    if (pairs[k].length === 2) h += '<div class="qrow"><span class="qnames"><strong>' + esc(pairs[k][0].name) + '・' + esc(pairs[k][1].name) + '</strong></span><button class="linkbtn" onclick="upsetBreakPair(\'' + s.id + '\',\'' + k + '\')">ペア解消</button></div>';
+  });
+  if (unpaired.length){
+    h += '<div style="margin-top:8px">' + unpaired.map(function(p){ return '<label style="display:inline-block;margin:0 8px 8px 0"><input type="checkbox" class="up-pairpick" value="' + p.id + '" style="width:20px;height:20px;vertical-align:-4px"> ' + esc(p.name) + '</label>'; }).join("") + '</div>' +
+      '<button class="btn ghost" onclick="upsetMakePair(\'' + s.id + '\')">選んだ2人でペアを作る</button>';
+  }
+  h += '</div>';
+  return h;
+}
+function upsetSettingsHTML(s){
+  var st = s.settings;
+  function row(key, label){
+    return '<div class="qrow"><span class="qnames">' + label + '</span><button class="btn ' + (st[key] ? "" : "ghost") + ' small" onclick="upsetSetSetting(\'' + s.id + '\',\'' + key + '\',' + (!st[key]) + ')">' + (st[key] ? "ON" : "OFF") + '</button></div>';
+  }
+  return '<div class="card"><h3>表示設定</h3>' +
+    row("showGrade", "リーグ表・選手表示に学年を出す") +
+    row("showGender", "リーグ表・選手表示に性別を出す") +
+    row("colorGender", "男女を色で分ける（男＝青・女＝赤）") +
+    '<div class="mini">名簿の学年・性別そのものは、表示が OFF でも記録されます。</div></div>';
+}
+function upsetSetSetting(id, key, val){
+  var s = upsetGet(id); if (!s) return;
+  s.settings[key] = !!val;
+  upsetTouch(s);
+}
 // ----- setup screen -----
 function vUpsetSetup(){
   var s = upsetCur();
   if (!s) return '<div class="card"><p>練習会が選ばれていません。</p><button class="btn" onclick="go(\'upset\')">一覧へ</button></div>';
   if (s.status !== "ready"){ upsetOpenSession(s.id); return ""; }
+  if (s.meta.mode === "league") return vUpsetSetupLeague(s);
   var h = upsetHead(s, "準備：参加者・ペア・初期配置");
   h += '<div class="card"><h3>基本情報</h3>' +
     '<label class="fld">練習会名<input id="upm-name" value="' + esc(s.meta.name) + '"></label>' +
@@ -4824,35 +4997,9 @@ function vUpsetSetup(){
     '<div class="mini">形式：' + (s.meta.format === "doubles" ? ("ダブルス（" + (s.meta.doublesMode === "fixed" ? "固定ペア" : "ペア組み替え") + "）") : "シングルス") + '／得点方式は大会運営の基本設定（' + esc(decodePoint(state.meta.pointDefault || "21330").label) + '）に従います</div>' +
     '<button class="btn ghost" style="margin-top:8px" onclick="upsetSaveMeta(\'' + s.id + '\')">基本情報を保存</button></div>';
   // participants
-  h += '<div class="card"><h3>参加者（' + s.participants.length + '名）</h3>' +
-    '<div class="mini">この練習会専用の登録です。大会の名簿からは読み込みません。</div>' +
-    '<label class="fld">まとめて貼り付け（1行に1人：名前,所属,実力順位）<textarea id="up-paste" rows="4" placeholder="山田太郎,唐崎,1&#10;鈴木花子,唐崎,2"></textarea></label>' +
-    '<button class="btn ghost" onclick="upsetAddParts(\'' + s.id + '\')">貼り付けから追加</button>' +
-    '<div class="row" style="margin-top:10px"><label class="fld" style="flex:2">名前<input id="up-pname"></label><label class="fld" style="flex:1">所属<input id="up-paff"></label><label class="fld" style="flex:0 0 90px">実力順位<input id="up-prank" type="number" min="1"></label></div>' +
-    '<button class="btn ghost" onclick="upsetAddOne(\'' + s.id + '\')">1人追加</button>';
-  if (s.participants.length){
-    h += '<div style="margin-top:10px">' + s.participants.map(function(p){
-      var pair = p.pairId ? s.participants.find(function(x){ return x.pairId === p.pairId && x.id !== p.id; }) : null;
-      return '<div class="qrow"><span class="qnames"><strong>' + esc(p.name) + '</strong>' + (p.aff ? '<span class="mini"> ' + esc(p.aff) + '</span>' : "") + (p.rank ? '<span class="mini"> ／ 実力' + p.rank + '位</span>' : "") + (pair ? '<span class="mini"> ／ ペア：' + esc(pair.name) + '</span>' : "") + '</span>' +
-        '<button class="linkbtn" onclick="upsetEditPart(\'' + s.id + '\',\'' + p.id + '\')">編集</button>' +
-        '<button class="linkbtn" onclick="upsetDelPart(\'' + s.id + '\',\'' + p.id + '\')">削除</button></div>';
-    }).join("") + '</div>';
-  }
-  h += '</div>';
+  h += upsetParticipantsHTML(s);
   // fixed pairs
-  if (s.meta.format === "doubles" && s.meta.doublesMode === "fixed"){
-    var unpaired = s.participants.filter(function(p){ return !p.pairId; });
-    var pairs = {}; s.participants.forEach(function(p){ if (p.pairId) (pairs[p.pairId] = pairs[p.pairId] || []).push(p); });
-    h += '<div class="card"><h3>固定ペア</h3><div class="mini">ペアは2人1組で勝敗・移動します。未登録の選手は試合に出られません。</div>';
-    Object.keys(pairs).forEach(function(k){
-      if (pairs[k].length === 2) h += '<div class="qrow"><span class="qnames"><strong>' + esc(pairs[k][0].name) + '・' + esc(pairs[k][1].name) + '</strong></span><button class="linkbtn" onclick="upsetBreakPair(\'' + s.id + '\',\'' + k + '\')">ペア解消</button></div>';
-    });
-    if (unpaired.length){
-      h += '<div style="margin-top:8px">' + unpaired.map(function(p){ return '<label style="display:inline-block;margin:0 8px 8px 0"><input type="checkbox" class="up-pairpick" value="' + p.id + '" style="width:20px;height:20px;vertical-align:-4px"> ' + esc(p.name) + '</label>'; }).join("") + '</div>' +
-        '<button class="btn ghost" onclick="upsetMakePair(\'' + s.id + '\')">選んだ2人でペアを作る</button>';
-    }
-    h += '</div>';
-  }
+  h += upsetPairsHTML(s);
   // initial placement
   var units = upsetUnits(s);
   h += '<div class="card"><h3>初期配置</h3>' +
@@ -4872,6 +5019,8 @@ function upsetSaveMeta(id){
   s.meta.date = (document.getElementById("upm-date") || {}).value || "";
   s.meta.venue = (document.getElementById("upm-venue") || {}).value || "";
   var courts = Math.max(2, parseInt((document.getElementById("upm-courts") || {}).value, 10) || 2);
+  var stEl = document.getElementById("upm-start"); if (stEl) s.meta.startTime = stEl.value || "10:00";
+  var ivEl = document.getElementById("upm-interval"); if (ivEl) s.meta.intervalMin = Math.max(1, parseInt(ivEl.value, 10) || 20);
   if (courts !== s.meta.courtCount){
     s.meta.courtCount = courts;
     Object.keys(s.placement).forEach(function(uid){ if ((s.placement[uid] || 0) > courts) s.placement[uid] = 0; });
@@ -4887,11 +5036,11 @@ function upsetAddParts(id){
     var cells = line.split(/[,、\t]/).map(function(x){ return x.trim(); });
     if (!cells[0]) return;
     s.seq += 1;
-    s.participants.push({ id: "p" + s.seq, name: cells[0], aff: cells[1] || "", rank: parseInt(cells[2], 10) || null, pairId: null });
+    s.participants.push({ id: "p" + s.seq, name: cells[0], aff: cells[1] || "", rank: parseInt(cells[2], 10) || null, grade: cells[3] || "", gender: (cells[4] === "男" || cells[4] === "女") ? cells[4] : "", pairId: null });
     added++;
   });
   if (!added){ alert("追加できる行がありませんでした"); return; }
-  if (s.placementMethod === "skill") upsetPlaceInitial(s, "skill");
+  if (s.placementMethod === "skill" && s.meta.mode !== "league") upsetPlaceInitial(s, "skill");
   upsetTouch(s);
 }
 function upsetAddOne(id){
@@ -4899,8 +5048,8 @@ function upsetAddOne(id){
   var name = ((document.getElementById("up-pname") || {}).value || "").trim();
   if (!name){ alert("名前を入れてください"); return; }
   s.seq += 1;
-  s.participants.push({ id: "p" + s.seq, name: name, aff: ((document.getElementById("up-paff") || {}).value || "").trim(), rank: parseInt((document.getElementById("up-prank") || {}).value, 10) || null, pairId: null });
-  if (s.placementMethod === "skill") upsetPlaceInitial(s, "skill");
+  s.participants.push({ id: "p" + s.seq, name: name, aff: ((document.getElementById("up-paff") || {}).value || "").trim(), rank: parseInt((document.getElementById("up-prank") || {}).value, 10) || null, grade: (document.getElementById("up-pgrade") || {}).value || "", gender: (document.getElementById("up-psex") || {}).value || "", pairId: null });
+  if (s.placementMethod === "skill" && s.meta.mode !== "league") upsetPlaceInitial(s, "skill");
   upsetTouch(s);
 }
 function upsetEditPart(id, pid){
@@ -4909,7 +5058,10 @@ function upsetEditPart(id, pid){
   var name = prompt("名前", p.name); if (name === null) return;
   var aff = prompt("所属（なしは空欄）", p.aff || ""); if (aff === null) return;
   var rank = prompt("実力順位（数字。なしは空欄）", p.rank || ""); if (rank === null) return;
+  var grade = prompt("学年（例：小4。なしは空欄）", p.grade || ""); if (grade === null) return;
+  var gender = prompt("性別（男／女。なしは空欄）", p.gender || ""); if (gender === null) return;
   p.name = name.trim() || p.name; p.aff = aff.trim(); p.rank = parseInt(rank, 10) || null;
+  p.grade = grade.trim(); p.gender = (gender.trim() === "男" || gender.trim() === "女") ? gender.trim() : "";
   upsetTouch(s);
 }
 function upsetDelPart(id, pid){
@@ -5000,7 +5152,7 @@ function upsetUnitChip(s, u, editable){
   var st = u.pids.map(function(pid){ return upsetStats(s, pid); });
   var games = st.reduce(function(a, x){ return a + x.games; }, 0);
   var style = 'display:inline-block;margin:0 6px 6px 0;padding:9px 12px;border:2px solid ' + (sel ? "var(--cy,#12a5e5)" : "var(--ink)") + ';background:' + (sel ? "#e8f6fd" : "#fff") + ';font-weight:700;min-height:44px';
-  var label = esc(upsetUnitLabel(s, u)) + (u.aff ? ' <span class="mini">' + esc(u.aff) + '</span>' : "") + (games ? ' <span class="mini">' + games + '試合</span>' : "");
+  var label = upsetUnitHTML(s, u) + (u.aff ? ' <span class="mini">' + esc(u.aff) + '</span>' : "") + (games ? ' <span class="mini">' + games + '試合</span>' : "");
   if (!editable) return '<span style="' + style + '">' + label + '</span>';
   return '<button style="' + style + '" onclick="upsetTapUnit(\'' + s.id + '\',\'' + u.id + '\')">' + label + '</button>';
 }
@@ -5047,12 +5199,209 @@ function upsetCourtToggle(id, c){
   }
   upsetTouch(s);
 }
+// ----- league mode: setup -----
+function vUpsetSetupLeague(s){
+  var h = upsetHead(s, "準備：参加者・ペア・リーグ分け");
+  h += '<div class="card"><h3>基本情報</h3>' +
+    '<label class="fld">練習会名<input id="upm-name" value="' + esc(s.meta.name) + '"></label>' +
+    '<div class="row"><label class="fld" style="flex:1">開催日<input id="upm-date" type="date" value="' + esc(s.meta.date) + '"></label><label class="fld" style="flex:1">会場<input id="upm-venue" value="' + esc(s.meta.venue) + '"></label></div>' +
+    '<div class="row"><label class="fld" style="flex:1">コート数<input id="upm-courts" type="number" min="2" max="20" value="' + s.meta.courtCount + '"></label>' +
+    '<label class="fld" style="flex:1">開始時刻<input id="upm-start" value="' + esc(s.meta.startTime || "10:00") + '"></label>' +
+    '<label class="fld" style="flex:1">1試合の間隔（分）<input id="upm-interval" type="number" min="1" max="120" value="' + (s.meta.intervalMin || 20) + '"></label></div>' +
+    '<div class="mini">形式：' + (s.meta.format === "doubles" ? ("ダブルス（" + (s.meta.doublesMode === "fixed" ? "固定ペア" : "ペア組み替え") + "）") : "シングルス") + '／方式：リーグ総当たり／得点方式は大会運営の基本設定（' + esc(decodePoint(state.meta.pointDefault || "21330").label) + '）に従います。コートと時刻は試合番号から自動表示します。</div>' +
+    '<button class="btn ghost" style="margin-top:8px" onclick="upsetSaveMeta(\'' + s.id + '\')">基本情報を保存</button></div>';
+  h += upsetParticipantsHTML(s);
+  h += upsetPairsHTML(s);
+  h += upsetSettingsHTML(s);
+  h += upsetLeaguesEditorHTML(s);
+  var total = (s.leagueMatches || []).length;
+  var playable = (s.leagueMatches || []).filter(function(m){ return !m.skip; }).length;
+  h += '<div class="card"><h3>対戦表</h3>' +
+    (total ? '<div class="mini">生成済み：全' + total + '試合（実施 ' + playable + '・対象外 ' + (total - playable) + '）</div>' : '<div class="mini">まだ生成していません。リーグ分けができたら生成してください。</div>') +
+    '<button class="btn ghost" style="width:100%;margin-top:8px" onclick="upsetGenBtn(\'' + s.id + '\')">対戦表を生成する</button>' +
+    '<button class="btn" style="width:100%;min-height:56px;font-size:17px;margin-top:10px" onclick="upsetStartLeague(\'' + s.id + '\')">練習会を開始する</button>' +
+    '<div class="mini" style="margin-top:6px">結果を入れ始めた後は、対戦表を作り直せません。</div></div>';
+  return h;
+}
+function upsetLeaguesEditorHTML(s){
+  var umap = upsetUnitMap(s);
+  var assigned = {};
+  (s.leagues || []).forEach(function(lg){ lg.unitIds.forEach(function(uid){ assigned[uid] = lg.id; }); });
+  var unassigned = upsetUnits(s).filter(function(u){ return !assigned[u.id]; });
+  var h = '<div class="card"><h3>リーグ分け</h3>' +
+    '<div class="mini">自動振り分けは提案です（女を含むペアは女子、男子ペアは男子に分け、実力順位で A/B に分割）。選手（ペア）を選んでから、移動先のリーグを押すと移せます。</div>' +
+    '<div class="row" style="margin:10px 0"><button class="btn ghost" style="flex:1" onclick="upsetAutoBtn(\'' + s.id + '\')">自動で振り分ける（提案）</button><button class="btn ghost" style="flex:1" onclick="upsetLeagueAdd(\'' + s.id + '\')">リーグを追加</button></div>';
+  (s.leagues || []).forEach(function(lg){
+    h += '<div style="border:2px solid var(--ink);padding:8px 10px;margin-bottom:8px"><div class="row" style="justify-content:space-between"><strong>' + esc(lg.name) + '（' + lg.unitIds.length + '）</strong><span>' +
+      '<button class="linkbtn" onclick="upsetLeagueRename(\'' + s.id + '\',\'' + lg.id + '\')">名前</button>' +
+      '<button class="linkbtn" onclick="upsetLeagueDelete(\'' + s.id + '\',\'' + lg.id + '\')">削除</button></span></div>' +
+      '<label style="display:block;margin:6px 0"><input type="checkbox" ' + (lg.skipSameTeam ? "checked" : "") + ' onchange="upsetLeagueToggleSkip(\'' + s.id + '\',\'' + lg.id + '\',this.checked)" style="width:20px;height:20px;vertical-align:-4px"> 同じチーム同士の対戦を対象外にする</label>' +
+      '<div>' + (lg.unitIds.length ? lg.unitIds.map(function(uid){ return umap[uid] ? upsetLeagueUnitChip(s, umap[uid]) : ""; }).join("") : '<span class="mini">（メンバーなし）</span>') + '</div></div>';
+  });
+  h += '<div style="border:2px dashed #999;padding:8px 10px"><strong>未所属</strong><div style="margin-top:6px">' + (unassigned.length ? unassigned.map(function(u){ return upsetLeagueUnitChip(s, u); }).join("") : '<span class="mini">（なし）</span>') + '</div></div>';
+  if (uiUpsetSel && umap[uiUpsetSel]){
+    h += '<div class="warnbox" style="margin-top:10px"><strong>' + esc(upsetUnitLabel(s, umap[uiUpsetSel])) + '</strong> の移動先<div class="row" style="margin-top:8px;flex-wrap:wrap;gap:8px">' +
+      (s.leagues || []).map(function(lg){ return '<button class="btn ghost" onclick="upsetLeagueMoveUnit(\'' + s.id + '\',\'' + lg.id + '\')">' + esc(lg.name) + 'へ</button>'; }).join("") +
+      '<button class="btn ghost" onclick="upsetLeagueMoveUnit(\'' + s.id + '\',\'\')">未所属へ</button><button class="btn ghost" onclick="uiUpsetSel=null;render()">やめる</button></div></div>';
+  }
+  h += '</div>';
+  return h;
+}
+function upsetLeagueUnitChip(s, u){
+  var sel = uiUpsetSel === u.id;
+  return '<button style="display:inline-block;margin:0 6px 6px 0;padding:9px 12px;border:2px solid ' + (sel ? "var(--cy,#12a5e5)" : "var(--ink)") + ';background:' + (sel ? "#e8f6fd" : "#fff") + ';font-weight:700;min-height:44px" onclick="upsetLeagueTapUnit(\'' + u.id + '\')">' + upsetUnitHTML(s, u) + (u.aff ? ' <span class="mini">' + esc(u.aff) + '</span>' : "") + '</button>';
+}
+function upsetLeagueTapUnit(uid){ uiUpsetSel = uiUpsetSel === uid ? null : uid; render(); }
+function upsetLeagueMoveUnit(id, lid){
+  var s = upsetGet(id); if (!s || !uiUpsetSel) return;
+  (s.leagues || []).forEach(function(lg){ lg.unitIds = lg.unitIds.filter(function(x){ return x !== uiUpsetSel; }); });
+  if (lid){ var lg = upsetLeagueById(s, lid); if (lg) lg.unitIds.push(uiUpsetSel); }
+  uiUpsetSel = null;
+  upsetTouch(s);
+}
+function upsetLeagueAdd(id){
+  var s = upsetGet(id); if (!s) return;
+  var name = prompt("リーグ名", "リーグ" + ((s.leagues || []).length + 1)); if (!name) return;
+  s.seq += 1;
+  s.leagues.push({ id: "lgx" + s.seq, name: name.trim(), unitIds: [], skipSameTeam: false });
+  upsetTouch(s);
+}
+function upsetLeagueRename(id, lid){
+  var s = upsetGet(id); var lg = s && upsetLeagueById(s, lid); if (!lg) return;
+  var name = prompt("リーグ名", lg.name); if (!name) return;
+  lg.name = name.trim() || lg.name;
+  upsetTouch(s);
+}
+function upsetLeagueDelete(id, lid){
+  var s = upsetGet(id); var lg = s && upsetLeagueById(s, lid); if (!lg) return;
+  if (!confirm("リーグ「" + lg.name + "」を削除しますか？メンバーは未所属に戻ります。")) return;
+  s.leagues = s.leagues.filter(function(x){ return x.id !== lid; });
+  upsetTouch(s);
+}
+function upsetLeagueToggleSkip(id, lid, on){
+  var s = upsetGet(id); var lg = s && upsetLeagueById(s, lid); if (!lg) return;
+  lg.skipSameTeam = !!on;
+  if ((s.leagueMatches || []).length){
+    var err = upsetGenLeagueMatches(s);
+    if (err) alert("結果が入っているため、対象外の切り替えを対戦表へ反映できませんでした");
+  }
+  upsetTouch(s);
+}
+function upsetAutoBtn(id){
+  var s = upsetGet(id); if (!s) return;
+  if (!upsetUnits(s).length){ alert("先に参加者（ペア）を登録してください"); return; }
+  if ((s.leagues || []).length && !confirm("いまのリーグ分けを、自動振り分けの提案で置き換えますか？")) return;
+  upsetAutoLeagues(s);
+  upsetTouch(s);
+}
+function upsetGenBtn(id){
+  var s = upsetGet(id); if (!s) return;
+  if (!(s.leagues || []).length || s.leagues.some(function(lg){ return lg.unitIds.length < 2; })){ alert("2つ以上のペア（選手）が入ったリーグが必要です"); return; }
+  var err = upsetGenLeagueMatches(s);
+  if (err){ alert(err); return; }
+  upsetLog(s, "対戦表を生成（全" + s.leagueMatches.length + "試合）");
+  upsetTouch(s);
+}
+function upsetStartLeague(id){
+  var s = upsetGet(id); if (!s) return;
+  if (!(s.leagueMatches || []).length){
+    var e = upsetGenLeagueMatches(s);
+    if (e){ alert(e); return; }
+  }
+  if (!s.leagueMatches.length){ alert("対戦表が空です。リーグ分けを確認してください"); return; }
+  s.status = "live"; s.phase = "playing";
+  upsetLog(s, "練習会を開始（リーグ総当たり・全" + s.leagueMatches.length + "試合）");
+  upsetTouch(s);
+  go("upsetPlay");
+}
+// ----- league mode: play -----
+var uiUpsetLeagueId = null;
+function upsetFlipScore(sc){
+  var games = parseScore(sc || "");
+  if (!games || !games.length) return sc || "";
+  return games.map(function(g){ return g[1] + "-" + g[0]; }).join(" ");
+}
+function upsetLeagueMatrixHTML(s, lg, editable){
+  var umap = upsetUnitMap(s);
+  var byPair = {};
+  (s.leagueMatches || []).filter(function(m){ return m.leagueId === lg.id; }).forEach(function(m){
+    byPair[upsetUnitIdOfPids(s, m.a) + "|" + upsetUnitIdOfPids(s, m.b)] = m;
+  });
+  function matchOf(a, b){ return byPair[a + "|" + b] || byPair[b + "|" + a] || null; }
+  var h = '<div class="card"><h3>' + esc(lg.name) + ' 星取表</h3><div style="overflow-x:auto"><table style="border-collapse:collapse;font-size:13px;min-width:100%">' +
+    '<tr><th style="border:1px solid #bbb;padding:4px 6px;background:#f4f4f4"></th>' + lg.unitIds.map(function(uid, i){ return '<th style="border:1px solid #bbb;padding:4px 6px;background:#f4f4f4">' + (i + 1) + '</th>'; }).join("") + '</tr>';
+  lg.unitIds.forEach(function(uid, i){
+    var u = umap[uid];
+    h += '<tr><th style="border:1px solid #bbb;padding:4px 6px;background:#f4f4f4;text-align:left;white-space:nowrap">' + (i + 1) + '．' + (u ? upsetUnitHTML(s, u) : "?") + (u && u.aff ? '<span class="mini"> ' + esc(u.aff) + '</span>' : "") + '</th>';
+    lg.unitIds.forEach(function(uid2){
+      if (uid === uid2){ h += '<td style="border:1px solid #bbb;padding:4px 6px;text-align:center;background:#e8e8e8;color:#999">✕</td>'; return; }
+      var m = matchOf(uid, uid2);
+      var body = "";
+      if (m){
+        if (m.skip) body = '<span style="color:#999">―</span>';
+        else if (m.winner){
+          var rowIsA = upsetUnitIdOfPids(s, m.a) === uid;
+          var won = (m.winner === "A") === rowIsA;
+          body = '<strong>' + (won ? "○" : "×") + '</strong>' + (m.score ? '<div style="font-size:10px;line-height:1.2">' + esc(rowIsA ? m.score : upsetFlipScore(m.score)) + '</div>' : "");
+        }
+      }
+      h += '<td style="border:1px solid #bbb;padding:4px 6px;text-align:center;min-width:34px">' + body + '</td>';
+    });
+    h += '</tr>';
+  });
+  h += '</table></div><div class="mini">― は対象外（同じチーム同士）です。</div></div>';
+  return h;
+}
+function upsetLeagueStandingsHTML(s, lg){
+  var umap = upsetUnitMap(s);
+  var rows = upsetLeagueStandings(s, lg);
+  var h = '<div class="card"><h3>' + esc(lg.name) + ' 順位</h3><table style="width:100%;border-collapse:collapse;font-size:14px">' +
+    '<tr style="background:#f4f4f4"><th style="text-align:left;padding:5px">順位</th><th style="text-align:left">選手</th><th>勝</th><th>敗</th><th>得失G</th><th>得失点</th><th>試合</th></tr>' +
+    rows.map(function(r){
+      var u = umap[r.uid];
+      return '<tr style="border-top:1px solid #ddd"><td style="padding:5px;font-weight:800">' + r.rank + '</td><td>' + (u ? upsetUnitHTML(s, u) : "?") + (u && u.aff ? '<span class="mini"> ' + esc(u.aff) + '</span>' : "") + '</td><td style="text-align:center">' + r.w + '</td><td style="text-align:center">' + r.l + '</td><td style="text-align:center">' + (r.gf - r.ga > 0 ? "+" : "") + (r.gf - r.ga) + '</td><td style="text-align:center">' + (r.pf - r.pa > 0 ? "+" : "") + (r.pf - r.pa) + '</td><td style="text-align:center">' + r.played + '</td></tr>';
+    }).join("") + '</table>' +
+    '<div class="mini">並びは大会と同じ基準（勝数 → 得失ゲーム → 得失点）。対象外の試合は数えません。</div></div>';
+  return h;
+}
+function upsetLeagueMatchesHTML(s, lg, editable){
+  var ms = (s.leagueMatches || []).filter(function(m){ return m.leagueId === lg.id; }).sort(function(a, b){ return a.no - b.no; });
+  var h = '<div class="card"><h3>' + esc(lg.name) + ' 試合リスト</h3>' + ms.map(function(m){
+    return '<div class="qrow"><span class="qnames"><span class="mini">' + m.no + '．' + upsetSlotLabel(s, m.no) + '</span><br>' +
+      (m.skip ? '<span class="mini">対象外（同じチーム同士）</span><br>' : "") + '<strong>' + upsetSideHTML(s, m, "A") + '</strong> vs <strong>' + upsetSideHTML(s, m, "B") + '</strong>' +
+      (m.winner ? ' → <strong>' + upsetSideHTML(s, m, m.winner) + '</strong>' + (m.score ? '（' + esc(m.score) + '）' : "") : "") + '</span>' +
+      (editable && !m.skip ? '<button class="btn ghost small" onclick="upsetScoreModal(\'' + s.id + '\',\'' + m.id + '\',false)">' + (m.winner ? "修正" : "結果") + '</button>' : "") + '</div>';
+  }).join("") + '</div>';
+  return h;
+}
+function vUpsetPlayLeague(s){
+  var h = upsetHead(s, "リーグ総当たり");
+  var done = (s.leagueMatches || []).filter(function(m){ return m.winner; }).length;
+  var total = (s.leagueMatches || []).filter(function(m){ return !m.skip; }).length;
+  h += '<div class="row" style="gap:8px;margin-bottom:10px"><span class="tag">参加 ' + s.participants.length + '名</span><span class="tag">' + (s.leagues || []).length + 'リーグ</span><span class="tag">終了 ' + done + '／' + total + '試合</span></div>';
+  if (!uiUpsetLeagueId || !upsetLeagueById(s, uiUpsetLeagueId)) uiUpsetLeagueId = (s.leagues || []).length ? s.leagues[0].id : null;
+  h += '<div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:10px">' + (s.leagues || []).map(function(lg){
+    var d = (s.leagueMatches || []).filter(function(m){ return m.leagueId === lg.id && m.winner; }).length;
+    var t = (s.leagueMatches || []).filter(function(m){ return m.leagueId === lg.id && !m.skip; }).length;
+    return '<button class="btn' + (uiUpsetLeagueId === lg.id ? "" : " ghost") + '" style="flex:1;min-width:100px" onclick="uiUpsetLeagueId=\'' + lg.id + '\';render()">' + esc(lg.name) + '（' + d + '/' + t + '）</button>';
+  }).join("") + '</div>';
+  var lg = upsetLeagueById(s, uiUpsetLeagueId);
+  if (lg){
+    h += upsetLeagueMatrixHTML(s, lg, true);
+    h += upsetLeagueStandingsHTML(s, lg);
+    h += upsetLeagueMatchesHTML(s, lg, true);
+  }
+  h += upsetSettingsHTML(s);
+  h += '<div class="card"><h3>練習会の操作</h3><button class="btn ghost" style="width:100%" onclick="upsetFinishBtn(\'' + s.id + '\')">練習会を終了する（記録として保存）</button></div>';
+  return h;
+}
 // ----- play screen -----
 function vUpsetPlay(){
   var s = upsetCur();
   if (!s) return '<div class="card"><p>練習会が選ばれていません。</p><button class="btn" onclick="go(\'upset\')">一覧へ</button></div>';
   if (s.status === "ready"){ upsetOpenSession(s.id); return ""; }
   if (s.status === "done"){ upsetOpenSession(s.id); return ""; }
+  if (s.meta.mode === "league") return vUpsetPlayLeague(s);
   var h = upsetHead(s, s.phase === "preview" ? ("第" + (s.round + 1) + "ラウンドの配置確認") : ("第" + s.round + "ラウンド進行中"));
   if (s.fixBackup) h += '<div class="warnbox"><strong>結果訂正を行いました</strong><div class="mini">間違っていたら、訂正前の状態に戻せます。</div><button class="btn ghost" style="margin-top:8px" onclick="upsetUndoFixBtn(\'' + s.id + '\')">訂正を取り消して元に戻す</button></div>';
   var playing = s.participants.length, activeC = upsetActiveCourts(s).length;
@@ -5138,6 +5487,18 @@ function vUpsetView(){
   if (!s) return '<div class="card"><p>練習会が選ばれていません。</p><button class="btn" onclick="go(\'upset\')">一覧へ</button></div>';
   var umap = upsetUnitMap(s);
   var h = upsetHead(s, "記録（閲覧用）");
+  if (s.meta.mode === "league"){
+    h += '<div class="row" style="gap:8px;margin-bottom:10px"><span class="tag">参加者 ' + s.participants.length + '名</span><span class="tag">リーグ総当たり</span><span class="tag">' + (s.leagues || []).length + 'リーグ</span></div>';
+    (s.leagues || []).forEach(function(lg){
+      h += upsetLeagueMatrixHTML(s, lg, false);
+      h += upsetLeagueStandingsHTML(s, lg);
+      h += upsetLeagueMatchesHTML(s, lg, false);
+    });
+    if (s.history.length){
+      h += '<div class="card"><h3>履歴</h3>' + s.history.slice().reverse().map(function(x){ return '<div class="mini" style="padding:3px 0;border-bottom:1px solid #eee">' + esc(x.text) + '</div>'; }).join("") + '</div>';
+    }
+    return h;
+  }
   h += '<div class="row" style="gap:8px;margin-bottom:10px"><span class="tag">参加者 ' + s.participants.length + '名</span><span class="tag">全' + s.round + 'ラウンド</span><span class="tag">初期配置：' + (s.placementMethod === "draw" ? "抽選" : s.placementMethod === "manual" ? "手動" : "実力順") + '</span></div>';
   h += '<div class="card"><h3>終了時点の配置</h3>' + upsetPlacementHTML(s, false) + '</div>';
   h += upsetRecordHTML(s, false);
@@ -5146,13 +5507,16 @@ function vUpsetView(){
 // ----- score & correction modals -----
 function upsetScoreModal(sid, mid, isFix){
   var s = upsetGet(sid); if (!s) return;
-  var m = s.matches.find(function(x){ return x.id === mid; }); if (!m) return;
-  var info = isFix ? upsetFixInfo(s, mid) : null;
-  _upS = { sid: sid, mid: mid, win: m.winner || null, isFix: !!isFix, needsConfirm: info ? info.needsConfirm : false };
+  var m = s.matches.find(function(x){ return x.id === mid; });
+  var isLeague = false;
+  if (!m){ m = (s.leagueMatches || []).find(function(x){ return x.id === mid; }); isLeague = !!m; }
+  if (!m) return;
+  var info = (isFix && !isLeague) ? upsetFixInfo(s, mid) : null;
+  _upS = { sid: sid, mid: mid, win: m.winner || null, isFix: !!isFix && !isLeague, kind: isLeague ? "league" : "ladder", needsConfirm: info ? info.needsConfirm : false };
   var dec = decodePoint(state.meta.pointDefault || "21330");
   var chips = gameScoreOptions(dec).map(function(g){ return g[0] + "-" + g[1]; });
   var labelA = upsetSideLabel(s, m, "A"), labelB = upsetSideLabel(s, m, "B");
-  var html = '<h3 style="margin:0 0 4px">' + (isFix ? "結果の訂正" : "結果入力") + '（コート' + m.court + '）</h3>' +
+  var html = '<h3 style="margin:0 0 4px">' + (isFix ? "結果の訂正" : "結果入力") + '（' + (m.court ? "コート" + m.court : "試合番号" + m.no) + '）</h3>' +
     '<div class="mini" style="margin-bottom:10px">勝者を選んでください。スコアは任意です（大会の基本設定：' + esc(dec.label) + '）。</div>' +
     '<div class="row"><button class="btn' + (_upS.win === "A" ? "" : " ghost") + '" id="up-win-a" style="flex:1;min-height:56px" onclick="upPick(\'A\')">' + esc(labelA) + '</button>' +
     '<button class="btn' + (_upS.win === "B" ? "" : " ghost") + '" id="up-win-b" style="flex:1;min-height:56px" onclick="upPick(\'B\')">' + esc(labelB) + '</button></div>' +
@@ -5183,18 +5547,23 @@ function upAddScore(c){
 function saveUpsetScore(){
   if (!_upS) return;
   var s = upsetGet(_upS.sid); if (!s) return;
-  var m = s.matches.find(function(x){ return x.id === _upS.mid; }); if (!m) return;
+  var m = _upS.kind === "league" ? (s.leagueMatches || []).find(function(x){ return x.id === _upS.mid; }) : s.matches.find(function(x){ return x.id === _upS.mid; });
+  if (!m) return;
   if (!_upS.win){ alert("勝者を選んでください"); return; }
   var score = ((document.getElementById("up-score") || {}).value || "").trim();
   if (score){
     var parsed = parseScore(score);
-    if (!parsed || !parsed.games || !parsed.games.length){ alert("スコアの形式が読み取れません（例：21-15 21-18）"); return; }
-    var st = scoreStats(parsed.games);
+    if (!parsed || !parsed.length){ alert("スコアの形式が読み取れません（例：21-15 21-18）"); return; }
+    var st = scoreStats(parsed);
     var derived = st.g1 > st.g2 ? "A" : st.g2 > st.g1 ? "B" : null;
     if (!derived){ alert("ゲーム数が同点です。勝敗が決まるスコアにしてください"); return; }
     if (derived !== _upS.win){ alert("スコアと勝者が合いません（スコアでは " + (derived === "A" ? upsetSideLabel(s, m, "A") : upsetSideLabel(s, m, "B")) + " の勝ちです）"); return; }
   }
-  if (_upS.isFix){
+  if (_upS.kind === "league"){
+    m.winner = _upS.win; m.score = score;
+    var lg = upsetLeagueById(s, m.leagueId);
+    upsetLog(s, (lg ? lg.name : "リーグ") + " " + m.no + "番：" + upsetSideLabel(s, m, "A") + " vs " + upsetSideLabel(s, m, "B") + " → " + upsetSideLabel(s, m, _upS.win) + " の勝ち" + (score ? "（" + score + "）" : ""));
+  } else if (_upS.isFix){
     var err = upsetApplyFix(s, _upS.mid, _upS.win, score, true);
     if (err){ alert(err); return; }
   } else {
