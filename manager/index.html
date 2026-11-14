@@ -2282,14 +2282,39 @@ var NAV = [
 var uiOpenScore = {};
 function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
 function go(v){ if (VIEWER && (v === "entry" || v === "config" || v.indexOf("upset") === 0)) v = "home"; view = v; render(); window.scrollTo(0,0); }
+function upsetNavItems(){
+  var items = [
+    {id:"home", label:"大会運営", ico:"🏠"},
+    {id:"upset", label:"練習会", ico:"🔥"}
+  ];
+  var s = null;
+  try{ s = uiUpsetId ? upsetGet(uiUpsetId) : null; }catch(e){}
+  if (s){
+    if (s.status === "ready") items.push({id:"upsetSetup", label:"準備", ico:"✏️"});
+    else if (s.status === "done") items.push({id:"upsetView", label:"記録", ico:"📖"});
+    else items.push({id:"upsetPlay", label: s.meta.mode === "league" ? "リーグ進行" : "進行", ico:"▶️"});
+  }
+  items.push({id:"config", label:"設定・共有", ico:"⚙️"});
+  return items;
+}
 function renderNav(){
-  var html = NAV.map(function(n){ return '<button class="navbtn' + (view===n.id?" active":"") + '" onclick="go(\'' + n.id + '\')"><span class="ico">' + n.ico + '</span>' + n.label + '</button>'; }).join("");
+  var inUpset = !!(view && view.indexOf("upset") === 0);
+  var items = inUpset ? upsetNavItems() : NAV;
+  var html = items.map(function(n){ return '<button class="navbtn' + (view===n.id?" active":"") + '" onclick="go(\'' + n.id + '\')"><span class="ico">' + n.ico + '</span>' + n.label + '</button>'; }).join("");
   document.getElementById("sideNav").innerHTML = html + '<div style="padding:12px 10px 0"><span class="conn" id="connSide">…</span></div>';
-  document.getElementById("bottomNav").innerHTML = NAV.map(function(n){ return '<button class="' + (view===n.id?"active":"") + '" onclick="go(\'' + n.id + '\')"><span class="ico">' + n.ico + '</span>' + n.label.replace("参加者・種目","参加者").replace("タイムテーブル","時間").replace("設定・共有","設定") + '</button>'; }).join("");
+  document.getElementById("bottomNav").innerHTML = items.map(function(n){ return '<button class="' + (view===n.id?"active":"") + '" onclick="go(\'' + n.id + '\')"><span class="ico">' + n.ico + '</span>' + n.label.replace("参加者・種目","参加者").replace("タイムテーブル","時間").replace("設定・共有","設定") + '</button>'; }).join("");
   var t = state.meta.name || "大会運営 Web";
   document.getElementById("topTitle").textContent = t;
-  document.getElementById("sideTName").textContent = state.meta.name ? (state.meta.name + (state.meta.date ? " / " + state.meta.date : "")) : "（大会未設定）";
-  document.title = (state.meta.name || "大会運営") + " | 大会運営 Web";
+  var sideName = state.meta.name ? (state.meta.name + (state.meta.date ? " / " + state.meta.date : "")) : "（大会未設定）";
+  if (inUpset){
+    var us = null;
+    try{ us = uiUpsetId ? upsetGet(uiUpsetId) : null; }catch(e){}
+    if (us) sideName = us.meta.name + (us.meta.date ? " / " + us.meta.date : "");
+    document.title = ((us && us.meta.name) || "練習会") + " | 練習会";
+  } else {
+    document.title = (state.meta.name || "大会運営") + " | 大会運営 Web";
+  }
+  document.getElementById("sideTName").textContent = sideName;
   if (sync.connected) setConn("on", "共有中");
 }
 function progressOf(ev){
