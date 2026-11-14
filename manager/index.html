@@ -4426,19 +4426,38 @@ function fitTextWidth(el, cs){
 function fitNameLines(){
   try{
     var els = document.querySelectorAll(".fitline");
-    for (var i = 0; i < els.length; i++){
-      var el = els[i];
-      el.style.fontSize = "";
-      var w = el.clientWidth;
-      if (!w) continue;
+    var i, el;
+    for (i = 0; i < els.length; i++) els[i].style.fontSize = "";
+    function needScale(el){
+      var w = el.clientWidth; if (!w) return 1;
       var cs = window.getComputedStyle(el);
+      var base = parseFloat(cs.fontSize) || 16;
       var tw;
       if (el.closest && el.closest(".vsname.right")) tw = fitTextWidth(el, cs);
-      else { var sw = el.scrollWidth; tw = (sw > w) ? sw : 0; }
-      if (tw > w){
-        var cur = parseFloat(cs.fontSize) || 16;
-        el.style.fontSize = Math.max(9, Math.floor(cur * w / tw * 0.98 * 10) / 10) + "px";
-      }
+      else tw = el.scrollWidth > w ? el.scrollWidth : 0;
+      return tw > w ? Math.max(9 / base, (w / tw) * 0.98) : 1;
+    }
+    function applyScale(el, sc){
+      if (sc >= 1) return;
+      var cur = parseFloat(window.getComputedStyle(el).fontSize) || 16;
+      el.style.fontSize = Math.max(9, Math.floor(cur * sc * 10) / 10) + "px";
+    }
+    // Inside one card all player names share a single size: the
+    // shrink the longest name in that card needs (user: per-player
+    // sizes look sloppy; unify per card).
+    var seen = [];
+    var groups = document.querySelectorAll(".vscard, .match");
+    for (i = 0; i < groups.length; i++){
+      var lines = groups[i].querySelectorAll(".fitline");
+      if (!lines.length) continue;
+      var sc = 1;
+      lines.forEach(function(l){ seen.push(l); var n = needScale(l); if (n < sc) sc = n; });
+      lines.forEach(function(l){ applyScale(l, sc); });
+    }
+    for (i = 0; i < els.length; i++){
+      el = els[i];
+      if (seen.indexOf(el) >= 0) continue;
+      applyScale(el, needScale(el));
     }
   }catch(e){}
 }
