@@ -2397,7 +2397,7 @@ function teamCard(ev, m, showMeta){
     if (!pid) return '<div class="pbtn tbd">未定</div>';
     if (pid === "BYE") return '<div class="pbtn tbd">不戦勝</div>';
     var win = r.winner === pid;
-    return '<div class="pbtn' + (win ? " win" : (r.winner ? " lose" : "")) + '"><span>' + nameLinesHTML(playerName(ev, pid)) + '</span><span class="aff">' + cnt(pid) + ' 勝</span></div>';
+    return '<div class="pbtn' + (win ? " win" : (r.winner ? " lose" : "")) + '"><span>' + nameLinesHTML(playerName(ev, pid), 8) + '</span><span class="aff">' + cnt(pid) + ' 勝</span></div>';
   }
   var rows = ev.teamComp.map(function(c, i){
     var w = subs[i];
@@ -2424,7 +2424,7 @@ function matchCard(ev, m, showMeta){
     if (pid === "BYE") return '<div class="pbtn tbd">（不戦勝）</div>';
     var pend = !winner && _pendingWinner[m.id] === pid;
     var cls = "pbtn" + (winner ? (winner === pid ? " win" : " lose") : (pend ? " win" : ""));
-    return '<button class="' + cls + '" onclick="tapPlayer(\'' + ev.id + '\',\'' + m.id + '\',\'' + pid + '\')">' + nameLinesHTML(playerName(ev, pid)) + '<span class="aff">' + esc(playerAff(ev, pid)) + (winner === pid ? " ・勝" : (pend ? " ・勝者（未確定）" : "")) + '</span></button>';
+    return '<button class="' + cls + '" onclick="tapPlayer(\'' + ev.id + '\',\'' + m.id + '\',\'' + pid + '\')">' + nameLinesHTML(playerName(ev, pid), 8) + '<span class="aff">' + esc(playerAff(ev, pid)) + (winner === pid ? " ・勝" : (pend ? " ・勝者（未確定）" : "")) + '</span></button>';
   }
   var meta = "";
   if (showMeta !== false){
@@ -2659,7 +2659,7 @@ function scoreModalHTML(ev, m, all){
     if (!pid) return '<div class="pbtn tbd">未定</div>';
     if (pid === "BYE") return '<div class="pbtn tbd">（不戦勝）</div>';
     return '<button class="pbtn' + (winPid === pid ? " win" : "") + '" onclick="modalPick(\'' + ev.id + "','" + m.id + "','" + pid + '\')">' +
-      '<span class="brushname">' + nameLinesHTML(playerName(ev, pid)) + '</span><span class="aff">' + esc(playerAff(ev, pid)) + (winPid === pid ? " ・勝者" : "") + '</span></button>';
+      '<span class="brushname">' + nameLinesHTML(playerName(ev, pid), 6) + '</span><span class="aff">' + esc(playerAff(ev, pid)) + (winPid === pid ? " ・勝者" : "") + '</span></button>';
   }
   return head + '<div class="mbody">' +
     '<label class="f" style="margin-top:0">勝者</label><div class="vs">' + wbtn(pl.p1) + '<div class="vsmid">vs</div>' + wbtn(pl.p2) + '</div>' +
@@ -2797,7 +2797,7 @@ function openPairModal(mid){
   var o = state.open && state.open[mid];
   var h = '<div class="msheet"><div class="mhead"><strong>オープン試合の組み合わせ</strong><button class="linkbtn" onclick="closeScoreModal()">閉じる</button></div><div class="mbody">' +
     '<div class="mini">「' + esc(playerName(ev, loser)) + '」（' + esc(aff || "所属なし") + '）の棄権で不戦勝になった枠です。公式結果は不戦勝のままで、順位には入りません。この枠で試合をする相手を選んでください。</div>' +
-    '<div style="margin-top:12px"><span class="mini">試合をする選手（確定）</span><div class="pbtn win" style="display:block;width:100%;text-align:left;margin-top:4px;cursor:default">' + nameLinesHTML(playerName(ev, W)) + '<span class="aff">' + esc(playerAff(ev, W)) + '</span></div></div>';
+    '<div style="margin-top:12px"><span class="mini">試合をする選手（確定）</span><div class="pbtn win" style="display:block;width:100%;text-align:left;margin-top:4px;cursor:default">' + nameLinesHTML(playerName(ev, W), 8) + '<span class="aff">' + esc(playerAff(ev, W)) + '</span></div></div>';
   if (same.length){
     h += '<div style="margin-top:14px"><span class="mini">棄権した選手と同じ所属（' + esc(aff) + '）から — タップで決定</span>' + same.map(function(p){
       return '<button class="pbtn" style="display:block;width:100%;text-align:left;margin-top:6px" onclick="setOpenMatch(\'' + mid + "','" + p.id + '\');closeScoreModal()">' + esc(p.name) + '<span class="aff">' + esc(openBlockLabel(ev, p.id) || p.aff || "") + (o && o.b === p.id ? " ・現在の相手" : "") + '</span></button>';
@@ -2824,8 +2824,8 @@ function openExScore(mid){
   }
   var h = '<div class="msheet"><div class="mhead"><strong>オープン試合の結果</strong><button class="linkbtn" onclick="closeScoreModal()">閉じる</button></div><div class="mbody">' +
     '<div class="mini">公式結果（不戦勝）には影響しません。オープン試合の記録としてだけ残ります。スコアは左の選手から見た得点です。</div>' +
-    '<div class="grid2" style="margin-top:10px"><button class="pbtn" id="exw-a" onclick="exPick(\'a\')">' + nameLinesHTML(playerName(ev, o.a)) + '</button>' +
-    '<button class="pbtn" id="exw-b" onclick="exPick(\'b\')">' + nameLinesHTML(playerName(ev, o.b)) + '</button></div>' +
+    '<div class="grid2" style="margin-top:10px"><button class="pbtn" id="exw-a" onclick="exPick(\'a\')">' + nameLinesHTML(playerName(ev, o.a), 8) + '</button>' +
+    '<button class="pbtn" id="exw-b" onclick="exPick(\'b\')">' + nameLinesHTML(playerName(ev, o.b), 8) + '</button></div>' +
     '<label class="f">スコア（任意）</label><input type="text" id="ex-sci" inputmode="numeric" placeholder="例 21-15 21-18" value="' + esc(o.score || "") + '">' +
     '<div class="qkcols" style="margin-top:10px">' + col(o.a, false) + col(o.b, true) + '</div>' +
     '</div><div class="mfoot"><button class="btn ghost" onclick="closeScoreModal()">キャンセル</button><button class="btn" onclick="saveExScore(\'' + mid + '\')">保存</button></div></div>';
@@ -2989,7 +2989,7 @@ function renderReferee(){
     var isWin = win === side;
     return '<div class="rpanel' + (isWin ? " winp" : "") + '" onclick="refTapUI(\'' + side + '\')">' +
       '<div class="rsrv">' + (st.server === side ? "● サーブ" + (refTotal(st) === 0 ? ' <button class="linkbtn" style="color:#cf222e;font-weight:800" onclick="refServeUI(event)">変更</button>' : "") : "") + '</div>' +
-      '<div class="brushname rname">' + nameLinesHTML(playerName(ev, pid)) + '</div>' +
+      '<div class="brushname rname">' + nameLinesHTML(playerName(ev, pid), 6) + '</div>' +
       (playerKana(ev, pid) ? '<div class="rkana">' + esc(playerKana(ev, pid)) + '</div>' : "") +
       '<div class="raff">' + esc(playerAff(ev, pid)) + '</div>' +
       '<div class="rscore"' + (win && !isWin ? ' style="opacity:.35"' : "") + '>' + pts + '</div>' +
@@ -3692,7 +3692,7 @@ function homeOpsHTML(next){
       var pl = matchPlayers(f.ev, f.m, null);
       var mins = Math.max(0, Math.round((Date.now() - (state.live[mid] || Date.now())) / 60000));
       return '<div class="qrow"><span class="qmeta">' + (court ? court + 'コート' : 'コート未定') + ' ・ ' + esc(f.ev.name) + '</span>' +
-        '<span class="qnames">' + nameLinesHTML(playerName(f.ev, pl.p1)) + '<i>vs</i>' + nameLinesHTML(playerName(f.ev, pl.p2)) + '</span>' +
+        '<span class="qnames">' + nameLinesHTML(playerName(f.ev, pl.p1), 8) + '<i>vs</i>' + nameLinesHTML(playerName(f.ev, pl.p2), 8) + '</span>' +
         '<span class="mini">' + mins + '分</span>' +
         (VIEWER ? "" : '<button class="btn small qstart" onclick="jumpMatch(\'' + mid + '\')">結果を入れる</button>') + '</div>';
     }).join("");
@@ -3703,7 +3703,7 @@ function homeOpsHTML(next){
     h += '<div class="en cy" style="margin-top:10px">Next — 次の試合（要約）</div>' + next.map(function(s){
       var ev = evById(s.match.evId); var pl = matchPlayers(ev, s.match, null);
       return '<div class="qrow"><span class="qmeta">' + esc(s.time) + ' ・ ' + s.court + 'コート</span>' +
-        '<span class="qnames">' + nameLinesHTML(playerName(ev, pl.p1)) + '<i>vs</i>' + nameLinesHTML(playerName(ev, pl.p2)) + '</span>' +
+        '<span class="qnames">' + nameLinesHTML(playerName(ev, pl.p1), 8) + '<i>vs</i>' + nameLinesHTML(playerName(ev, pl.p2), 8) + '</span>' +
         '<span class="mini">' + esc(ev.name) + '</span></div>';
     }).join("") +
     '<div style="margin-top:8px"><button class="btn" onclick="go(\'live\')">' + (VIEWER ? "進行ボードを見る →" : "進行ボードで操作する →") + '</button></div>';
@@ -4386,10 +4386,20 @@ function playerGradeSuffix(p){
   return "（" + p.grade + "）";
 }
 // A doubles entry stores both players in one name joined with
-// "・"; on screen each player gets their own line, otherwise the
-// pair wraps mid-name and is hard to read (user feedback).
-function nameLinesHTML(name){
-  return String(name == null ? "" : name).split("・").map(function(seg){ return '<span style="display:block">' + esc(seg) + '</span>'; }).join("");
+// "・"; on screen each player gets their own line. A name never
+// wraps mid-name: when it is longer than the surface fits at full
+// size, the font shrinks instead (user: 「文字サイズで1人1行に
+// 収めて」). fit = how many characters fit at 100% on that surface.
+function fitScale(seg, fit){
+  var base = fit || 7;
+  var len = String(seg).replace(/\s+/g, "").length || 1;
+  return len > base ? Math.max(0.5, base / len) : 1;
+}
+function nameLinesHTML(name, fit){
+  return String(name == null ? "" : name).split("・").map(function(seg){
+    var sc = fitScale(seg, fit);
+    return '<span style="display:block;white-space:nowrap' + (sc < 1 ? ";font-size:" + Math.round(sc * 100) + "%" : "") + '">' + esc(seg) + '</span>';
+  }).join("");
 }
 function playerMatrixName(ev, p){
   var nm = playerName(ev, p.id);
@@ -4400,7 +4410,8 @@ function playerMatrixName(ev, p){
       var g = p.genderSeg ? p.genderSeg[i] : p.gender;
       col = g === "男" ? "#2563eb" : (g === "女" ? "#dc2626" : "");
     }
-    return '<span style="display:block' + (col ? ";color:" + col : "") + '">' + esc(seg) + '</span>';
+    var sc = fitScale(seg, 7);
+    return '<span style="display:block;white-space:nowrap' + (col ? ";color:" + col : "") + (sc < 1 ? ";font-size:" + Math.round(sc * 100) + "%" : "") + '">' + esc(seg) + '</span>';
   }).join("");
   var suf = playerGradeSuffix(p);
   return lines + (suf ? '<span style="display:block" class="mini">' + esc(suf) + '</span>' : "");
@@ -4496,13 +4507,13 @@ function vLeague(){
       h += '<table class="standsum"><tr><th style="width:30px">順</th><th>選手</th><th class="num">勝</th><th class="num">ゲーム差</th><th class="num">P差</th></tr>';
       rows.forEach(function(r, i){
         var swapping = uiSwapPick && uiSwapPick.evId === ev.id;
-        h += "<tr><td>" + (i+1) + "</td><td><strong>" + nameLinesHTML(byPid[r.pid].name) + '</strong> <span class="mini">' + esc(byPid[r.pid].aff||"") + '</span></td><td class="num">' + r.w + '</td><td class="num">' + (r.gd>0?"+":"") + r.gd + '</td><td class="num">' + (r.pd>0?"+":"") + r.pd + '</td><td style="width:86px"><button class="linkbtn" onclick="swapPick(\'' + ev.id + "','" + r.pid + '\')">' + (swapping && uiSwapPick.pid === r.pid ? "選択中…" : (swapping ? "ここに入替" : "入替")) + "</button></td></tr>";
+        h += "<tr><td>" + (i+1) + "</td><td><strong>" + nameLinesHTML(byPid[r.pid].name, 9) + '</strong> <span class="mini">' + esc(byPid[r.pid].aff||"") + '</span></td><td class="num">' + r.w + '</td><td class="num">' + (r.gd>0?"+":"") + r.gd + '</td><td class="num">' + (r.pd>0?"+":"") + r.pd + '</td><td style="width:86px"><button class="linkbtn" onclick="swapPick(\'' + ev.id + "','" + r.pid + '\')">' + (swapping && uiSwapPick.pid === r.pid ? "選択中…" : (swapping ? "ここに入替" : "入替")) + "</button></td></tr>";
       });
       h += "</table>";
       if (blockDone(ev, bi, lms) && rank.ties && rank.ties.length && !rank.manual){
         h += '<div class="tiebox"><strong>同率で自動確定できません。</strong><div class="mini">公式の順位が決まったら、下の順番を ↑↓ で直して確定してください（この順番でトーナメントに入ります）。</div>' +
           rank.order.map(function(pid, i){
-            return '<div class="rankrow"><span>' + (i+1) + '.</span><strong>' + nameLinesHTML(byPid[pid].name) + '</strong><span class="updown"><button onclick="moveRank(\'' + ev.id + "'," + bi + ",'" + pid + ',-1)">↑</button><button onclick="moveRank(\'' + ev.id + "'," + bi + ",'" + pid + ',1)">↓</button></span></div>';
+            return '<div class="rankrow"><span>' + (i+1) + '.</span><strong>' + nameLinesHTML(byPid[pid].name, 9) + '</strong><span class="updown"><button onclick="moveRank(\'' + ev.id + "'," + bi + ",'" + pid + ',-1)">↑</button><button onclick="moveRank(\'' + ev.id + "'," + bi + ",'" + pid + ',1)">↓</button></span></div>';
           }).join("") + "</div>";
       }
       if (rank.manual) h += '<div class="mini">手動で確定した順位です <button class="linkbtn" onclick="clearRank(\'' + ev.id + "'," + bi + ')">手動順位を解除</button></div>';
@@ -4717,7 +4728,7 @@ function vsHTML(ev, m, mode, sub){
   function nm(pid, right){
     if (!pid) return '<div class="vsname' + (right ? " right" : "") + '"><div class="nm" style="color:var(--sub)">未定</div></div>';
     if (pid === "BYE") return '<div class="vsname' + (right ? " right" : "") + '"><div class="nm">不戦勝</div></div>';
-    return '<div class="vsname' + (right ? " right" : "") + '"><div class="nm">' + nameLinesHTML(playerName(ev, pid)) + '</div>' +
+    return '<div class="vsname' + (right ? " right" : "") + '"><div class="nm">' + nameLinesHTML(playerName(ev, pid), 6) + '</div>' +
       (playerAff(ev, pid) ? '<div class="af">' + esc(playerAff(ev, pid)) + '</div>' : "") + '</div>';
   }
   return '<div class="vscard' + (mode === "live" ? " live" : "") + '">' +
@@ -4907,9 +4918,9 @@ function vTime(){
         function who(pid){
           if (!pid) return '<div class="who">未定</div>';
           if (pid === "BYE") return '<div class="who">不戦勝</div>';
-          if (r && r.winner === pid) return '<div class="who winw"><span class="winmark">勝</span>' + nameLinesHTML(playerName(ev, pid)) + '</div>';
-          if (r && r.winner) return '<div class="who losew">' + nameLinesHTML(playerName(ev, pid)) + '</div>';
-          return '<div class="who">' + nameLinesHTML(playerName(ev, pid)) + '</div>';
+          if (r && r.winner === pid) return '<div class="who winw"><span class="winmark">勝</span>' + nameLinesHTML(playerName(ev, pid), 9) + '</div>';
+          if (r && r.winner) return '<div class="who losew">' + nameLinesHTML(playerName(ev, pid), 9) + '</div>';
+          return '<div class="who">' + nameLinesHTML(playerName(ev, pid), 9) + '</div>';
         }
         h += '<td class="ttcell' + (r && r.winner ? " done" : "") + '" onclick="jumpMatch(\'' + s.match.id + '\')" title="タップで入力へ"><div class="tag">' + esc(tag) + '</div>' + who(pl.p1) + '<div class="tag">vs</div>' + who(pl.p2) + (r && r.score ? '<div class="tag">' + scoreHTML(r.score) + '</div>' : "") + "</td>";
       }
