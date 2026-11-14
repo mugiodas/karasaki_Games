@@ -1595,6 +1595,52 @@ function upsetSlotLabel(s, no){
   var mins = (+t[0] || 10) * 60 + (+t[1] || 0) + slot * (s.meta.intervalMin || 20);
   return Math.floor(mins / 60) + ":" + ("0" + (mins % 60)).slice(-2) + " 第" + court + "コート";
 }
+// ----- league practice as a real tournament -----
+// A level-based round-robin practice day is NOT a separate world:
+// it is built as an ordinary tournament (meta + one league-only
+// event per league, one block each), so the standard screens —
+// progression board, timetable, league matrix, score entry — run
+// it exactly like a tournament. buildLeagueTournament is pure so
+// it can be tested and reused for pre-loaded deliverables.
+// w = { name, date, venue, courts, start, interval,
+//       showGrade, colorGender,
+//       leagues: [{ name, skip, entries: [{name, aff, grade, gender, genderSeg}] }] }
+function buildLeagueTournament(w){
+  var meta = { name: w.name || "", date: w.date || "", venue: w.venue || "", courts: Math.max(1, w.courts || 6), start: w.start || "10:00", interval: Math.max(1, w.interval || 20), detail: "full", showGrade: !!w.showGrade, colorGender: !!w.colorGender };
+  var events = [], results = {};
+  (w.leagues || []).forEach(function(lg, li){
+    var ev = { id: "evlg" + (li + 1) + "x" + Date.now().toString(36) + li, name: lg.name, format: "league", blockSize: lg.entries.length, advance: 0, pattern: "standard", seedMode: "standard", pointCode: "21330", participants: [], blocks: null, manualRank: {} };
+    lg.entries.forEach(function(e, i){
+      var p = { id: ev.id + "p" + (i + 1), name: e.name, aff: e.aff || "", seed: false };
+      if (e.grade) p.grade = e.grade;
+      if (e.gender) p.gender = e.gender;
+      if (e.genderSeg) p.genderSeg = e.genderSeg.slice();
+      ev.participants.push(p);
+    });
+    ev.blocks = [ev.participants.map(function(p){ return p.id; })];
+    events.push(ev);
+    if (lg.skip){
+      leagueMatchList(ev).forEach(function(m){
+        var a = ev.participants.find(function(p){ return p.id === m.p1; });
+        var b = ev.participants.find(function(p){ return p.id === m.p2; });
+        if (a && b && a.aff && a.aff === b.aff) results[m.id] = { winner: null, score: "", skip: true, ts: Date.now() };
+      });
+    }
+  });
+  return { meta: meta, events: events, results: results };
+}
+function applyLeagueTournament(w){
+  var built = buildLeagueTournament(w);
+  ["pointDefault", "walkoverMode", "certFormat", "cert"].forEach(function(k){
+    if (state.meta && state.meta[k] !== undefined) built.meta[k] = state.meta[k];
+  });
+  state.meta = built.meta;
+  state.events = built.events;
+  state.results = built.results;
+  state.live = {}; state.liveCourt = {}; state.open = {}; state.trash = [];
+  invalidateCaches();
+  touchConfig();
+}
 function evById(id){ return state.events.find(function(e){ return e.id===id; }); }
 function playerName(ev, pid){
   if (!pid) return "—"; if (pid === "BYE") return "（不戦勝）";
@@ -1635,7 +1681,7 @@ function leagueMatchList(ev){
 }
 function blockDone(ev, bi, lms){
   var ms = lms.filter(function(m){ return m.block===bi; });
-  return ms.length > 0 && ms.every(function(m){ var r = state.results[m.id]; return r && (r.winner || r.note === "draw"); });
+  return ms.length > 0 && ms.every(function(m){ var r = state.results[m.id]; return r && (r.winner || r.note === "draw" || r.skip); });
 }
 function walkoverMode(){
   var m = state.meta && state.meta.walkoverMode;
@@ -2050,6 +2096,9 @@ function buildSchedule(){
     });
     if (ev.challengeUntil && (ev.format === "tournament" || ev.format === "league2")) challengeMatches(ev).forEach(function(m){ seq.push(m); });
   });
+  // Out-of-scope pairings (practice leagues can mark same-team
+  // matches as skip) never take a court or a time slot.
+  seq = seq.filter(function(m){ var r = state.results[m.id]; return !(r && r.skip); });
   function flushTime(s2){ var t = base + s2*interval; return String(Math.floor(t/60)).padStart(2,"0") + ":" + String(t%60).padStart(2,"0"); }
   var out = [];
   // Placement runs per day: each day restarts at the start time with all
@@ -2281,40 +2330,15 @@ var NAV = [
 ];
 var uiOpenScore = {};
 function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
-function go(v){ if (VIEWER && (v === "entry" || v === "config" || v.indexOf("upset") === 0)) v = "home"; view = v; render(); window.scrollTo(0,0); }
-function upsetNavItems(){
-  var items = [
-    {id:"home", label:"大会運営", ico:"🏠"},
-    {id:"upset", label:"練習会", ico:"🔥"}
-  ];
-  var s = null;
-  try{ s = uiUpsetId ? upsetGet(uiUpsetId) : null; }catch(e){}
-  if (s){
-    if (s.status === "ready") items.push({id:"upsetSetup", label:"準備", ico:"✏️"});
-    else if (s.status === "done") items.push({id:"upsetView", label:"記録", ico:"📖"});
-    else items.push({id:"upsetPlay", label: s.meta.mode === "league" ? "リーグ進行" : "進行", ico:"▶️"});
-  }
-  items.push({id:"config", label:"設定・共有", ico:"⚙️"});
-  return items;
-}
+function go(v){ if (VIEWER && (v === "entry" || v === "config" || v === "lgwiz" || v.indexOf("upset") === 0)) v = "home"; view = v; render(); window.scrollTo(0,0); }
 function renderNav(){
-  var inUpset = !!(view && view.indexOf("upset") === 0);
-  var items = inUpset ? upsetNavItems() : NAV;
-  var html = items.map(function(n){ return '<button class="navbtn' + (view===n.id?" active":"") + '" onclick="go(\'' + n.id + '\')"><span class="ico">' + n.ico + '</span>' + n.label + '</button>'; }).join("");
+  var html = NAV.map(function(n){ return '<button class="navbtn' + (view===n.id?" active":"") + '" onclick="go(\'' + n.id + '\')"><span class="ico">' + n.ico + '</span>' + n.label + '</button>'; }).join("");
   document.getElementById("sideNav").innerHTML = html + '<div style="padding:12px 10px 0"><span class="conn" id="connSide">…</span></div>';
-  document.getElementById("bottomNav").innerHTML = items.map(function(n){ return '<button class="' + (view===n.id?"active":"") + '" onclick="go(\'' + n.id + '\')"><span class="ico">' + n.ico + '</span>' + n.label.replace("参加者・種目","参加者").replace("タイムテーブル","時間").replace("設定・共有","設定") + '</button>'; }).join("");
+  document.getElementById("bottomNav").innerHTML = NAV.map(function(n){ return '<button class="' + (view===n.id?"active":"") + '" onclick="go(\'' + n.id + '\')"><span class="ico">' + n.ico + '</span>' + n.label.replace("参加者・種目","参加者").replace("タイムテーブル","時間").replace("設定・共有","設定") + '</button>'; }).join("");
   var t = state.meta.name || "大会運営 Web";
   document.getElementById("topTitle").textContent = t;
-  var sideName = state.meta.name ? (state.meta.name + (state.meta.date ? " / " + state.meta.date : "")) : "（大会未設定）";
-  if (inUpset){
-    var us = null;
-    try{ us = uiUpsetId ? upsetGet(uiUpsetId) : null; }catch(e){}
-    if (us) sideName = us.meta.name + (us.meta.date ? " / " + us.meta.date : "");
-    document.title = ((us && us.meta.name) || "練習会") + " | 練習会";
-  } else {
-    document.title = (state.meta.name || "大会運営") + " | 大会運営 Web";
-  }
-  document.getElementById("sideTName").textContent = sideName;
+  document.getElementById("sideTName").textContent = state.meta.name ? (state.meta.name + (state.meta.date ? " / " + state.meta.date : "")) : "（大会未設定）";
+  document.title = (state.meta.name || "大会運営") + " | 大会運営 Web";
   if (sync.connected) setConn("on", "共有中");
 }
 function progressOf(ev){
@@ -3612,6 +3636,7 @@ function render(){
   else if (view === "upsetSetup") el.innerHTML = banner + vUpsetSetup();
   else if (view === "upsetPlay") el.innerHTML = banner + vUpsetPlay();
   else if (view === "upsetView") el.innerHTML = banner + vUpsetView();
+  else if (view === "lgwiz") el.innerHTML = banner + vLgWiz();
   if (view !== _lastView){
     _lastView = view;
     el.classList.remove("enter"); void el.offsetWidth; el.classList.add("enter");
@@ -4356,6 +4381,22 @@ function makeBlocks(id){
 var uiLeagueView = "matrix";
 function setLeagueView(v){ uiLeagueView = v; render(); }
 function leagueJump(mid){ var f = findMatchGlobal(mid); if (f) openScoreModal(f.ev.id, mid); }
+function playerGradeSuffix(p){
+  if (!p || !state.meta.showGrade || !p.grade) return "";
+  return "（" + p.grade + "）";
+}
+function playerMatrixName(ev, p){
+  var nm = playerName(ev, p.id);
+  if (state.meta.colorGender && p && (p.gender || p.genderSeg)){
+    var segs = nm.split("・");
+    return segs.map(function(seg, i){
+      var g = p.genderSeg ? p.genderSeg[i] : p.gender;
+      var col = g === "男" ? "#2563eb" : (g === "女" ? "#dc2626" : "");
+      return col ? '<span style="color:' + col + '">' + esc(seg) + '</span>' : esc(seg);
+    }).join("・") + esc(playerGradeSuffix(p));
+  }
+  return esc(nm) + esc(playerGradeSuffix(p));
+}
 function matrixHTML(ev, block, bi, lms){
   var bm = lms.filter(function(x){ return x.block === bi; });
   function findM(a, b){
@@ -4370,15 +4411,16 @@ function matrixHTML(ev, block, bi, lms){
   (rankInfo.rows || []).forEach(function(r, i){ statOf[r.pid] = { rank: i + 1, row: r }; });
   var statHeads = ["順位","勝","敗","取得G","失G","G差","P差"];
   var out = '<div class="ttwrap" style="margin-top:10px"><table class="mx"><tr><th class="mxh"></th>' +
-    block.map(function(p){ return '<th class="mxh">' + esc(playerName(ev, p.id)) + '</th>'; }).join("") +
+    block.map(function(p){ return '<th class="mxh">' + playerMatrixName(ev, p) + '</th>'; }).join("") +
     statHeads.map(function(t){ return '<th class="mxh stat">' + t + '</th>'; }).join("") + '</tr>';
   block.forEach(function(pa){
-    out += '<tr><th class="mxr">' + esc(playerName(ev, pa.id)) + '</th>';
+    out += '<tr><th class="mxr">' + playerMatrixName(ev, pa) + '</th>';
     block.forEach(function(pb){
       if (pa.id === pb.id){ out += '<td class="mxd diag">—</td>'; return; }
       var m = findM(pa.id, pb.id);
       if (!m){ out += '<td class="mxd"></td>'; return; }
       var r = state.results[m.id];
+      if (r && r.skip){ out += '<td class="mxd" style="color:#9ca3af">―</td>'; return; }
       if (!r || !r.winner){ out += '<td class="mxd todo" onclick="leagueJump(\'' + m.id + '\')">・</td>'; return; }
       var pl = matchPlayers(ev, m, lms);
       var iAmP1 = pl.p1 === pa.id;
@@ -4897,7 +4939,7 @@ function vUpset(){
     '<label class="fld" style="flex:1">ダブルス方式<select id="up-dmode" disabled><option value="fixed">固定ペア</option><option value="shuffle">ペア組み替え</option></select></label></div>' +
     '<div class="row"><label class="fld" style="flex:1">コート数（2面以上）<input id="up-courts" type="number" min="2" max="20" value="4"></label>' +
     '<label class="fld" style="flex:1">初期配置（下克上方式）<select id="up-method"><option value="skill">実力順</option><option value="draw">抽選</option><option value="manual">手動</option></select></label></div>' +
-    '<label class="fld">方式<select id="up-mode"><option value="ladder">下克上（勝てば上のコートへ）</option><option value="league">リーグ総当たり（レベル別リーグ）</option></select></label>' +
+    '<label class="fld">方式<select id="up-mode"><option value="ladder">下克上（勝てば上のコートへ）</option><option value="league">リーグ総当たり（大会として作成）</option></select></label>' +
     '<button class="btn" style="width:100%;margin-top:10px" onclick="upsetCreateFromForm()">作成して参加者登録へ</button></div>';
   if (live.length){
     h += '<div class="sec-band"><span class="sec-no">01</span>開催中・準備中の練習会</div>';
@@ -4918,6 +4960,16 @@ function vUpset(){
   return h;
 }
 function upsetCreateFromForm(){
+  if (((document.getElementById("up-mode") || {}).value || "ladder") === "league"){
+    wizStart({
+      name: (document.getElementById("up-name") || {}).value || "",
+      date: (document.getElementById("up-date") || {}).value || "",
+      venue: (document.getElementById("up-venue") || {}).value || "",
+      format: (document.getElementById("up-format") || {}).value || "singles",
+      courtCount: parseInt((document.getElementById("up-courts") || {}).value, 10) || 4
+    });
+    return;
+  }
   var courts = parseInt((document.getElementById("up-courts") || {}).value, 10) || 0;
   var s = upsetCreate({
     name: (document.getElementById("up-name") || {}).value || "",
@@ -4940,6 +4992,143 @@ function upsetDeleteReady(id){
   delete upsetAll()[id];
   if (uiUpsetId === id) uiUpsetId = null;
   touchConfig(); render();
+}
+// ----- league practice wizard: builds a real tournament -----
+var _wiz = null;
+function wizStart(f){
+  _wiz = { name: f.name || "", date: f.date || "", venue: f.venue || "", format: f.format || "singles",
+    courts: Math.max(1, f.courtCount || 4), start: "10:00", interval: 20,
+    showGrade: true, colorGender: false,
+    roster: [], pairs: [], pairSel: {}, leagues: [], selEntry: null, err: "" };
+  go("lgwiz");
+}
+function wizEntries(){
+  if (!_wiz) return [];
+  if (_wiz.format !== "doubles") return _wiz.roster.map(function(p){ return { name: p.name, aff: p.aff, grade: p.grade || "", gender: p.gender || "", genderSeg: null, rank: p.rank || 999 }; });
+  return _wiz.pairs.map(function(pr){
+    var a = _wiz.roster[pr[0]], b = _wiz.roster[pr[1]]; if (!a || !b) return null;
+    var mixed = a.gender && b.gender && a.gender !== b.gender;
+    return { name: a.name + "・" + b.name, aff: a.aff === b.aff ? a.aff : [a.aff, b.aff].filter(Boolean).join("・"),
+      grade: a.grade === b.grade ? (a.grade || "") : "",
+      gender: mixed ? "混合" : (a.gender || b.gender || ""), genderSeg: mixed ? [a.gender, b.gender] : null,
+      rank: Math.min(a.rank || 999, b.rank || 999) };
+  }).filter(Boolean);
+}
+function wizResetLeagues(){ _wiz.leagues = []; _wiz.selEntry = null; }
+function wizSetField(k, v){ if (_wiz) _wiz[k] = v; }
+function wizParseRoster(){
+  var ta = document.getElementById("wiz-paste"); if (!ta) return;
+  var out = [];
+  ta.value.split(/\n/).map(function(x){ return x.trim(); }).filter(Boolean).forEach(function(line, i){
+    var c = line.split(/[,、\t]/).map(function(x){ return x.trim(); });
+    if (c[0]) out.push({ name: c[0], aff: c[1] || "", rank: parseInt(c[2], 10) || (i + 1), grade: c[3] || "", gender: c[4] === "男" || c[4] === "女" ? c[4] : "" });
+  });
+  _wiz.roster = out; _wiz.pairs = []; _wiz.pairSel = {}; wizResetLeagues(); _wiz.err = "";
+  if (_wiz.format !== "doubles" && out.length >= 2) wizAutoLeagues(); else render();
+}
+function wizTogglePairSel(i){ _wiz.pairSel[i] = !_wiz.pairSel[i]; render(); }
+function wizMakePair(){
+  var sel = Object.keys(_wiz.pairSel).filter(function(k){ return _wiz.pairSel[k]; }).map(Number);
+  if (sel.length !== 2){ _wiz.err = "ペアは2名を選んでください"; render(); return; }
+  var used = {}; _wiz.pairs.forEach(function(pr){ used[pr[0]] = 1; used[pr[1]] = 1; });
+  if (used[sel[0]] || used[sel[1]]){ _wiz.err = "すでにペアになっている選手が含まれています"; render(); return; }
+  _wiz.pairs.push(sel); _wiz.pairSel = {}; _wiz.err = ""; wizResetLeagues(); render();
+}
+function wizDelPair(i){ _wiz.pairs.splice(i, 1); wizResetLeagues(); render(); }
+function wizAutoLeagues(){
+  var es = wizEntries();
+  var groups = { "男子": [], "女子": [], "混合": [] };
+  es.forEach(function(e, i){
+    var g = (e.genderSeg && e.genderSeg.indexOf("女") >= 0) || e.gender === "女" || e.gender === "混合" ? "女子" : (e.gender === "男" ? "男子" : "混合");
+    groups[g].push(i);
+  });
+  var leagues = [];
+  ["男子", "女子", "混合"].forEach(function(g){
+    var idxs = groups[g].slice().sort(function(a, b){ return es[a].rank - es[b].rank; });
+    if (!idxs.length) return;
+    if (idxs.length >= 6){
+      var half = Math.ceil(idxs.length / 2);
+      leagues.push({ name: g + "A", skip: false, entryIdxs: idxs.slice(0, half) });
+      leagues.push({ name: g + "B", skip: false, entryIdxs: idxs.slice(half) });
+    } else leagues.push({ name: g, skip: false, entryIdxs: idxs });
+  });
+  _wiz.leagues = leagues; _wiz.selEntry = null; render();
+}
+function wizTapEntry(ei){ _wiz.selEntry = (_wiz.selEntry === ei) ? null : ei; render(); }
+function wizMoveTo(li){
+  if (!_wiz || _wiz.selEntry === null) return;
+  var ei = _wiz.selEntry;
+  _wiz.leagues.forEach(function(lg){ lg.entryIdxs = lg.entryIdxs.filter(function(x){ return x !== ei; }); });
+  if (li >= 0) _wiz.leagues[li].entryIdxs.push(ei);
+  _wiz.selEntry = null; render();
+}
+function wizAddLeague(){ var nm = prompt("リーグ名", "リーグ" + ((_wiz ? _wiz.leagues.length : 0) + 1)); if (!nm) return; _wiz.leagues.push({ name: nm, skip: false, entryIdxs: [] }); render(); }
+function wizRenameLeague(i){ var nm = prompt("リーグ名", _wiz.leagues[i].name); if (!nm) return; _wiz.leagues[i].name = nm; render(); }
+function wizDelLeague(i){ if (!confirm("このリーグを削除しますか？（中の組は未割当に戻ります）")) return; _wiz.leagues.splice(i, 1); render(); }
+function wizToggleSkip(i){ _wiz.leagues[i].skip = !_wiz.leagues[i].skip; render(); }
+function wizApply(){
+  var es = wizEntries();
+  var assigned = {}; _wiz.leagues.forEach(function(lg){ lg.entryIdxs.forEach(function(ei){ assigned[ei] = 1; }); });
+  var unassigned = es.length - Object.keys(assigned).length;
+  var bad = _wiz.leagues.filter(function(lg){ return lg.entryIdxs.length < 2; });
+  if (!_wiz.leagues.length){ _wiz.err = "リーグがありません。「自動でリーグ分け」か「リーグを追加」から作ってください"; render(); return; }
+  if (bad.length){ _wiz.err = "2組未満のリーグがあります：" + bad.map(function(l){ return l.name; }).join("、"); render(); return; }
+  var msg = "この内容で大会として作成します。進行ボード・タイムテーブル・リーグ表は、大会運営の画面をそのまま使います。";
+  if (unassigned > 0) msg += "\n未割当の" + unassigned + "組は含まれません。";
+  if (state.events && state.events.length) msg += "\n注意：現在の大会データは置き換わります。";
+  if (!confirm(msg)) return;
+  var w = { name: _wiz.name, date: _wiz.date, venue: _wiz.venue, courts: _wiz.courts, start: _wiz.start, interval: _wiz.interval, showGrade: _wiz.showGrade, colorGender: _wiz.colorGender,
+    leagues: _wiz.leagues.map(function(lg){ return { name: lg.name, skip: lg.skip, entries: lg.entryIdxs.map(function(ei){ return es[ei]; }) }; }) };
+  applyLeagueTournament(w);
+  publishState();
+  _wiz = null;
+  go("home");
+}
+function wizEntryChip(ei, e){
+  var sel = _wiz.selEntry === ei;
+  return '<button class="btn small' + (sel ? "" : " ghost") + '" style="margin:2px" onclick="event.stopPropagation();wizTapEntry(' + ei + ')">' + esc(e.name) + (e.aff ? ' <span class="mini">' + esc(e.aff) + '</span>' : "") + '</button>';
+}
+function vLgWiz(){
+  if (!_wiz) return '<div class="card"><p>作成データがありません。</p><button class="btn" onclick="go(\'upset\')">練習会の画面へ</button></div>';
+  var es = wizEntries();
+  var assigned = {}; _wiz.leagues.forEach(function(lg){ lg.entryIdxs.forEach(function(ei){ assigned[ei] = 1; }); });
+  var h = '<button class="btn ghost small" onclick="go(\'upset\')">← 練習会の一覧</button>';
+  h += '<div class="hero-band" style="margin-top:10px"><div class="hero-en">LEAGUE PRACTICE</div><h1>リーグ総当たりを作成</h1><div class="sub">リーグ総当たりは「大会」として作成します。作成後は進行ボード・タイムテーブル・リーグ表など、大会運営の画面をそのまま使って進めます（特別な画面はありません）。</div></div>';
+  if (_wiz.err) h += '<div class="card" style="border-color:#dc2626;color:#dc2626">' + esc(_wiz.err) + '</div>';
+  h += '<div class="card"><h3>基本情報</h3>' +
+    '<label class="fld">名称<input value="' + esc(_wiz.name) + '" onchange="wizSetField(\'name\',this.value)" placeholder="例：バドミントン交流試合"></label>' +
+    '<div class="row"><label class="fld" style="flex:1">開催日<input type="date" value="' + esc(_wiz.date) + '" onchange="wizSetField(\'date\',this.value)"></label><label class="fld" style="flex:1">会場<input value="' + esc(_wiz.venue) + '" onchange="wizSetField(\'venue\',this.value)"></label></div>' +
+    '<div class="row"><label class="fld" style="flex:1">コート数<input type="number" min="1" max="30" value="' + _wiz.courts + '" onchange="wizSetField(\'courts\',Math.max(1,parseInt(this.value,10)||1))"></label>' +
+    '<label class="fld" style="flex:1">開始時刻<input type="time" value="' + esc(_wiz.start) + '" onchange="wizSetField(\'start\',this.value||\'10:00\')"></label>' +
+    '<label class="fld" style="flex:1">1試合の目安（分）<input type="number" min="1" max="120" value="' + _wiz.interval + '" onchange="wizSetField(\'interval\',Math.max(1,parseInt(this.value,10)||20))"></label></div></div>';
+  h += '<div class="card"><h3>参加者名簿</h3>' +
+    '<label class="f">1行に1名：名前,所属,実力順位,学年,性別（学年・性別は任意）</label><textarea id="wiz-paste" rows="8" style="width:100%" placeholder="山田太郎,唐崎Jr,1,小4,男"></textarea>' +
+    '<button class="btn" style="width:100%;margin-top:8px" onclick="wizParseRoster()">名簿を取り込む（' + _wiz.roster.length + '名）</button>' +
+    (_wiz.roster.length ? '<div style="margin-top:8px">' + _wiz.roster.map(function(p){ return '<span class="chip" style="margin:2px">' + esc(p.name) + (p.grade ? " " + esc(p.grade) : "") + (p.gender ? " " + esc(p.gender) : "") + '</span>'; }).join("") + '</div>' : "") + '</div>';
+  if (_wiz.format === "doubles"){
+    var used = {}; _wiz.pairs.forEach(function(pr){ used[pr[0]] = 1; used[pr[1]] = 1; });
+    h += '<div class="card"><h3>ペア作成（固定ペア）</h3><div class="mini">ペアにしたい2名にチェックを入れて「ペアにする」を押してください。</div>' +
+      _wiz.roster.map(function(p, i){ return used[i] ? "" : '<label style="display:inline-block;margin:4px 8px 4px 0"><input type="checkbox"' + (_wiz.pairSel[i] ? " checked" : "") + ' onchange="wizTogglePairSel(' + i + ')"> ' + esc(p.name) + '</label>'; }).join("") +
+      '<button class="btn" style="width:100%;margin-top:8px" onclick="wizMakePair()">ペアにする</button>' +
+      (_wiz.pairs.length ? '<div style="margin-top:8px">' + _wiz.pairs.map(function(pr, i){ return '<span class="chip" style="margin:2px">' + esc(_wiz.roster[pr[0]].name) + '・' + esc(_wiz.roster[pr[1]].name) + ' <a href="#" onclick="event.preventDefault();wizDelPair(' + i + ')">×</a></span>'; }).join("") + '</div>' : "") + '</div>';
+  }
+  h += '<div class="card"><h3>リーグ分け</h3><div class="mini">自動で振り分けたあと、組をタップ→移動先のリーグをタップで直せます。</div>' +
+    '<div class="row"><button class="btn" onclick="wizAutoLeagues()">自動でリーグ分け</button><button class="btn ghost" onclick="wizAddLeague()">リーグを追加</button></div>' +
+    '<div style="margin-top:10px;border:1px dashed #94a3b8;border-radius:10px;padding:8px" onclick="wizMoveTo(-1)"><strong>未割当（' + es.filter(function(e, ei){ return !assigned[ei]; }).length + '組）</strong><div>' +
+    es.map(function(e, ei){ return assigned[ei] ? "" : wizEntryChip(ei, e); }).join("") + '</div></div>';
+  _wiz.leagues.forEach(function(lg, li){
+    h += '<div style="margin-top:10px;border:1px solid #cbd5e1;border-radius:10px;padding:8px" onclick="wizMoveTo(' + li + ')">' +
+      '<div class="row" style="justify-content:space-between"><strong>' + esc(lg.name) + '（' + lg.entryIdxs.length + '組・' + (lg.entryIdxs.length * (lg.entryIdxs.length - 1) / 2) + '試合）</strong>' +
+      '<span><button class="btn ghost small" onclick="event.stopPropagation();wizRenameLeague(' + li + ')">名前</button><button class="btn ghost small" onclick="event.stopPropagation();wizDelLeague(' + li + ')">削除</button></span></div>' +
+      '<label style="display:block;margin:4px 0" onclick="event.stopPropagation()"><input type="checkbox"' + (lg.skip ? " checked" : "") + ' onchange="wizToggleSkip(' + li + ')"> 同チーム同士の試合は対象外にする（星取表は「―」、順位・日程に入れない）</label>' +
+      '<div>' + lg.entryIdxs.map(function(ei){ return wizEntryChip(ei, es[ei]); }).join("") + '</div></div>';
+  });
+  h += '</div>';
+  h += '<div class="card"><h3>表示設定</h3>' +
+    '<label style="display:block;margin:4px 0"><input type="checkbox"' + (_wiz.showGrade ? " checked" : "") + ' onchange="wizSetField(\'showGrade\',this.checked)"> リーグ表に学年を表示</label>' +
+    '<label style="display:block;margin:4px 0"><input type="checkbox"' + (_wiz.colorGender ? " checked" : "") + ' onchange="wizSetField(\'colorGender\',this.checked)"> リーグ表で男女を色分け（男は青・女は赤）</label></div>';
+  h += '<button class="btn" style="width:100%;padding:16px;font-size:17px" onclick="wizApply()">大会として作成する</button>';
+  return h;
 }
 // ----- shared roster / display helpers -----
 function upsetNameHTML(s, pid){
