@@ -80,6 +80,16 @@ h3{font-size:15.5px;font-weight:700;letter-spacing:.03em;margin:18px 0 10px;bord
 .en.cy{color:var(--cy-dark)}
 /* ===== panels ===== */
 .card{background:var(--panel);border:1px solid #232428;border-radius:0;box-shadow:none;padding:18px 20px;margin:0 0 14px;position:relative}
+.cfghead{display:flex;align-items:center;justify-content:space-between;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.cfghead h3{margin:0}
+.cfgchev{font-size:18px;color:var(--sub);padding:2px 6px}
+.cfgsec .cfgbody{margin-top:10px}
+.cfgsec.closed .cfgbody{display:none}
+.cfggrp{font-weight:700;font-size:13px;color:var(--sub);margin:14px 0 2px}
+.cfgtree .cfggrp:first-of-type{margin-top:6px}
+.cfgrow{display:flex;gap:12px;align-items:baseline;padding:10px 4px;border-top:1px solid var(--line);cursor:pointer}
+.cfgrowt{font-weight:600;white-space:nowrap}
+.cfgrow.open .cfgrowt{color:var(--cy)}
 .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
 .spread{justify-content:space-between}
 /* ===== buttons: linear, mechanical ===== */
@@ -6686,7 +6696,7 @@ function uniformEventCode(field){
 }
 function srvCardHTML(){
   if (!srvUi.checked && !srvUi.checking) srvCheckLogin();
-  var h = '<div class="card"><h3 style="margin-top:0">サーバー接続（新方式）</h3>';
+  var h = '';
   if (srvActive()){
     h += '<div class="sub">サーバーの大会と同期しています。結果はサーバーが正本を持ち、端末の時計に左右されず、削除も正しく伝わります。観戦者は今までどおりリンクだけです。</div>' +
       '<div style="margin-top:8px">大会：<strong>' + esc(srv.boundName || srv.tid) + '</strong>' + (srv.role ? '（権限：' + (srv.role === "admin" ? "責任者" : "作業者") + '）' : '') + '<br>状態：' + esc(srv.statusText || "接続中…") + '</div>' +
@@ -6708,20 +6718,54 @@ function srvCardHTML(){
       '<label class="f">パスワード</label><input type="password" id="srv-pass" autocomplete="current-password">' +
       '<div style="margin-top:12px"><button class="btn" onclick="srvLogin()">ログイン</button></div>';
   }
-  return h + '</div>';
+  return h;
+}
+var uiCfgOpen = "meta";
+var CFG_GROUPS = [
+  ["大会の準備（作るとき）", [["meta", "大会情報", "名前・日程・会場"], ["rules", "試合のルール", "ポイント・不戦勝の集計"], ["display", "表示", "学年表示・男女の色分け"], ["cert", "賞状", "書式・主催者名・代表者名"]]],
+  ["当日の運営", [["ops", "当日の運営", "コート数・開始時刻・1試合の目安"], ["share", "共有リンク", "運営用・観戦用のリンク"], ["server", "サーバー接続（新方式）", "ログイン・大会の紐付け"], ["print", "印刷・出力", "審判用紙・賞状・CSV"]]],
+  ["データ管理", [["data", "データとバックアップ", "復元・書き出し・複製"]]]
+];
+function cfgSection(key, title, bodyHTML, cls){
+  var open = (uiCfgOpen === key);
+  return '<div class="card cfgsec ' + (cls || "") + (open ? "" : " closed") + '" id="cfgsec-' + key + '" data-cfgkey="' + key + '">' +
+    '<div class="cfghead" onclick="cfgToggle(\'' + key + '\')"><h3>' + esc(title) + '</h3><span class="cfgchev">' + (open ? "▾" : "▸") + '</span></div>' +
+    '<div class="cfgbody">' + bodyHTML + '</div></div>';
+}
+function cfgToggle(key){
+  uiCfgOpen = (uiCfgOpen === key) ? "" : key;
+  var secs = document.querySelectorAll(".cfgsec");
+  for (var i = 0; i < secs.length; i++){
+    var s = secs[i], open = (s.getAttribute("data-cfgkey") === uiCfgOpen);
+    if (open) s.classList.remove("closed"); else s.classList.add("closed");
+    var ch = s.querySelector(".cfgchev"); if (ch) ch.textContent = open ? "▾" : "▸";
+  }
+  var rows = document.querySelectorAll(".cfgrow");
+  for (var j = 0; j < rows.length; j++){
+    if (rows[j].getAttribute("data-cfgkey") === uiCfgOpen) rows[j].classList.add("open"); else rows[j].classList.remove("open");
+  }
+  if (uiCfgOpen){
+    var t = document.getElementById("cfgsec-" + uiCfgOpen);
+    if (t && t.scrollIntoView) t.scrollIntoView({ block: "start" });
+  }
 }
 function vConfig(){
   var link = location.origin + location.pathname + "#r=" + sync.room;
   var h = "<h1>設定・共有</h1>";
-  h += '<div class="card"><h3 style="margin-top:0">大会情報</h3><div class="sub">大会を作るときに設定します。</div>' +
+  h += '<div class="card cfgtree"><h3 style="margin-top:0">設定の目次</h3><div class="sub">項目を選ぶと、その設定だけが開きます。開いている項目の見出しを押すと閉じます。</div>' + CFG_GROUPS.map(function(g){
+    return '<div class="cfggrp">' + esc(g[0]) + '</div>' + g[1].map(function(s){
+      return '<div class="cfgrow' + (uiCfgOpen === s[0] ? " open" : "") + '" data-cfgkey="' + s[0] + '" onclick="cfgToggle(\'' + s[0] + '\')"><span class="cfgrowt">' + esc(s[1]) + '</span><span class="mini">' + esc(s[2]) + '</span></div>';
+    }).join("");
+  }).join("") + '</div>';
+  h += cfgSection("meta", "大会情報", '<div class="sub">大会を作るときに設定します。</div>' +
     '<label class="f">大会名</label><input type="text" id="cf-name" value="' + esc(state.meta.name) + '">' +
     '<div class="grid3"><div><label class="f">開催日</label><input type="date" id="cf-date" value="' + esc(state.meta.date) + '"></div>' +
     '<div><label class="f">開催日（2日目・任意）</label><input type="date" id="cf-date2" value="' + esc(state.meta.date2 || "") + '"></div>' +
     '<div><label class="f">開催日（3日目・任意）</label><input type="date" id="cf-date3" value="' + esc(state.meta.date3 || "") + '"></div></div>' +
     '<label class="f">会場</label><input type="text" id="cf-venue" value="' + esc(state.meta.venue) + '">' +
     '<div class="mini">2日間・3日間の大会では、2日目以降の日付を入れてください。どの種目を何日目に行うかは「参加者・種目」の種目設定で種目ごとに選びます。リーグとトーナメントで日を分けることもできます（例：1日目リーグ、2日目トーナメント）。日を変えても結果は消えません。</div>' +
-    '<div style="margin-top:12px"><button class="btn" onclick="saveMeta()">保存</button></div></div>';
-  h += '<div class="card"><h3 style="margin-top:0">試合のルール</h3><div class="sub">大会の最初に決めて、全種目に共通で使うルールです。</div>' +
+    '<div style="margin-top:12px"><button class="btn" onclick="saveMeta()">保存</button></div>');
+  h += cfgSection("rules", "試合のルール", '<div class="sub">大会の最初に決めて、全種目に共通で使うルールです。</div>' +
     '<label class="f">ポイント設定（全種目共通）</label>' +
     '<div class="grid3"><div><label class="f">共通</label><select id="cf-pt">' + pointOptions(state.meta.pointDefault || "21330", false) + '</select></div>' +
     '<div><label class="f">リーグ用</label><select id="cf-ptl">' + pointOptions(uniformEventCode("pointCodeLeague"), true) + '</select></div>' +
@@ -6734,40 +6778,11 @@ function vConfig(){
     '<option value="winonly"' + (walkoverMode() === "winonly" ? " selected" : "") + '>勝敗のみ：ゲーム・ポイントを数えない（倉敷式）</option></select>' +
     '<div class="mini">大会ごとに選べます。スコアを入れた不戦勝（例：15-0 15-0）は、どの設定でも入力したスコアで集計します。設定を変えると、すでに入っている結果の順位も新しい数え方で計算し直します。</div>' +
     '<label class="f">結果入力</label><div><strong>スコア必須</strong><div class="mini">勝敗だけの記録はできません。勝者をタップしたあと、スコアを入力して保存します。不戦勝は、試合カードの備考で「試合棄権（不戦勝）」を選べばスコアなしで記録できます。</div></div><input type="hidden" id="cf-detail" value="full">' +
-    '<div style="margin-top:12px"><button class="btn" onclick="saveMeta()">保存（ポイントは全種目に反映）</button></div></div>';
-  h += '<div class="card"><h3 style="margin-top:0">当日の運営</h3><div class="sub">タイムテーブルと進行の計算に使います。当日の状況で変えることがあります。</div>' +
-    '<div class="grid3"><div><label class="f">コート数</label><input type="number" id="cf-courts" min="1" max="30" value="' + (state.meta.courts||4) + '"></div>' +
-    '<div><label class="f">開始時刻</label><input type="time" id="cf-start" value="' + esc(state.meta.start||"09:30") + '"></div>' +
-    '<div><label class="f">1試合の目安（分）</label><input type="number" id="cf-interval" min="5" max="60" value="' + (state.meta.interval||12) + '"></div></div>' +
-    '<div class="mini">複数日の大会では、日ごとに開始時刻から計算し直します。</div>' +
-    '<div style="margin-top:12px"><button class="btn" onclick="saveMeta()">保存</button></div></div>';
-  h += '<div class="card"><h3 style="margin-top:0">表示</h3><div class="sub">リーグ表や順位表の見え方です。</div>' +
+    '<div style="margin-top:12px"><button class="btn" onclick="saveMeta()">保存（ポイントは全種目に反映）</button></div>');
+  h += cfgSection("display", "表示", '<div class="sub">リーグ表や順位表の見え方です。</div>' +
     '<label style="display:block;margin:6px 0"><input type="checkbox" id="cf-showgrade"' + (state.meta.showGrade ? " checked" : "") + ' style="width:20px;height:20px;vertical-align:-4px"> リーグ表・順位表に学年を表示</label>' +
     '<label style="display:block;margin:6px 0"><input type="checkbox" id="cf-colorgender"' + (state.meta.colorGender ? " checked" : "") + ' style="width:20px;height:20px;vertical-align:-4px"> リーグ表で男女を色分け（男は青・女は赤）</label>' +
-    '<div style="margin-top:12px"><button class="btn" onclick="saveMeta()">保存</button></div></div>';
-  h += '<div class="card"><h3 style="margin-top:0">共有リンク</h3><div class="sub">他の端末や観戦者に渡すリンクです。このリンクを開いた端末同士で、結果と設定が同期されます（全員が編集できます）。</div>' +
-    '<div class="row" style="margin-top:8px"><input type="text" readonly value="' + esc(link) + '" id="shareLink" style="flex:1"><button class="btn ghost" onclick="copyLink()">コピー</button></div>' +
-    '<div class="sub" style="margin-top:10px">👀 観戦用リンク（観戦専用ページにつながります。このページからは結果を送れない作りです。保護者や観客への配布はこちら）</div>' +
-    '<div class="row" style="margin-top:6px"><input type="text" readonly value="' + esc(viewerPageUrl()) + '" id="watchLink" style="flex:1"><button class="btn ghost" onclick="copyWatchLink()">コピー</button></div>' +
-    '<div class="sub" style="margin-top:6px">接続状態は画面上のバッジで確認できます。「共有中」にならない端末では、その端末だけで入力してください。</div>' +
-    '<details style="margin-top:10px;border-top:1px solid var(--line);padding-top:8px"><summary class="mini" style="cursor:pointer">接続診断・同期テスト</summary>' +
-    '<div class="mini" style="margin-top:8px">' +
-    '接続診断: ' + (sync.connected ? '接続先 ' + esc(syncDiag.broker.replace("wss://", "")) + '（' + new Date(syncDiag.connectedAt).toTimeString().slice(0,5) + '〜）' : '未接続') +
-    (syncDiag.lastMsgAt ? ' / 最終受信 ' + new Date(syncDiag.lastMsgAt).toTimeString().slice(0,8) : '') +
-    (syncDiag.pingOkAt ? ' / テスト送信OK ' + new Date(syncDiag.pingOkAt).toTimeString().slice(0,8) : '') +
-    (syncDiag.attempts.length ? '<br>接続できなかった中継: ' + syncDiag.attempts.map(function(a){ return esc(a.url.replace("wss://", "").split("/")[0]); }).join(", ") : '') +
-    '</div><div style="margin-top:6px"><button class="btn ghost small" onclick="syncPing()">同期テスト送信</button> <span class="mini">押して数秒後に「テスト送信OK」と出れば、この端末から中継へ往復できています。もう1台で同じリンクを開き、片方で結果を1つ入れてもう片方が変われば、別端末間の同期は実証完了です。</span></div></details></div>';
-  h += srvCardHTML();
-  h += '<div class="card"><h3 style="margin-top:0">印刷・出力</h3>' +
-    '<div class="sub">当日に使う印刷と書き出しです。審判用紙は、対戦が確定した試合だけを出すのが当日の運用に合います。賞状は順位が決まった種目だけ出ます。</div>' +
-    state.events.map(function(ev){
-      return '<div class="rankrow"><span><strong>' + esc(ev.name) + '</strong></span><span class="updown">' +
-        '<button style="width:auto;padding:0 12px;font-size:13px" onclick="printSheets(\'' + ev.id + '\',\'ready\')">審判用紙（確定分）</button>' +
-        '<button style="width:auto;padding:0 12px;font-size:13px" onclick="printSheets(\'' + ev.id + '\',\'all\')">審判用紙（全試合）</button>' +
-        '<button style="width:auto;padding:0 12px;font-size:13px" onclick="printAwards(\'' + ev.id + '\')">賞状</button></span></div>';
-    }).join("") +
-    '<div class="row" style="margin-top:10px"><button class="btn ghost small" onclick="exportCsvResults()">CSV: 全結果</button>' +
-    '<button class="btn ghost small" onclick="exportCsvStandings()">CSV: 成績（順位）</button></div></div>';
+    '<div style="margin-top:12px"><button class="btn" onclick="saveMeta()">保存</button></div>');
   var CL = (typeof certLayout === "function") ? certLayout() : null;
   var CST = (typeof certKind === "function") ? certKind() : "v";
   var CH = (typeof certH === "function") ? certH() : { title: "賞状", suffix: "殿", issuerTitle: "", fTitle: "boku", fBody: "syuku", dateBlank: false, showAff: false, sealOn: true, sealX: 166, sealY: 228, sealS: 24 };
@@ -6776,7 +6791,7 @@ function vConfig(){
       return '<option value="' + o[0] + '"' + (sel === o[0] ? " selected" : "") + '>' + o[1] + '</option>';
     }).join("");
   }
-  if (CL) h += '<div class="card certset"><h3 style="margin-top:0">賞状</h3><div class="sub">賞状の書式です。賞状を印刷する大会だけ設定します。</div>' +
+  if (CL) h += cfgSection("cert", "賞状", '<div class="sub">賞状の書式です。賞状を印刷する大会だけ設定します。</div>' +
     '<div class="grid2"><div><label class="f">主催者名（任意）</label><input type="text" id="cf-org" value="' + esc(state.meta.organizer || "") + '"></div>' +
     '<div><label class="f">代表者名（任意）</label><input type="text" id="cf-rep" value="' + esc(state.meta.representative || "") + '"></div></div>' +
     '<label class="f">書式</label>' +
@@ -6801,10 +6816,39 @@ function vConfig(){
     ) +
     '<div class="row" style="margin-top:10px"><button class="btn" onclick="saveCertSettings(true)">賞状設定を保存</button>' +
     '<button class="btn ghost" onclick="saveCertSettings(false);printCertSample()">サンプルで位置合わせ</button></div>' +
-    '<div class="mini" style="margin-top:6px">サンプルには位置合わせ用ガイド（枠・中心線・項目の範囲）が付きます。本番の賞状にはガイドは印刷されません。</div></div>';
+    '<div class="mini" style="margin-top:6px">サンプルには位置合わせ用ガイド（枠・中心線・項目の範囲）が付きます。本番の賞状にはガイドは印刷されません。</div>', "certset");
+  h += cfgSection("ops", "当日の運営", '<div class="sub">タイムテーブルと進行の計算に使います。当日の状況で変えることがあります。</div>' +
+    '<div class="grid3"><div><label class="f">コート数</label><input type="number" id="cf-courts" min="1" max="30" value="' + (state.meta.courts||4) + '"></div>' +
+    '<div><label class="f">開始時刻</label><input type="time" id="cf-start" value="' + esc(state.meta.start||"09:30") + '"></div>' +
+    '<div><label class="f">1試合の目安（分）</label><input type="number" id="cf-interval" min="5" max="60" value="' + (state.meta.interval||12) + '"></div></div>' +
+    '<div class="mini">複数日の大会では、日ごとに開始時刻から計算し直します。</div>' +
+    '<div style="margin-top:12px"><button class="btn" onclick="saveMeta()">保存</button></div>');
+  h += cfgSection("share", "共有リンク", '<div class="sub">他の端末や観戦者に渡すリンクです。このリンクを開いた端末同士で、結果と設定が同期されます（全員が編集できます）。</div>' +
+    '<div class="row" style="margin-top:8px"><input type="text" readonly value="' + esc(link) + '" id="shareLink" style="flex:1"><button class="btn ghost" onclick="copyLink()">コピー</button></div>' +
+    '<div class="sub" style="margin-top:10px">👀 観戦用リンク（観戦専用ページにつながります。このページからは結果を送れない作りです。保護者や観客への配布はこちら）</div>' +
+    '<div class="row" style="margin-top:6px"><input type="text" readonly value="' + esc(viewerPageUrl()) + '" id="watchLink" style="flex:1"><button class="btn ghost" onclick="copyWatchLink()">コピー</button></div>' +
+    '<div class="sub" style="margin-top:6px">接続状態は画面上のバッジで確認できます。「共有中」にならない端末では、その端末だけで入力してください。</div>' +
+    '<details style="margin-top:10px;border-top:1px solid var(--line);padding-top:8px"><summary class="mini" style="cursor:pointer">接続診断・同期テスト</summary>' +
+    '<div class="mini" style="margin-top:8px">' +
+    '接続診断: ' + (sync.connected ? '接続先 ' + esc(syncDiag.broker.replace("wss://", "")) + '（' + new Date(syncDiag.connectedAt).toTimeString().slice(0,5) + '〜）' : '未接続') +
+    (syncDiag.lastMsgAt ? ' / 最終受信 ' + new Date(syncDiag.lastMsgAt).toTimeString().slice(0,8) : '') +
+    (syncDiag.pingOkAt ? ' / テスト送信OK ' + new Date(syncDiag.pingOkAt).toTimeString().slice(0,8) : '') +
+    (syncDiag.attempts.length ? '<br>接続できなかった中継: ' + syncDiag.attempts.map(function(a){ return esc(a.url.replace("wss://", "").split("/")[0]); }).join(", ") : '') +
+    '</div><div style="margin-top:6px"><button class="btn ghost small" onclick="syncPing()">同期テスト送信</button> <span class="mini">押して数秒後に「テスト送信OK」と出れば、この端末から中継へ往復できています。もう1台で同じリンクを開き、片方で結果を1つ入れてもう片方が変われば、別端末間の同期は実証完了です。</span></div></details>');
+  h += cfgSection("server", "サーバー接続（新方式）", srvCardHTML());
+  h += cfgSection("print", "印刷・出力", '' +
+    '<div class="sub">当日に使う印刷と書き出しです。審判用紙は、対戦が確定した試合だけを出すのが当日の運用に合います。賞状は順位が決まった種目だけ出ます。</div>' +
+    state.events.map(function(ev){
+      return '<div class="rankrow"><span><strong>' + esc(ev.name) + '</strong></span><span class="updown">' +
+        '<button style="width:auto;padding:0 12px;font-size:13px" onclick="printSheets(\'' + ev.id + '\',\'ready\')">審判用紙（確定分）</button>' +
+        '<button style="width:auto;padding:0 12px;font-size:13px" onclick="printSheets(\'' + ev.id + '\',\'all\')">審判用紙（全試合）</button>' +
+        '<button style="width:auto;padding:0 12px;font-size:13px" onclick="printAwards(\'' + ev.id + '\')">賞状</button></span></div>';
+    }).join("") +
+    '<div class="row" style="margin-top:10px"><button class="btn ghost small" onclick="exportCsvResults()">CSV: 全結果</button>' +
+    '<button class="btn ghost small" onclick="exportCsvStandings()">CSV: 成績（順位）</button></div>');
   var snaps = listSnapshots();
   var trash = (state.trash || []).filter(function(t){ return Date.now() - t.ts < 30 * 864e5; });
-  h += '<div class="card"><h3 style="margin-top:0">データとバックアップ</h3><div class="sub">困ったときの復旧と、次の大会の準備に使います。</div>' +
+  h += cfgSection("data", "データとバックアップ", '<div class="sub">困ったときの復旧と、次の大会の準備に使います。</div>' +
     '<h4 style="margin:4px 0 6px">自動バックアップ（この端末内）</h4>' +
     '<div class="sub">大きな操作の前と、結果が20件増えるごとに自動で保存します（最新8件）。消してしまったときはここから戻せます。</div>' +
     '<div style="margin:8px 0"><button class="btn ghost small" onclick="pushSnapshot(\'手動バックアップ\');render()">今すぐバックアップ</button></div>' +
@@ -6823,7 +6867,7 @@ function vConfig(){
         var d = new Date(t.ts);
         return '<div class="rankrow"><span>' + esc(t.event.name) + '</span><span class="mini">' + d.toLocaleDateString() + " " + d.toTimeString().slice(0,5) + ' に削除</span><span class="updown"><button style="width:auto;padding:0 12px;font-size:13px" onclick="restoreEvent(' + i + ')">復元</button></span></div>';
       }).join("") : "") +
-    '<div style="margin-top:16px;border-top:1px solid var(--line);padding-top:12px"><button class="btn danger" onclick="resetAll()">大会データを全て消す</button></div></div>';
+    '<div style="margin-top:16px;border-top:1px solid var(--line);padding-top:12px"><button class="btn danger" onclick="resetAll()">大会データを全て消す</button></div>');
   return h;
 }
 function restoreEvent(i){
