@@ -1061,6 +1061,7 @@ try{ __step("core"); }catch(e){}
 // ===== state =====
 var LS_KEY = "tmgr-v1";
 var state = loadState();
+initLibrary();
 try{ __step("state"); }catch(e){}
 var view = "home";
 // Once the day is running (a result is in, or a match is on court),
@@ -1111,7 +1112,154 @@ function saveState(){
     }
   }catch(e5){}
 }
-function touchConfig(){ state.configTs = Date.now(); sync.lastEdit = Date.now(); invalidateCaches(); saveState(); publishState(); }
+function touchConfig(){ state.configTs = Date.now(); sync.lastEdit = Date.now(); invalidateCaches(); saveState(); publishState(); libStoreCurrent(); }
+// ===== tournament library: several tournaments side by side =====
+// The ACTIVE tournament keeps living in LS_KEY exactly as before;
+// every tournament also has a slot (LS_KEY + ":t:" + tid) and the
+// index (LS_KEY + ":lib") lists them all. Each tournament owns its
+// sync room (state.room), so tournaments on consecutive days can be
+// prepared in parallel and never mix — and opening another
+// tournament's link binds a separate entry instead of overwriting
+// this one (2026-11-15: a browser holding the Kurashiki data
+// published it into the exchange event's room and replaced it).
+function libIndexKey(){ return LS_KEY + ":lib"; }
+function libSlotKey(tid){ return LS_KEY + ":t:" + tid; }
+function libReadIndex(){
+  try{ var ix = JSON.parse(localStorage.getItem(libIndexKey())); if (ix && ix.list) return ix; }catch(e){}
+  return { active: "", list: [] };
+}
+function libWriteIndex(ix){ try{ localStorage.setItem(libIndexKey(), JSON.stringify(ix)); }catch(e){} }
+function libEntryFor(st){
+  return { id: st.tid, name: (st.meta && st.meta.name) || "", date: (st.meta && st.meta.date) || "", room: st.room || "",
+           evCount: (st.events || []).length,
+           resCount: Object.keys(st.results || {}).filter(function(k){ return st.results[k] && st.results[k].winner; }).length,
+           updated: Date.now() };
+}
+function libStoreCurrent(){
+  if (!state || !state.tid) return;
+  try{ localStorage.setItem(libSlotKey(state.tid), JSON.stringify(state)); }catch(e){}
+  var ix = libReadIndex();
+  var ent = libEntryFor(state);
+  var found = false;
+  ix.list = ix.list.map(function(e){ if (e.id === state.tid){ found = true; return ent; } return e; });
+  if (!found) ix.list.unshift(ent);
+  ix.active = state.tid;
+  libWriteIndex(ix);
+}
+function libLoad(tid){
+  try{ var s = JSON.parse(localStorage.getItem(libSlotKey(tid))); if (s && s.meta && s.events) return normalizeState(s); }catch(e){}
+  return null;
+}
+function initLibrary(){
+  var m = (location.hash || "").match(/r=([a-z0-9]+)/i);
+  var wantRoom = m ? m[1] : "";
+  if (!state.tid){
+    state.tid = uid("t");
+    state.room = wantRoom || randStr(10);
+  }
+  if (!state.room) state.room = wantRoom || randStr(10);
+  if (wantRoom && wantRoom !== state.room){
+    var ix = libReadIndex();
+    var target = null;
+    ix.list.forEach(function(e){ if (e.room === wantRoom) target = e; });
+    libStoreCurrent();
+    if (target){
+      var s = libLoad(target.id);
+      state = s || defaultState();
+      state.tid = target.id;
+      state.room = wantRoom;
+    } else {
+      state = defaultState();
+      state.tid = uid("t");
+      state.room = wantRoom;
+    }
+    saveState();
+  }
+  libStoreCurrent();
+}
+function rebindRoom(){
+  var oldRoom = sync.room;
+  if (typeof _pubTimer !== "undefined" && _pubTimer){ clearTimeout(_pubTimer); _pubTimer = null; }
+  _lastChunkN = 0;
+  sync.room = (state && state.room) || oldRoom;
+  try{ history.replaceState(null, "", location.pathname + location.search + "#r=" + sync.room + (VIEWER ? "&v=1" : "")); }catch(e){}
+  try{ if (sync.bc) sync.bc.close(); }catch(e){}
+  try{ sync.bc = new BroadcastChannel("tmgr-" + sync.room); sync.bc.onmessage = function(e){ dispatchSync(e.data, true); }; }catch(e){ sync.bc = null; }
+  if (sync.client && sync.connected && oldRoom && oldRoom !== sync.room){
+    try{ sync.client.unsubscribe([TOPIC_PREFIX + oldRoom, TOPIC_PREFIX + oldRoom + "/c/+"]); }catch(e){}
+    try{ sync.client.subscribe([TOPIC_PREFIX + sync.room, TOPIC_PREFIX + sync.room + "/c/+"], {qos: 1}); }catch(e){}
+  }
+  if (sync.connected) publishState();
+}
+function landingView(){
+  try {
+    if (state.events.length && (Object.keys(state.live || {}).length > 0 ||
+      Object.keys(state.results || {}).some(function(k){ return state.results[k] && state.results[k].winner; }))) return "live";
+  } catch (e) {}
+  return "home";
+}
+function switchTournament(tid){
+  if (!tid || tid === state.tid){ go("library"); return; }
+  libStoreCurrent();
+  var s = libLoad(tid);
+  if (!s){ alert("その大会のデータがこの端末に見つかりませんでした"); return; }
+  state = s;
+  var ix = libReadIndex(); ix.active = tid; libWriteIndex(ix);
+  invalidateCaches();
+  saveState();
+  rebindRoom();
+  go(landingView());
+}
+function createTournament(){
+  libStoreCurrent();
+  state = defaultState();
+  state.tid = uid("t");
+  state.room = randStr(10);
+  var ix = libReadIndex(); ix.active = state.tid; libWriteIndex(ix);
+  invalidateCaches();
+  saveState();
+  libStoreCurrent();
+  rebindRoom();
+  go("home");
+}
+function libDuplicateTournament(tid){
+  var s = (tid === state.tid) ? JSON.parse(JSON.stringify(state)) : libLoad(tid);
+  if (!s) return;
+  s = normalizeState(s);
+  s.tid = uid("t");
+  s.room = randStr(10);
+  s.meta = s.meta || {};
+  s.meta.name = (s.meta.name || "大会") + "（コピー）";
+  try{ localStorage.setItem(libSlotKey(s.tid), JSON.stringify(s)); }catch(e){}
+  var ix = libReadIndex();
+  ix.list.unshift(libEntryFor(s));
+  libWriteIndex(ix);
+  render();
+}
+function deleteTournament(tid){
+  var ix = libReadIndex();
+  var ent = null;
+  ix.list.forEach(function(e){ if (e.id === tid) ent = e; });
+  if (!ent) return;
+  if (!confirm("大会「" + (ent.name || "（名称未設定）") + "」をこの端末から削除しますか？\n（共有先に残っているデータは消えません。この端末の保持分だけが消えます）")) return;
+  if (tid === state.tid){
+    var others = ix.list.filter(function(e){ return e.id !== tid; });
+    if (!others.length){ alert("最後の1つは削除できません。先に別の大会を作成してください"); return; }
+    others.sort(function(a, b){ return (b.updated || 0) - (a.updated || 0); });
+    var s = libLoad(others[0].id);
+    if (!s){ alert("切り替え先のデータが見つかりませんでした"); return; }
+    state = s;
+    invalidateCaches();
+    saveState();
+    var ix2 = libReadIndex(); ix2.active = state.tid; libWriteIndex(ix2);
+    rebindRoom();
+  }
+  try{ localStorage.removeItem(libSlotKey(tid)); }catch(e){}
+  var ix3 = libReadIndex();
+  ix3.list = ix3.list.filter(function(e){ return e.id !== tid; });
+  libWriteIndex(ix3);
+  render();
+}
 // Viewer mode: opened with a watch-only link (#r=room&v=1). Editing is disabled.
 var VIEWER = /[&#]v=1(&|$)/.test(location.hash || "");
 function canEdit(){ return !VIEWER; }
@@ -2156,9 +2304,29 @@ var TOPIC_PREFIX = "tmgr-v1/";
 function randStr(n){ var c="abcdefghjkmnpqrstuvwxyz23456789", s=""; for (var i=0;i<n;i++) s += c[Math.floor(Math.random()*c.length)]; return s; }
 function initSync(){
   var m = location.hash.match(/r=([a-z0-9]+)/i);
-  sync.room = m ? m[1] : randStr(10);
-  if (!m) history.replaceState(null, "", location.pathname + location.search + "#r=" + sync.room);
+  sync.room = (state && state.room) || (m ? m[1] : randStr(10));
+  if (!m) history.replaceState(null, "", location.pathname + location.search + "#r=" + sync.room + (VIEWER ? "&v=1" : ""));
   try{ sync.bc = new BroadcastChannel("tmgr-" + sync.room); sync.bc.onmessage = function(e){ dispatchSync(e.data, true); }; }catch(e){}
+  if (window.addEventListener) window.addEventListener("hashchange", function(){
+    var hm = (location.hash || "").match(/r=([a-z0-9]+)/i);
+    if (!hm || hm[1] === sync.room) return;
+    var want = hm[1];
+    var ix = libReadIndex();
+    var target = null;
+    ix.list.forEach(function(e){ if (e.room === want) target = e; });
+    if (target && target.id !== state.tid){ switchTournament(target.id); return; }
+    if (!target){
+      libStoreCurrent();
+      state = defaultState();
+      state.tid = uid("t");
+      state.room = want;
+      invalidateCaches();
+      saveState();
+      libStoreCurrent();
+      rebindRoom();
+      go(landingView());
+    }
+  });
   connectBroker(0);
 }
 function setConn(cls, text){
@@ -2330,7 +2498,7 @@ var NAV = [
 ];
 var uiOpenScore = {};
 function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
-function go(v){ if (VIEWER && (v === "entry" || v === "config" || v === "lgwiz" || v.indexOf("upset") === 0)) v = "home"; view = v; render(); window.scrollTo(0,0); }
+function go(v){ if (VIEWER && (v === "entry" || v === "config" || v === "lgwiz" || v === "library" || v.indexOf("upset") === 0)) v = "home"; view = v; render(); window.scrollTo(0,0); }
 function renderNav(){
   var html = NAV.map(function(n){ return '<button class="navbtn' + (view===n.id?" active":"") + '" onclick="go(\'' + n.id + '\')"><span class="ico">' + n.ico + '</span>' + n.label + '</button>'; }).join("");
   document.getElementById("sideNav").innerHTML = html + '<div style="padding:12px 10px 0"><span class="conn" id="connSide">…</span></div>';
@@ -3637,6 +3805,7 @@ function render(){
   else if (view === "upsetPlay") el.innerHTML = banner + vUpsetPlay();
   else if (view === "upsetView") el.innerHTML = banner + vUpsetView();
   else if (view === "lgwiz") el.innerHTML = banner + vLgWiz();
+  else if (view === "library") el.innerHTML = banner + vLibrary();
   if (view !== _lastView){
     _lastView = view;
     el.classList.remove("enter"); void el.offsetWidth; el.classList.add("enter");
@@ -3731,6 +3900,25 @@ function homeOpsHTML(next){
   h += '<div style="margin-top:10px"><button class="btn ghost small" onclick="go(\'time\')">' + (VIEWER ? "選手を探す →" : "選手を探す・欠場の処理 →") + '</button></div>';
   return h + "</div>";
 }
+function vLibrary(){
+  libStoreCurrent();
+  var ix = libReadIndex();
+  var list = ix.list.slice().sort(function(a, b){ return (b.updated || 0) - (a.updated || 0); });
+  var h = "<h1>大会一覧</h1><div class='sub'>この端末に保持している大会です。連日の大会も、ここで切り替えて並行に準備できます。大会ごとに共有ルームが分かれているので、別の大会のリンクを開いてもデータが混ざることはありません。</div>";
+  h += '<div style="margin:12px 0"><button class="btn" onclick="createTournament()">＋ 新しい大会を作成</button></div>';
+  if (!list.length) h += '<div class="empty">大会がありません</div>';
+  h += list.map(function(e){
+    var active = e.id === state.tid;
+    return '<div class="card" style="' + (active ? 'border:2px solid var(--cy)' : '') + '"><div class="row spread"><strong>' + esc(e.name || "（名称未設定）") + '</strong>' + (active ? '<span class="chip">いま開いている大会</span>' : '') + '</div>' +
+      '<div class="mini" style="margin-top:4px">' + esc(e.date || "日付未設定") + ' ・ 種目 ' + (e.evCount || 0) + ' ・ 結果 ' + (e.resCount || 0) + ' 件</div>' +
+      '<div class="row" style="margin-top:10px;gap:8px">' +
+      (active ? '' : '<button class="btn small" onclick="switchTournament(\'' + e.id + '\')">開く</button>') +
+      '<button class="btn ghost small" onclick="libDuplicateTournament(\'' + e.id + '\')">複製</button>' +
+      '<button class="btn ghost small" style="color:var(--bad)" onclick="deleteTournament(\'' + e.id + '\')">削除</button>' +
+      '</div></div>';
+  }).join("");
+  return h;
+}
 function vHome(){
   var totalP = state.events.reduce(function(a,e){ return a + e.participants.length; }, 0);
   var allM = state.events.reduce(function(a,e){ return a + allMatches(e).length; }, 0);
@@ -3748,6 +3936,7 @@ function vHome(){
   var h = '<div class="hero-band"><div class="hero-en">TACTICAL OPERATION SYSTEM</div><h1>' + esc(state.meta.name || "大会運営 Web") + "</h1>" +
     '<div class="sub">' + esc([(isMultiDay() ? metaDates().filter(Boolean).join(" ・ ") : state.meta.date), state.meta.venue].filter(Boolean).join(" ・ ") || "設定タブで大会名・日付・会場を入れられます") + "</div></div>";
   if (!VIEWER) h += '<div class="row" style="gap:10px;margin-bottom:14px"><div style="flex:1;text-align:center;padding:13px 6px;border:2px solid var(--ink);background:var(--ink);color:#fff;font-weight:800;min-height:52px;display:flex;align-items:center;justify-content:center">大会運営</div><button class="btn" style="flex:1;min-height:52px" onclick="go(\'upset\')">下克上練習会 →</button></div>';
+  if (!VIEWER) h += '<div class="row" style="margin-bottom:14px"><span class="mini" style="align-self:center">複数の大会を並行して準備・切り替えできます</span><button class="btn ghost small" onclick="go(\'library\')">大会一覧</button></div>';
   var gd = guideInfo();
   var guideHTML = '<div class="guide"><div class="guide-steps">' + gd.steps.map(function(s, i){
       return '<span class="gstep' + (i < gd.cur ? " done" : (i === gd.cur ? " cur" : "")) + '"><span class="gnum">' + (i < gd.cur ? "✓" : "0" + (i + 1)) + '</span>' + s + '</span>';
@@ -6036,7 +6225,10 @@ function restoreSnapshot(i){
   var snaps = listSnapshots(); var sn = snaps[i]; if (!sn) return;
   if (!confirm("この時点の状態に戻しますか？\n（いまの状態は自動バックアップに保存されます）")) return;
   pushSnapshot("復元の前");
+  var keepTid = state.tid, keepRoom = state.room;
   try{ state = JSON.parse(sn.data); }catch(e){ alert("復元できませんでした"); return; }
+  if (keepTid) state.tid = keepTid;
+  if (keepRoom) state.room = keepRoom;
   state.configTs = Date.now(); invalidateCaches(); saveState(); publishState(); go("home");
 }
 function copyLink(){ var i = document.getElementById("shareLink"); i.select(); if (navigator.clipboard) navigator.clipboard.writeText(i.value); else document.execCommand("copy"); }
@@ -6048,10 +6240,10 @@ function exportJson(){
 function importJson(inp){
   var f = inp.files[0]; if (!f) return;
   var rd = new FileReader();
-  rd.onload = function(){ try{ var s = JSON.parse(rd.result); if (s.meta && s.events){ pushSnapshot("読み込みの前"); state = s; invalidateCaches(); touchConfig(); render(); alert("読み込みました"); } }catch(e){ alert("読み込めませんでした"); } };
+  rd.onload = function(){ try{ var s = JSON.parse(rd.result); if (s.meta && s.events){ pushSnapshot("読み込みの前"); var kTid = state.tid, kRoom = state.room; state = s; if (kTid) state.tid = kTid; if (kRoom) state.room = kRoom; invalidateCaches(); touchConfig(); render(); alert("読み込みました"); } }catch(e){ alert("読み込めませんでした"); } };
   rd.readAsText(f);
 }
-function resetAll(){ if (!confirm("大会・参加者・結果を全て消します。元に戻せません。")) return; pushSnapshot("全消去の前"); state = defaultState(); invalidateCaches(); touchConfig(); go("home"); }
+function resetAll(){ if (!confirm("大会・参加者・結果を全て消します。元に戻せません。")) return; pushSnapshot("全消去の前"); var kTid2 = state.tid, kRoom2 = state.room; state = defaultState(); if (kTid2) state.tid = kTid2; if (kRoom2) state.room = kRoom2; invalidateCaches(); touchConfig(); go("home"); }
 // ===== printing: referee score sheets =====
 function schedMap(){
   var map = {}; buildSchedule().forEach(function(x){ map[x.match.id] = x; }); return map;
