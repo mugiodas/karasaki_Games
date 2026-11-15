@@ -4593,11 +4593,11 @@ function eventEntryCard(ev){
   var blocks = leagueBlocks(ev);
   var h = '<div class="card"><div class="row spread"><strong>' + esc(ev.name) + '</strong>' +
     '<span class="sub">' + formatLabel(ev) + " ・ " + ev.participants.length + ' エントリー</span></div>';
-  h += '<label class="f">参加者を一括追加（1行に1件: 名前,所属 / ダブルスは1行=1ペア）</label>' +
-    '<textarea id="paste-' + ev.id + '" placeholder="山田 太郎,唐崎Jr,やまだ たろう&#10;佐藤 花・鈴木 葉,草津Jr"></textarea>' +
-    '<div class="mini">1行に1エントリー。「名前,所属,ふりがな」の順で、ふりがなは任意です（公式スコアシート・審判モード・賞状に出ます）。ダブルスはふりがなも「・」でつなげてください。</div>' +
+  h += '<label class="f">参加者を一括追加（1行に1件: 名前,所属,ふりがな,学年,性別 / ダブルスは1行=1ペア）</label>' +
+    '<textarea id="paste-' + ev.id + '" placeholder="山田 太郎,唐崎Jr,やまだ たろう,3,男&#10;佐藤 花・鈴木 葉,草津Jr,さとう はな・すずき よう,3・4,女・女"></textarea>' +
+    '<div class="mini">1行に1エントリー。「名前,所属,ふりがな,学年,性別」の順で、ふりがな・学年・性別は任意です（ふりがなは公式スコアシート・審判モード・賞状に、学年はリーグ表の丸数字に、性別は男女の色分けに出ます）。ダブルスはふりがな・学年・性別も「・」で2人分つなげてください。</div>' +
     '<div class="row" style="margin-top:8px"><button class="btn small" onclick="pasteAdd(\'' + ev.id + '\')">追加する</button>' +
-    '<input type="text" id="one-name-' + ev.id + '" placeholder="名前" style="flex:2;min-width:140px"><input type="text" id="one-aff-' + ev.id + '" placeholder="所属" style="flex:1;min-width:100px"><input type="text" id="one-kana-' + ev.id + '" placeholder="ふりがな（任意）" style="flex:1;min-width:100px">' +
+    '<input type="text" id="one-name-' + ev.id + '" placeholder="名前" style="flex:2;min-width:140px"><input type="text" id="one-aff-' + ev.id + '" placeholder="所属" style="flex:1;min-width:100px"><input type="text" id="one-kana-' + ev.id + '" placeholder="ふりがな（任意）" style="flex:1;min-width:100px"><input type="text" id="one-grade-' + ev.id + '" placeholder="学年（例：3・4）" style="flex:1;min-width:90px"><input type="text" id="one-gender-' + ev.id + '" placeholder="性別（例：男・女）" style="flex:1;min-width:90px">' +
     '<button class="btn ghost small" onclick="oneAdd(\'' + ev.id + '\')">1件追加</button></div>';
   if (ev.format !== "team"){
     h += '<div class="row" style="margin-top:8px"><button class="btn ghost small" onclick="exportTeamSheet(\'' + ev.id + '\')">チーム配布用Excelを出力</button>' +
@@ -4608,9 +4608,9 @@ function eventEntryCard(ev){
     h += '<table class="ptable" style="margin-top:10px"><tr><th style="width:34px">#</th><th>名前</th><th>所属</th><th style="width:64px">シード</th><th style="width:110px">操作</th></tr>';
     ev.participants.forEach(function(p, i){
       var rec = playerRecord(ev, p.id);
-      h += "<tr><td>" + (i+1) + "</td><td><strong>" + nameLinesHTML(p.name) + "</strong>" + (p.kana ? '<span class="mini" style="display:block">' + esc(p.kana) + '</span>' : "") + (p.retired ? ' <span class="chip red">棄権</span>' : "") + "</td><td>" + esc(p.aff||"") + ((rec.w + rec.l) ? '<span class="mini" style="display:block;font-weight:700;color:var(--ink)">' + rec.w + "勝 " + rec.l + "敗</span>" : "") + "</td>" +
+      h += "<tr><td>" + (i+1) + "</td><td><strong>" + nameLinesHTML(p.name) + "</strong>" + (p.kana ? '<span class="mini" style="display:block">' + esc(p.kana) + '</span>' : "") + (gradeGenderLabel(p) ? '<span class="mini" style="display:block">' + esc(gradeGenderLabel(p)) + '</span>' : "") + (p.retired ? ' <span class="chip red">棄権</span>' : "") + "</td><td>" + esc(p.aff||"") + ((rec.w + rec.l) ? '<span class="mini" style="display:block;font-weight:700;color:var(--ink)">' + rec.w + "勝 " + rec.l + "敗</span>" : "") + "</td>" +
         '<td><button class="linkbtn" onclick="toggleSeed(\'' + ev.id + "','" + p.id + '\')">' + (p.seed ? "⭐" : "☆") + "</button></td>" +
-        '<td class="ops" style="white-space:nowrap"><button class="linkbtn" onclick="movePart(\'' + ev.id + "','" + p.id + ',-1)">↑</button><button class="linkbtn" onclick="movePart(\'' + ev.id + "','" + p.id + ',1)">↓</button><button class="linkbtn" onclick="renamePart(\'' + ev.id + "','" + p.id + '\')">名前</button>' + (ev.format === "team" ? '<button class="linkbtn" onclick="toggleRoster(\'' + ev.id + "','" + p.id + '\')">メンバー</button>' : "") + '<button class="linkbtn" onclick="toggleRetire(\'' + ev.id + "','" + p.id + '\')">' + (p.retired ? "棄権を戻す" : "棄権") + '</button><button class="linkbtn" style="color:var(--bad)" onclick="delPart(\'' + ev.id + "','" + p.id + '\')">削除</button></td></tr>' +
+        '<td class="ops" style="white-space:nowrap"><button class="linkbtn" onclick="movePart(\'' + ev.id + "','" + p.id + ',-1)">↑</button><button class="linkbtn" onclick="movePart(\'' + ev.id + "','" + p.id + ',1)">↓</button><button class="linkbtn" onclick="renamePart(\'' + ev.id + "','" + p.id + '\')">名前</button><button class="linkbtn" onclick="editGradeGender(\'' + ev.id + '\',"' + p.id + '\')">学年・性別</button>' + (ev.format === "team" ? '<button class="linkbtn" onclick="toggleRoster(\'' + ev.id + "','" + p.id + '\')">メンバー</button>' : "") + '<button class="linkbtn" onclick="toggleRetire(\'' + ev.id + "','" + p.id + '\')">' + (p.retired ? "棄権を戻す" : "棄権") + '</button><button class="linkbtn" style="color:var(--bad)" onclick="delPart(\'' + ev.id + "','" + p.id + '\')">削除</button></td></tr>' +
         (ev.format === "team" && uiRoster[ev.id] === p.id ? '<tr><td></td><td colspan="4"><textarea id="roster-' + ev.id + '" placeholder="メンバーを1行に1人で入力">' + esc((p.members || []).join("\n")) + '</textarea><div style="margin-top:6px"><button class="btn small" onclick="saveRoster(\'' + ev.id + "','" + p.id + '\')">メンバーを保存</button></div></td></tr>' : "");
     });
     h += "</table>";
@@ -4720,10 +4720,45 @@ function guardPartChange(ev){
   resetEventData(ev);
   return true;
 }
+function normGradeVal(v){
+  v = String(v == null ? "" : v).replace(/[０-９]/g, function(c){ return String.fromCharCode(c.charCodeAt(0) - 0xFEE0); });
+  var m = v.match(/\d{1,2}/);
+  return m ? String(+m[0]) : "";
+}
+function normGenderVal(v){
+  v = String(v == null ? "" : v);
+  if (v.indexOf("男") >= 0) return "男";
+  if (v.indexOf("女") >= 0) return "女";
+  return "";
+}
+// Grade/gender registration (2026-11-15): text is per player joined
+// with ・, stored in the league-wizard data model — a shared value
+// goes to p.grade / p.gender, differing pair values to p.gradeSeg /
+// p.genderSeg (with p.gender "混合"). Empty text leaves p untouched;
+// callers that edit clear the fields first.
+function applyGradeGender(p, gradeText, genderText){
+  function splitSeg(t){ return String(t == null ? "" : t).split("・").map(function(x){ return x.trim(); }); }
+  var gs = splitSeg(gradeText).map(normGradeVal);
+  if (gs.length > 1 && gs[0] && gs[1] && gs[0] !== gs[1]){ p.gradeSeg = [gs[0], gs[1]]; delete p.grade; }
+  else if (gs[0]){ p.grade = gs[0]; delete p.gradeSeg; }
+  var ds = splitSeg(genderText).map(normGenderVal);
+  if (ds.length > 1 && ds[0] && ds[1] && ds[0] !== ds[1]){ p.genderSeg = [ds[0], ds[1]]; p.gender = "混合"; }
+  else if (ds[0]){ p.gender = ds[0]; delete p.genderSeg; }
+}
+function gradeGenderLabel(p){
+  var g = p.gradeSeg ? p.gradeSeg.join("・") : (p.grade || "");
+  var d = p.genderSeg ? p.genderSeg.join("・") : (p.gender || "");
+  var parts = [];
+  if (g) parts.push(g + "年");
+  if (d) parts.push(d === "混合" ? "男女混合" : d);
+  return parts.join(" ・ ");
+}
 function addParts(ev, lines){
   lines.forEach(function(ln){
     var parts = ln.split(/[,，\t]/); var name = (parts[0]||"").trim(); if (!name) return;
-    ev.participants.push({id: uid("p"), name: name, aff: (parts[1]||"").trim(), kana: (parts[2]||"").trim(), seed: false});
+    var np = {id: uid("p"), name: name, aff: (parts[1]||"").trim(), kana: (parts[2]||"").trim(), seed: false};
+    applyGradeGender(np, parts[3] || "", parts[4] || "");
+    ev.participants.push(np);
   });
 }
 function pasteAdd(id){
@@ -4736,7 +4771,10 @@ function oneAdd(id){
   if (!guardPartChange(ev)) return;
   var n = document.getElementById("one-name-" + id).value.trim(); if (!n) return;
   var kn = document.getElementById("one-kana-" + id);
-  ev.participants.push({id: uid("p"), name: n, aff: document.getElementById("one-aff-" + id).value.trim(), kana: kn ? kn.value.trim() : "", seed:false});
+  var np2 = {id: uid("p"), name: n, aff: document.getElementById("one-aff-" + id).value.trim(), kana: kn ? kn.value.trim() : "", seed:false};
+  var og = document.getElementById("one-grade-" + id), od = document.getElementById("one-gender-" + id);
+  applyGradeGender(np2, og ? og.value : "", od ? od.value : "");
+  ev.participants.push(np2);
   touchConfig(); render();
 }
 // ===== Excel (xlsx) participant import / export =====
@@ -4831,21 +4869,23 @@ function teamSheetXML(team){
   }
   var s = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">';
   s += '<sheetViews><sheetView workbookViewId="0"><pane ySplit="3" topLeftCell="A4" activePane="bottomLeft" state="frozen"/><selection pane="bottomLeft" activeCell="B1" sqref="B1"/></sheetView></sheetViews>';
-  s += '<cols><col min="1" max="1" width="26" customWidth="1"/><col min="2" max="2" width="26" customWidth="1"/><col min="3" max="3" width="22" customWidth="1"/><col min="4" max="4" width="52" customWidth="1"/></cols>';
+  s += '<cols><col min="1" max="1" width="26" customWidth="1"/><col min="2" max="2" width="26" customWidth="1"/><col min="3" max="3" width="22" customWidth="1"/><col min="4" max="4" width="10" customWidth="1"/><col min="5" max="5" width="12" customWidth="1"/><col min="6" max="6" width="52" customWidth="1"/></cols>';
   s += "<sheetData>";
-  s += '<row r="1">' + txt("A1", "チーム名（所属）", 1) + txt("B1", team, 5) + txt("D1", "← まずここにチーム名を入力してください。全員の「所属」に自動で入ります。", 0) + "</row>";
+  s += '<row r="1">' + txt("A1", "チーム名（所属）", 1) + txt("B1", team, 5) + txt("F1", "← まずここにチーム名を入力してください。全員の「所属」に自動で入ります。", 0) + "</row>";
   s += '<row r="2">' + txt("A2", "下の表に選手を1行に1名ずつ入力してください。黄色いセルだけが入力できます。", 0) + "</row>";
-  s += '<row r="3">' + txt("A3", "名前", 1) + txt("B3", "ふりがな", 1) + txt("C3", "所属", 1) + "</row>";
-  s += '<row r="4">' + txt("A4", "（例）山田 太郎", 2) + txt("B4", "やまだ たろう", 2) + txt("C4", team || "（例）唐崎ジュニア", 2) + "</row>";
+  s += '<row r="3">' + txt("A3", "名前", 1) + txt("B3", "ふりがな", 1) + txt("C3", "所属", 1) + txt("D3", "学年", 1) + txt("E3", "性別", 1) + "</row>";
+  s += '<row r="4">' + txt("A4", "（例）山田 太郎", 2) + txt("B4", "やまだ たろう", 2) + txt("C4", team || "（例）唐崎ジュニア", 2) + txt("D4", "3", 2) + txt("E4", "男", 2) + "</row>";
   for (var r = 5; r <= 4 + TEAM_ROWS; r++){
     s += '<row r="' + r + '">' + txt("A" + r, "", 4) + txt("B" + r, "", 4) +
-      '<c r="C' + r + '" s="6" t="str"><f>$B$1</f>' + (team ? "<v>" + _xmlEsc(team) + "</v>" : "") + "</c></row>";
+      '<c r="C' + r + '" s="6" t="str"><f>$B$1</f>' + (team ? "<v>" + _xmlEsc(team) + "</v>" : "") + "</c>" + txt("D" + r, "", 4) + txt("E" + r, "", 4) + "</row>";
   }
   s += "</sheetData>";
   s += '<sheetProtection sheet="1" objects="1" scenarios="1"/>';
-  s += '<dataValidations count="2">' +
+  s += '<dataValidations count="4">' +
     '<dataValidation type="textLength" operator="lessThanOrEqual" allowBlank="1" showInputMessage="1" showErrorMessage="1" errorStyle="stop" errorTitle="入力エラー" error="名前は30文字以内で入力してください" promptTitle="名前" prompt="試合で使う名前を入力してください" sqref="A5:A' + (4 + TEAM_ROWS) + '"><formula1>30</formula1></dataValidation>' +
     '<dataValidation type="textLength" operator="lessThanOrEqual" allowBlank="1" showInputMessage="1" showErrorMessage="1" errorStyle="stop" errorTitle="入力エラー" error="ふりがなは40文字以内で入力してください" promptTitle="ふりがな" prompt="ひらがなで入力してください（ダブルスは2人を「・」でつないでください）" sqref="B5:B' + (4 + TEAM_ROWS) + '"><formula1>40</formula1></dataValidation>' +
+    '<dataValidation type="textLength" operator="lessThanOrEqual" allowBlank="1" showInputMessage="1" showErrorMessage="1" errorStyle="stop" errorTitle="入力エラー" error="学年は「3」「3・4」のように入力してください" promptTitle="学年" prompt="学年を数字で入力してください（ダブルスは「3・4」のように2人分）" sqref="D5:D' + (4 + TEAM_ROWS) + '"><formula1>7</formula1></dataValidation>' +
+    '<dataValidation type="textLength" operator="lessThanOrEqual" allowBlank="1" showInputMessage="1" showErrorMessage="1" errorStyle="stop" errorTitle="入力エラー" error="性別は「男」「女」「男・女」のように入力してください" promptTitle="性別" prompt="男／女で入力してください（ダブルスは「男・女」のように2人分）" sqref="E5:E' + (4 + TEAM_ROWS) + '"><formula1>7</formula1></dataValidation>' +
     "</dataValidations>";
   return s + "</worksheet>";
 }
@@ -4859,6 +4899,7 @@ function buildTeamXlsx(team){
     ["・選手は1行に1名ずつ入力してください（ダブルスは1行に1ペア）。"],
     ["・「名前」は試合で使う表記のまま、「ふりがな」はひらがなで入力してください（ふりがなは公式スコアシートに印刷されます）。"],
     ["・ダブルスの場合は、名前もふりがなも2人を「・」でつないでください。"],
+    ["・「学年」は数字、「性別」は男／女で入力してください（どちらも任意です）。ダブルスは学年・性別も「・」で2人分をつないでください。例：3・4 ／ 男・女"],
     ["　例：佐藤 花・鈴木 葉 ／ さとう はな・すずき よう"],
     ["・（例）の行は入力の見本です。そのまま残してかまいません（取り込み時に自動で除かれます）。"],
     ["・入力が終わったら、このファイルのまま保存して返送してください。"]];
@@ -4954,14 +4995,16 @@ function _sheetRows(xml, shared){
 }
 function parseParticipantRows(rows){
   function norm(s){ return String(s == null ? "" : s).replace(/[\s　]/g, ""); }
-  var hi = -1, ci = { name: -1, kana: -1, aff: -1 };
+  var hi = -1, ci = { name: -1, kana: -1, aff: -1, grade: -1, gender: -1 };
   for (var r = 0; r < Math.min(rows.length, 10); r++){
-    var found = { name: -1, kana: -1, aff: -1 };
+    var found = { name: -1, kana: -1, aff: -1, grade: -1, gender: -1 };
     (rows[r] || []).forEach(function(cell, c){
       var n = norm(cell);
       if (n === "名前" || n === "氏名" || n === "選手名" || n === "選手") found.name = c;
       else if (n.indexOf("ふりがな") >= 0 || n.indexOf("フリガナ") >= 0 || n === "よみ" || n === "ヨミ") found.kana = c;
       else if (n === "所属" || n === "チーム" || n === "チーム名" || n === "学校名" || n === "クラブ") found.aff = c;
+      else if (n === "学年") found.grade = c;
+      else if (n === "性別") found.gender = c;
     });
     if (found.name >= 0){ hi = r; ci = found; break; }
   }
@@ -4989,7 +5032,7 @@ function parseParticipantRows(rows){
     if (!name) continue;
     if (name.indexOf("（例）") === 0 || name.indexOf("(例)") === 0) continue;
     var aff = ci.aff >= 0 ? String(row[ci.aff] || "").trim() : "";
-    list.push({ name: name, kana: ci.kana >= 0 ? String(row[ci.kana] || "").trim() : "", aff: aff || teamAff });
+    list.push({ name: name, kana: ci.kana >= 0 ? String(row[ci.kana] || "").trim() : "", aff: aff || teamAff, grade: ci.grade >= 0 ? String(row[ci.grade] || "").trim() : "", gender: ci.gender >= 0 ? String(row[ci.gender] || "").trim() : "" });
   }
   return { list: list, hadHeader: hadHeader };
 }
@@ -5049,7 +5092,7 @@ function importParticipants(evId){
       var dup = list.length - fresh.length;
       if (!fresh.length){ alert(list.length + "件すべて、すでに登録済みでした"); return; }
       if (!confirm(fresh.length + "名を「" + ev.name + "」に登録します" + (dup ? "（" + dup + "名は登録済みのため除きます）" : "") + "。よろしいですか？")) return;
-      fresh.forEach(function(x){ ev.participants.push({ id: uid("p"), name: x.name, aff: x.aff, kana: x.kana, seed: false }); });
+      fresh.forEach(function(x){ var np3 = { id: uid("p"), name: x.name, aff: x.aff, kana: x.kana, seed: false }; applyGradeGender(np3, x.grade || "", x.gender || ""); ev.participants.push(np3); });
       touchConfig(); render();
       alert(fresh.length + "名を登録しました");
     } catch (e){ alert("読み込めませんでした：" + (e && e.message ? e.message : e)); }
@@ -5089,6 +5132,16 @@ function renamePart(eid, pid){
     if (e.id !== eid && !all) return;
     e.participants.forEach(function(x){ if ((e.id === eid && x.id === pid) || (all && x.name === old)){ x.name = nn; x.kana = nk; } });
   });
+  touchConfig(); render();
+}
+function editGradeGender(eid, pid){
+  var ev = evById(eid); var p = ev.participants.find(function(x){return x.id===pid;}); if (!p) return;
+  var g = prompt("学年を入力してください（ダブルスは「3・4」のように2人分。空欄で消去）", p.gradeSeg ? p.gradeSeg.join("・") : (p.grade || ""));
+  if (g == null) return;
+  var d = prompt("性別を入力してください（男／女。ダブルスは「男・女」のように2人分。空欄で消去）", p.genderSeg ? p.genderSeg.join("・") : (p.gender === "混合" ? "" : (p.gender || "")));
+  if (d == null) return;
+  delete p.grade; delete p.gradeSeg; delete p.gender; delete p.genderSeg;
+  applyGradeGender(p, g, d);
   touchConfig(); render();
 }
 // Retirement processing: remaining fixtures become walkover wins for the opponent
