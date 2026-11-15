@@ -2666,14 +2666,19 @@ function srvToast(text){
 function srvBoot(){
   try{
     srvLoadCfg();
+    // The persisted rev is only meaningful together with the state
+    // snapshot it was applied to — and that state lives in the
+    // shared local store, where other flows (library switches,
+    // legacy rooms, another tournament's link) can replace it. A
+    // stored rev that outruns the local state makes the server
+    // answer "synced" and the tournament never loads (2026-11-15
+    // production check: first a cross-tournament leak, then the
+    // same-tournament case in the same profile). The server is the
+    // authority, so always re-sync from rev 0 at boot and take the
+    // full snapshot; in-session reconnects keep the live rev.
+    srv.rev = 0; srv.entityRevs = {};
     var hp = srvHashParams();
     if (VIEWER && hp.tid && hp.vt){
-      // The revision counters belong to ONE tournament: when the
-      // link points at a different tournament than the stored one,
-      // a stale rev from the old tournament would make the server
-      // answer "synced" and the new tournament would never load
-      // (found in the 2026-11-15 production check).
-      if (srv.tid && srv.tid !== hp.tid){ srv.rev = 0; srv.entityRevs = {}; }
       srv.tid = hp.tid; srv.vt = hp.vt; srv.role = "viewer"; srv.on = true; srvConnect(); return true;
     }
     if (!VIEWER && srv.tid){ srv.on = true; srvConnect(); return true; }
