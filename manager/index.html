@@ -732,6 +732,15 @@ table.mx{border-collapse:collapse;width:auto}
      divider their family names read as one continuous string */
   .mx th.mxh .fitline + .fitline{border-top:1px solid rgba(255,255,255,.65);margin-top:4px;padding-top:4px}
   .mx th.mxh .mini{writing-mode:vertical-rl;text-orientation:upright;margin:0 auto}
+  /* participants table: fixed layout so the page never widens;
+     names get their own lines, actions wrap to two lines */
+  table.ptable{table-layout:fixed;width:100%}
+  table.ptable th:nth-child(3){width:19%}
+  table.ptable th:nth-child(4){width:38px}
+  table.ptable th:nth-child(5){width:29%}
+  table.ptable th,table.ptable td{padding:6px 4px;overflow-wrap:anywhere}
+  table.ptable td{font-size:14px}
+  table.ptable td.ops{white-space:normal !important;line-height:2.1}
   /* Column headers: family name only, so the two players of a
      pair stay visually separate in the narrow vertical header. */
   .mx th.mxh .mxgiv{display:none}
@@ -4104,11 +4113,11 @@ function eventEntryCard(ev){
       '<span class="sub">各チームに配る記入用Excel（黄色いセルだけ入力でき、所属はチーム名から自動で入る固定様式）を出し、返ってきたファイルを取り込むと、そのチームの参加者がまとめて登録されます。</span></div>';
   }
   if (ev.participants.length){
-    h += '<table style="margin-top:10px"><tr><th style="width:34px">#</th><th>名前</th><th>所属</th><th style="width:64px">シード</th><th style="width:110px">操作</th></tr>';
+    h += '<table class="ptable" style="margin-top:10px"><tr><th style="width:34px">#</th><th>名前</th><th>所属</th><th style="width:64px">シード</th><th style="width:110px">操作</th></tr>';
     ev.participants.forEach(function(p, i){
-      h += "<tr><td>" + (i+1) + "</td><td><strong>" + esc(p.name) + "</strong>" + (p.kana ? ' <span class="mini">' + esc(p.kana) + '</span>' : "") + (p.retired ? ' <span class="chip red">棄権</span>' : "") + "</td><td>" + esc(p.aff||"") + "</td>" +
+      h += "<tr><td>" + (i+1) + "</td><td><strong>" + nameLinesHTML(p.name) + "</strong>" + (p.kana ? '<span class="mini" style="display:block">' + esc(p.kana) + '</span>' : "") + (p.retired ? ' <span class="chip red">棄権</span>' : "") + "</td><td>" + esc(p.aff||"") + "</td>" +
         '<td><button class="linkbtn" onclick="toggleSeed(\'' + ev.id + "','" + p.id + '\')">' + (p.seed ? "⭐" : "☆") + "</button></td>" +
-        '<td style="white-space:nowrap"><button class="linkbtn" onclick="movePart(\'' + ev.id + "','" + p.id + ',-1)">↑</button><button class="linkbtn" onclick="movePart(\'' + ev.id + "','" + p.id + ',1)">↓</button><button class="linkbtn" onclick="renamePart(\'' + ev.id + "','" + p.id + '\')">名前</button>' + (ev.format === "team" ? '<button class="linkbtn" onclick="toggleRoster(\'' + ev.id + "','" + p.id + '\')">メンバー</button>' : "") + '<button class="linkbtn" onclick="toggleRetire(\'' + ev.id + "','" + p.id + '\')">' + (p.retired ? "棄権を戻す" : "棄権") + '</button><button class="linkbtn" style="color:var(--bad)" onclick="delPart(\'' + ev.id + "','" + p.id + '\')">削除</button></td></tr>' +
+        '<td class="ops" style="white-space:nowrap"><button class="linkbtn" onclick="movePart(\'' + ev.id + "','" + p.id + ',-1)">↑</button><button class="linkbtn" onclick="movePart(\'' + ev.id + "','" + p.id + ',1)">↓</button><button class="linkbtn" onclick="renamePart(\'' + ev.id + "','" + p.id + '\')">名前</button>' + (ev.format === "team" ? '<button class="linkbtn" onclick="toggleRoster(\'' + ev.id + "','" + p.id + '\')">メンバー</button>' : "") + '<button class="linkbtn" onclick="toggleRetire(\'' + ev.id + "','" + p.id + '\')">' + (p.retired ? "棄権を戻す" : "棄権") + '</button><button class="linkbtn" style="color:var(--bad)" onclick="delPart(\'' + ev.id + "','" + p.id + '\')">削除</button></td></tr>' +
         (ev.format === "team" && uiRoster[ev.id] === p.id ? '<tr><td></td><td colspan="4"><textarea id="roster-' + ev.id + '" placeholder="メンバーを1行に1人で入力">' + esc((p.members || []).join("\n")) + '</textarea><div style="margin-top:6px"><button class="btn small" onclick="saveRoster(\'' + ev.id + "','" + p.id + '\')">メンバーを保存</button></div></td></tr>' : "");
     });
     h += "</table>";
