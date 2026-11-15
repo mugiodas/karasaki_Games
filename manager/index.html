@@ -29,7 +29,7 @@ html,body{margin:0;padding:0}
 html{scroll-behavior:smooth;background:var(--paper)}
 body{color:var(--ink);background:transparent;
   font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Hiragino Sans","Noto Sans JP","Yu Gothic UI",sans-serif;
-  font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+  font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;font-variant-numeric:tabular-nums}
 /* --- geometric field: grid + white plane + charcoal shard + tick strip --- */
 body::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
   background:
@@ -335,7 +335,7 @@ input,select,textarea{font-size:16px}
 .vscard .vstag{display:flex;gap:8px;align-items:center;background:#ececea;padding:5px 10px;font-size:12px;font-weight:700;letter-spacing:.04em}
 .vscard .vsmain{display:flex;align-items:stretch}
 .vsname{flex:1;min-width:0;padding:13px 12px;display:flex;flex-direction:column;justify-content:center}
-.vsname .nm{font-family:"Yuji Syuku","Hiragino Mincho ProN","Yu Mincho",serif;font-size:clamp(21px,3.6vw,32px);font-weight:400;line-height:1.22;word-break:break-word}
+.vsname .nm{font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Hiragino Sans","Noto Sans JP","Yu Gothic UI",sans-serif;font-size:clamp(20px,3.6vw,30px);font-weight:700;line-height:1.25;letter-spacing:.01em;word-break:break-word}
 .vsname .af{font-size:12px;color:var(--sub);margin-top:3px;font-weight:600}
 .vsname.right{text-align:right}
 .vsmark{flex:none;width:62px;display:flex;align-items:center;justify-content:center}
@@ -362,7 +362,7 @@ input,select,textarea{font-size:16px}
 .qkgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
 .qkgrid .qbtn{width:100%;text-align:center;font-variant-numeric:tabular-nums;padding-left:2px;padding-right:2px;white-space:nowrap}
 @media(max-width:560px){.qkcols{grid-template-columns:1fr}.qkgrid{grid-template-columns:repeat(5,1fr)}}
-.brushname{font-family:"Yuji Syuku","Hiragino Mincho ProN","Yu Mincho",serif;font-size:1.22em;letter-spacing:.02em}
+.brushname{font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Hiragino Sans","Noto Sans JP","Yu Gothic UI",sans-serif;font-size:1.18em;font-weight:700;letter-spacing:.01em}
 .wn{color:var(--bad);font-weight:800}
 .scorepv{font-size:19px;font-weight:700;letter-spacing:.02em;margin-bottom:2px}
 
@@ -741,6 +741,10 @@ table.mx{border-collapse:collapse;width:auto}
   table.ptable th,table.ptable td{padding:6px 4px;overflow-wrap:anywhere}
   table.ptable td{font-size:14px}
   table.ptable td.ops{white-space:normal !important;line-height:2.1}
+  /* the decorative block-letter rail costs ~66px the matrix and
+     standings need more; the block body already labels the block */
+  .blockglyph{display:none}
+  .blockbody{padding:10px}
   /* Column headers: family name only, so the two players of a
      pair stay visually separate in the narrow vertical header. */
   .mx th.mxh .mxgiv{display:none}
@@ -1860,10 +1864,14 @@ function applyLeagueTournament(w){
   touchConfig();
 }
 function evById(id){ return state.events.find(function(e){ return e.id===id; }); }
+// Display form of a name: full-width spaces waste scarce phone
+// width, so names render with half-width spaces. Stored data and
+// official documents (score sheets) keep the original spacing.
+function dispName(s){ return String(s == null ? "" : s).replace(/　/g, " "); }
 function playerName(ev, pid){
   if (!pid) return "—"; if (pid === "BYE") return "（不戦勝）";
   var p = ev.participants.find(function(x){ return x.id===pid; });
-  return p ? p.name : "—";
+  return p ? dispName(p.name) : "—";
 }
 function playerAff(ev, pid){
   var p = ev.participants.find(function(x){ return x.id===pid; });
@@ -4662,7 +4670,7 @@ function fitScale(seg, fit){
   return len > base ? Math.max(0.5, base / len) : 1;
 }
 function nameLinesHTML(name, fit){
-  return String(name == null ? "" : name).split("・").map(function(seg){
+  return dispName(name).split("・").map(function(seg){
     var sc = fitScale(seg, fit);
     return '<span class="fitline" style="display:block;white-space:nowrap' + (sc < 1 ? ";font-size:" + Math.round(sc * 100) + "%" : "") + '">' + esc(seg) + '</span>';
   }).join("");
