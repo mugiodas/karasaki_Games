@@ -1130,6 +1130,7 @@ function defaultState(){
 function normalizeState(st){
   if (!st) return st;
   st.live = st.live || {}; st.liveCourt = st.liveCourt || {}; st.trash = st.trash || []; st.open = st.open || {}; st.upsetSessions = st.upsetSessions || {};
+  st.tombstones = st.tombstones || {}; if (st.liveTs == null) st.liveTs = 0;
   st.meta = st.meta || {}; st.meta.detail = "full"; // score entry is always required
   if (st.configTs == null) st.configTs = 0;
   return st;
@@ -1164,6 +1165,11 @@ function saveState(){
   }catch(e5){}
 }
 function touchConfig(){ state.configTs = Date.now(); sync.lastEdit = Date.now(); invalidateCaches(); saveState(); publishState(); libStoreCurrent(); }
+// Live (in-progress) state has its own clock: receivers adopt the
+// sender's whole live map when its liveTs is newer. Until 2026-11-15
+// live rode along with the config branch, so a match start often
+// never reached other devices (external review S-4).
+function touchLive(){ state.liveTs = Date.now(); }
 // Point rules are a tournament-wide decision (user, 2026-11-15:
 // per-event changes are the exception, bulk changes are the norm).
 // Applies the codes chosen on the settings screen to the meta
@@ -1340,21 +1346,24 @@ function deleteTournament(tid){
   libWriteIndex(ix3);
   render();
 }
-// Viewer mode: opened with a watch-only link (#r=room&v=1). Editing is disabled.
-var VIEWER = /[&#]v=1(&|$)/.test(location.hash || "");
+// Viewer mode: opened with a watch-only link (#r=room&v=1), or the
+// dedicated viewer build (window.__VIEWER_BUILD__), which cannot
+// publish at all. Editing is disabled in both.
+var VIEWER = (typeof window !== "undefined" && window.__VIEWER_BUILD__ === true) || /[&#]v=1(&|$)/.test(location.hash || "");
 function canEdit(){ return !VIEWER; }
 var _lastUndo = null;
 function setResult(mid, rec, isUndo){
   if (VIEWER) return;
   if (!isUndo) _lastUndo = {mid: mid, prev: state.results[mid] ? JSON.parse(JSON.stringify(state.results[mid])) : null};
-  if (rec) { rec.ts = Date.now(); state.results[mid] = rec; }
-  else delete state.results[mid];
+  if (rec) { rec.ts = Date.now(); state.results[mid] = rec; if (state.tombstones) delete state.tombstones[mid]; }
+  else { delete state.results[mid]; state.tombstones = state.tombstones || {}; state.tombstones[mid] = Date.now(); }
   // an open (exhibition) match only exists while the official result is
   // a score-less walkover; drop it when that stops being true
   if (state.open && state.open[mid] && !(rec && rec.winner && rec.note === "wo" && !(rec.score && String(rec.score).trim()))) delete state.open[mid];
   if (typeof _refDrafts !== "undefined" && _refDrafts[mid]){ delete _refDrafts[mid]; refSaveDrafts(); }
   if (state.live) delete state.live[mid];
   if (state.liveCourt) delete state.liveCourt[mid];
+  touchLive();
   sync.lastEdit = Date.now(); invalidateCaches(); saveState(); publishState(); render();
   if (!isUndo) showUndoToast();
   var n = Object.keys(state.results).length;
@@ -1392,7 +1401,7 @@ function clearOpenMatch(mid){
   if (state.open) delete state.open[mid];
   if (state.live) delete state.live[mid];
   if (state.liveCourt) delete state.liveCourt[mid];
-  touchConfig(); render();
+  touchLive(); touchConfig(); render();
 }
 function setOpenScore(mid, winner, score){
   if (VIEWER) return;
@@ -1400,7 +1409,7 @@ function setOpenScore(mid, winner, score){
   o.winner = winner || null; o.score = score || ""; o.ts = Date.now();
   if (state.live) delete state.live[mid];
   if (state.liveCourt) delete state.liveCourt[mid];
-  touchConfig(); render();
+  touchLive(); touchConfig(); render();
 }
 function undoLast(){
   if (!_lastUndo) return;
@@ -2448,7 +2457,8 @@ function connectBroker(idx){
 }
 var _pubTimer = null;
 function publishState(){
-  var payload = {type:"state", from: CLIENT_ID, configTs: state.configTs||0, meta: state.meta, events: state.events, results: state.results, live: state.live||{}, liveCourt: state.liveCourt||{}, trash: state.trash||[], open: state.open||{}, upset: state.upsetSessions||{}};
+  if (typeof window !== "undefined" && window.__VIEWER_BUILD__) return; // viewer build never writes to the room
+  var payload = {type:"state", from: CLIENT_ID, configTs: state.configTs||0, meta: state.meta, events: state.events, results: state.results, live: state.live||{}, liveCourt: state.liveCourt||{}, liveTs: state.liveTs||0, tombstones: state.tombstones||{}, trash: state.trash||[], open: state.open||{}, upset: state.upsetSessions||{}};
   if (sync.bc) try{ sync.bc.postMessage(payload); }catch(e){}
   if (_pubTimer) clearTimeout(_pubTimer);
   _pubTimer = setTimeout(function(){ mqttSendState(payload); }, 600);
@@ -2493,6 +2503,7 @@ function syncStateId(payload, str){
   return (payload.configTs||0) + "-" + rc + "-" + maxTs + "-" + utf8Len(str);
 }
 function mqttSendState(payload){
+  if (typeof window !== "undefined" && window.__VIEWER_BUILD__) return; // viewer build never writes to the room
   if (!sync.client || !sync.connected) return;
   var topic = TOPIC_PREFIX + sync.room;
   var str; try{ str = JSON.stringify(payload); }catch(e){ return; }
@@ -2539,15 +2550,33 @@ var CLIENT_ID = randStr(12);
 function receiveState(payload, local){
   if (!payload || payload.type !== "state" || payload.from === CLIENT_ID) return;
   var changed = false;
-  // results: per-match merge by ts
+  // deletions travel as tombstones: a cleared result must not be
+  // resurrected by a device that still holds the old copy
+  // (external review S-3, 2026-11-15).
+  state.tombstones = state.tombstones || {};
+  var tt = payload.tombstones || {};
+  Object.keys(tt).forEach(function(mid){
+    if ((tt[mid]||0) > (state.tombstones[mid]||0)){
+      state.tombstones[mid] = tt[mid];
+      var curR = state.results[mid];
+      if (curR && (curR.ts||0) <= tt[mid]){ delete state.results[mid]; changed = true; }
+    }
+  });
+  // results: per-match merge by ts, honoring tombstones
   var rr = payload.results || {};
   Object.keys(rr).forEach(function(mid){
+    var tb = state.tombstones[mid] || 0;
+    if ((rr[mid].ts||0) <= tb) return; // deleted after this copy was made
     var cur = state.results[mid];
-    if (!cur || (rr[mid].ts||0) > (cur.ts||0)){ state.results[mid] = rr[mid]; changed = true; }
+    if (!cur || (rr[mid].ts||0) > (cur.ts||0)){ state.results[mid] = rr[mid]; if (tb) delete state.tombstones[mid]; changed = true; }
   });
-  Object.keys(state.results).forEach(function(mid){
-    // deletions are not propagated in v1 (clear is local + config change); ignore
-  });
+  // live (in-progress) state: adopted wholesale from the sender
+  // with the newest liveTs, independent of the config branch —
+  // a match start must reach other devices even when no setting
+  // changed (external review S-4, 2026-11-15).
+  if ((payload.liveTs||0) > (state.liveTs||0)){
+    state.live = payload.live || {}; state.liveCourt = payload.liveCourt || {}; state.liveTs = payload.liveTs; changed = true;
+  }
   // open (exhibition) matches: per-match merge by ts
   var oo = payload.open || {};
   Object.keys(oo).forEach(function(mid){
@@ -2562,7 +2591,7 @@ function receiveState(payload, local){
   });
   // config: newer configTs wins
   if ((payload.configTs||0) > (state.configTs||0) && Date.now() - sync.lastEdit > 2500){
-    state.meta = payload.meta; state.events = payload.events; state.live = payload.live || {}; state.liveCourt = payload.liveCourt || {}; state.trash = payload.trash || []; state.open = payload.open || {}; state.upsetSessions = payload.upset || {}; state.configTs = payload.configTs; changed = true;
+    state.meta = payload.meta; state.events = payload.events; state.trash = payload.trash || []; state.open = payload.open || {}; state.upsetSessions = payload.upset || {}; state.configTs = payload.configTs; changed = true;
   }
   if (changed){ invalidateCaches(); saveState(); render(); }
 }
@@ -2808,6 +2837,7 @@ function startMatch(mid, court){
   state.live = state.live || {}; state.live[mid] = Date.now();
   state.liveCourt = state.liveCourt || {};
   if (court) state.liveCourt[mid] = court; else delete state.liveCourt[mid];
+  touchLive();
   sync.lastEdit = Date.now(); saveState(); publishState(); render();
 }
 // The court a live match is actually played on: an explicit choice made
@@ -2822,6 +2852,7 @@ function cancelMatch(mid){
   if (!confirm("この試合の開始を取り消しますか？\n（コートが空き、開始前の状態に戻ります）")) return;
   if (state.live) delete state.live[mid];
   if (state.liveCourt) delete state.liveCourt[mid];
+  touchLive();
   sync.lastEdit = Date.now(); saveState(); publishState(); render();
 }
 // Court picker shown when a match is started from its card or the queue:
@@ -6307,8 +6338,8 @@ function vConfig(){
     '<div style="margin-top:12px"><button class="btn" onclick="saveMeta()">保存</button></div></div>';
   h += '<div class="card"><h3 style="margin-top:0">共有リンク</h3><div class="sub">他の端末や観戦者に渡すリンクです。このリンクを開いた端末同士で、結果と設定が同期されます（全員が編集できます）。</div>' +
     '<div class="row" style="margin-top:8px"><input type="text" readonly value="' + esc(link) + '" id="shareLink" style="flex:1"><button class="btn ghost" onclick="copyLink()">コピー</button></div>' +
-    '<div class="sub" style="margin-top:10px">👀 観戦用リンク（見る専用・入力できません。保護者や観客への配布はこちら）</div>' +
-    '<div class="row" style="margin-top:6px"><input type="text" readonly value="' + esc(link + "&v=1") + '" id="watchLink" style="flex:1"><button class="btn ghost" onclick="copyWatchLink()">コピー</button></div>' +
+    '<div class="sub" style="margin-top:10px">👀 観戦用リンク（観戦専用ページにつながります。このページからは結果を送れない作りです。保護者や観客への配布はこちら）</div>' +
+    '<div class="row" style="margin-top:6px"><input type="text" readonly value="' + esc(viewerPageUrl()) + '" id="watchLink" style="flex:1"><button class="btn ghost" onclick="copyWatchLink()">コピー</button></div>' +
     '<div class="sub" style="margin-top:6px">接続状態は画面上のバッジで確認できます。「共有中」にならない端末では、その端末だけで入力してください。</div>' +
     '<details style="margin-top:10px;border-top:1px solid var(--line);padding-top:8px"><summary class="mini" style="cursor:pointer">接続診断・同期テスト</summary>' +
     '<div class="mini" style="margin-top:8px">' +
@@ -6425,6 +6456,14 @@ function saveMeta(){
 function syncPing(){
   if (!sync.client || !sync.connected){ alert("まだ中継に接続できていません"); return; }
   try{ sync.client.publish(TOPIC_PREFIX + sync.room, JSON.stringify({type: "ping", from: CLIENT_ID, ts: Date.now()}), {qos: 1}); }catch(e){ alert("送信できませんでした"); }
+}
+// The spectator link points at the dedicated viewer build when
+// this app is served from /manager/ (the viewer page cannot send
+// edits at all); anywhere else it falls back to the #v=1 flag.
+function viewerPageUrl(){
+  var p = location.pathname || "";
+  if (/\/manager\//.test(p)) return location.origin + p.replace(/\/manager\//, "/viewer/") + "#r=" + sync.room;
+  return location.origin + p + "#r=" + sync.room + "&v=1";
 }
 function copyWatchLink(){
   var el = document.getElementById("watchLink"); if (!el) return;
