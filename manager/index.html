@@ -727,7 +727,10 @@ table.mx{border-collapse:collapse;width:auto}
   /* Column-header names run vertically (the way printed matrices
      do): a full name fits a narrow column at a readable size
      instead of shrinking to a few pixels. */
-  .mx th.mxh .fitline{writing-mode:vertical-rl;text-orientation:upright;margin:0 auto}
+  .mx th.mxh .fitline{writing-mode:vertical-rl;text-orientation:upright;margin:0 auto;padding:0 2px}
+  /* the two players stack in one vertical column; without a
+     divider their family names read as one continuous string */
+  .mx th.mxh .fitline + .fitline{border-top:1px solid rgba(255,255,255,.65);margin-top:4px;padding-top:4px}
   .mx th.mxh .mini{writing-mode:vertical-rl;text-orientation:upright;margin:0 auto}
   /* Column headers: family name only, so the two players of a
      pair stay visually separate in the narrow vertical header. */
@@ -4745,20 +4748,18 @@ function playerMatrixName(ev, p){
     var nameHTML = sp > 0
       ? '<span class="mxfam">' + esc(seg.slice(0, sp)) + '</span><span class="mxgiv">' + esc(seg.slice(sp)) + '</span>'
       : esc(seg);
-    // Grade per player (mixed-grade pairs exist), as ③.
+    // Grade per player (mixed-grade pairs exist), as ③. Without
+    // per-player grades, p.grade is only ever set when both
+    // players share it, so it belongs on both lines — this also
+    // covers tournaments built before gradeSeg existed.
     var gr = "";
     if (state.meta.showGrade && p){
-      var gv = p.gradeSeg ? p.gradeSeg[i] : (segs.length === 1 ? p.grade : "");
+      var gv = p.gradeSeg ? (p.gradeSeg[i] || "") : (p.grade || "");
       gr = circledGrade(gv);
       if (!gr && gv) gr = "（" + gv + "）";
     }
     return '<span class="fitline" style="display:block;white-space:nowrap' + (col ? ";color:" + col : "") + (sc < 1 ? ";font-size:" + Math.round(sc * 100) + "%" : "") + '">' + nameHTML + (gr ? ' <span class="mxgr">' + esc(gr) + '</span>' : "") + '</span>';
   }).join("");
-  // Pairs without per-player grades keep the shared suffix line.
-  if (segs.length > 1 && !(p && p.gradeSeg)){
-    var suf = playerGradeSuffix(p);
-    if (suf) lines += '<span style="display:block" class="mini">' + esc(suf) + '</span>';
-  }
   return lines;
 }
 function matrixHTML(ev, block, bi, lms){
