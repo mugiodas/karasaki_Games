@@ -1164,7 +1164,7 @@ function saveState(){
     }
   }catch(e5){}
 }
-function touchConfig(){ state.configTs = Date.now(); sync.lastEdit = Date.now(); invalidateCaches(); saveState(); publishState(); libStoreCurrent(); }
+function touchConfig(){ state.configTs = Date.now(); sync.lastEdit = Date.now(); invalidateCaches(); saveState(); publishState(); libStoreCurrent(); srvConfigOp(); }
 // Live (in-progress) state has its own clock: receivers adopt the
 // sender's whole live map when its liveTs is newer. Until 2026-11-15
 // live rode along with the config branch, so a match start often
@@ -1286,6 +1286,7 @@ function landingView(){
 }
 function switchTournament(tid){
   if (!tid || tid === state.tid){ go("library"); return; }
+  if (srvActive()) srvDetach(true); // local library moves are separate from the bound server tournament
   libStoreCurrent();
   var s = libLoad(tid);
   if (!s){ alert("その大会のデータがこの端末に見つかりませんでした"); return; }
@@ -1297,6 +1298,7 @@ function switchTournament(tid){
   go(landingView());
 }
 function createTournament(){
+  if (srvActive()) srvDetach(true);
   libStoreCurrent();
   state = defaultState();
   state.tid = uid("t");
@@ -1364,6 +1366,7 @@ function setResult(mid, rec, isUndo){
   if (state.live) delete state.live[mid];
   if (state.liveCourt) delete state.liveCourt[mid];
   touchLive();
+  srvResultOp(mid);
   sync.lastEdit = Date.now(); invalidateCaches(); saveState(); publishState(); render();
   if (!isUndo) showUndoToast();
   var n = Object.keys(state.results).length;
@@ -2399,7 +2402,7 @@ function randStr(n){ var c="abcdefghjkmnpqrstuvwxyz23456789", s=""; for (var i=0
 function initSync(){
   var m = location.hash.match(/r=([a-z0-9]+)/i);
   sync.room = (state && state.room) || (m ? m[1] : randStr(10));
-  if (!m) history.replaceState(null, "", location.pathname + location.search + "#r=" + sync.room + (VIEWER ? "&v=1" : ""));
+  if (!m){ var _sp = srvHashParams(); history.replaceState(null, "", location.pathname + location.search + "#r=" + sync.room + (VIEWER ? "&v=1" : "") + (_sp.tid ? "&srv=" + _sp.tid + "&vt=" + _sp.vt : "")); }
   try{ sync.bc = new BroadcastChannel("tmgr-" + sync.room); sync.bc.onmessage = function(e){ dispatchSync(e.data, true); }; }catch(e){}
   if (window.addEventListener) window.addEventListener("hashchange", function(){
     var hm = (location.hash || "").match(/r=([a-z0-9]+)/i);
@@ -2421,7 +2424,7 @@ function initSync(){
       go(landingView());
     }
   });
-  connectBroker(0);
+  if (!srvBoot()) connectBroker(0);
 }
 function setConn(cls, text){
   [document.getElementById("connTop")].forEach(function(el){ if (el){ el.className = "conn " + cls; el.textContent = text; } });
@@ -2458,6 +2461,7 @@ function connectBroker(idx){
 var _pubTimer = null;
 function publishState(){
   if (typeof window !== "undefined" && window.__VIEWER_BUILD__) return; // viewer build never writes to the room
+  if (srvActive()) return; // server mode: changes travel as ops, not whole states
   var payload = {type:"state", from: CLIENT_ID, configTs: state.configTs||0, meta: state.meta, events: state.events, results: state.results, live: state.live||{}, liveCourt: state.liveCourt||{}, liveTs: state.liveTs||0, tombstones: state.tombstones||{}, trash: state.trash||[], open: state.open||{}, upset: state.upsetSessions||{}};
   if (sync.bc) try{ sync.bc.postMessage(payload); }catch(e){}
   if (_pubTimer) clearTimeout(_pubTimer);
@@ -2547,6 +2551,15 @@ function noteChunk(msg){
   receiveState(payload, false);
 }
 var CLIENT_ID = randStr(12);
+// The original hash, captured before the boot code rewrites it
+// (it replaces the hash with the MQTT room form, which would
+// destroy the srv/vt parameters of a server spectator link).
+var _srvHash = "";
+try{ _srvHash = location.hash || ""; }catch(e){}
+function srvHashParams(){
+  var m1 = _srvHash.match(/srv=([a-z0-9]+)/i), m2 = _srvHash.match(/vt=([a-z0-9]+)/i);
+  return { tid: m1 ? m1[1] : "", vt: m2 ? m2[1] : "" };
+}
 function receiveState(payload, local){
   if (!payload || payload.type !== "state" || payload.from === CLIENT_ID) return;
   var changed = false;
@@ -2594,6 +2607,197 @@ function receiveState(payload, local){
     state.meta = payload.meta; state.events = payload.events; state.trash = payload.trash || []; state.open = payload.open || {}; state.upsetSessions = payload.upset || {}; state.configTs = payload.configTs; changed = true;
   }
   if (changed){ invalidateCaches(); saveState(); render(); }
+}
+// ===== server sync (Cloudflare Workers + Durable Objects) =====
+// Optional replacement for the MQTT room sync, added for the
+// external review (S-1..S-6). When a server tournament is bound,
+// the server is the authority: local edits are sent as operations
+// (result.set / result.clear / live.set / live.clear /
+// config.replace / state.replace), the server orders them with a
+// revision and per-match entity revisions, and fans them out over
+// a WebSocket. Client clocks no longer decide conflicts. When
+// nothing is bound, everything behaves exactly as before (MQTT).
+var SRV_KEY = "tmgr-server";
+var SRV_DEFAULT_BASE = "https://tmgr-api.smashstats.workers.dev";
+var srv = { on:false, base:SRV_DEFAULT_BASE, tid:"", vt:"", role:"", boundName:"", ws:null, rev:0, entityRevs:{}, queue:[], cfgTimer:0, rcDelay:1000, statusText:"", _pending:{}, _deniedAt:0 };
+var srvUi = { user:false, checked:false, checking:false, list:[] };
+function srvSaveCfg(){ try{ localStorage.setItem(SRV_KEY, JSON.stringify({ base:srv.base, tid:srv.tid, vt:srv.vt, rev:srv.rev, entityRevs:srv.entityRevs, boundName:srv.boundName, role:srv.role })); }catch(e){} }
+function srvLoadCfg(){ try{ var c = JSON.parse(localStorage.getItem(SRV_KEY) || "null"); if (c){ srv.base = c.base || SRV_DEFAULT_BASE; srv.tid = c.tid || ""; srv.vt = c.vt || ""; srv.rev = c.rev || 0; srv.entityRevs = c.entityRevs || {}; srv.boundName = c.boundName || ""; srv.role = c.role || ""; } }catch(e){} }
+function srvActive(){ return srv.on && !!srv.tid; }
+function srvToast(text){
+  try{
+    var t = document.getElementById("toast");
+    if (!t){ t = document.createElement("div"); t.id = "toast"; document.body.appendChild(t); }
+    t.textContent = text; t.className = "show";
+    if (srv._toastTimer) clearTimeout(srv._toastTimer);
+    srv._toastTimer = setTimeout(function(){ t.className = ""; }, 6000);
+  }catch(e){}
+}
+function srvBoot(){
+  try{
+    srvLoadCfg();
+    var hp = srvHashParams();
+    if (VIEWER && hp.tid && hp.vt){ srv.tid = hp.tid; srv.vt = hp.vt; srv.role = "viewer"; srv.on = true; srvConnect(); return true; }
+    if (!VIEWER && srv.tid){ srv.on = true; srvConnect(); return true; }
+  }catch(e){}
+  return false;
+}
+function srvSetStatus(cls, text){ srv.statusText = text; setConn(cls, text); }
+function srvConnect(){
+  if (!srv.tid) return;
+  srvSetStatus("mid", "サーバー接続中…");
+  var url = srv.base.replace(/^http/, "ws") + (srv.role === "viewer" ? "/api/public/" + srv.tid + "/ws?vt=" + encodeURIComponent(srv.vt) : "/api/tournaments/" + srv.tid + "/ws");
+  var ws;
+  try{ ws = new WebSocket(url); }catch(e){ srvScheduleReconnect(); return; }
+  srv.ws = ws;
+  ws.onopen = function(){ srv.rcDelay = 1000; srvSetStatus("on", "サーバー共有中"); srvWsSend({ type:"hello", lastRev: srv.rev }); srvFlushQueue(); if (view === "config") render(); };
+  ws.onmessage = function(ev){ var msg; try{ msg = JSON.parse(ev.data); }catch(e){ return; } srvOnMessage(msg); };
+  ws.onclose = function(){ srv.ws = null; if (srv.on){ srvSetStatus("mid", "サーバー再接続中…"); srvScheduleReconnect(); } };
+  ws.onerror = function(){ try{ ws.close(); }catch(e){} };
+}
+function srvScheduleReconnect(){ if (!srv.on) return; var d = srv.rcDelay; srv.rcDelay = Math.min(30000, srv.rcDelay * 2); setTimeout(function(){ if (srv.on && !srv.ws) srvConnect(); }, d); }
+function srvWsSend(obj){ if (srv.ws && srv.ws.readyState === 1){ try{ srv.ws.send(JSON.stringify(obj)); return true; }catch(e){} } return false; }
+function srvFlushQueue(){ var q = srv.queue; srv.queue = []; q.forEach(function(op){ srv._pending[op.opId] = op; srvWsSend({ type:"op", op:op }); }); }
+function srvSendOp(op){
+  if (!srvActive() || VIEWER) return;
+  op.opId = "op" + Date.now().toString(36) + randStr(6);
+  srv._pending[op.opId] = op;
+  if (!srvWsSend({ type:"op", op:op })){
+    if (op.kind === "config.replace") srv.queue = srv.queue.filter(function(q){ return q.kind !== "config.replace"; });
+    srv.queue.push(op);
+  }
+}
+function srvStateDoc(){
+  return { meta: state.meta, events: state.events, results: state.results, live: state.live || {}, liveCourt: state.liveCourt || {}, liveTs: state.liveTs || 0, tombstones: state.tombstones || {}, trash: state.trash || [], open: state.open || {}, upset: state.upsetSessions || {}, configTs: state.configTs || 0 };
+}
+function srvResultOp(mid){
+  if (!srvActive() || VIEWER) return;
+  var rec = state.results[mid];
+  if (rec) srvSendOp({ kind:"result.set", mid:mid, rec: JSON.parse(JSON.stringify(rec)), entityRev: srv.entityRevs[mid] || 0 });
+  else srvSendOp({ kind:"result.clear", mid:mid, entityRev: srv.entityRevs[mid] || 0 });
+}
+function srvLiveOp(mid, kind){
+  if (!srvActive() || VIEWER) return;
+  if (kind === "set") srvSendOp({ kind:"live.set", mid:mid, court: (state.liveCourt && state.liveCourt[mid]) || null, at: (state.live && state.live[mid]) || Date.now() });
+  else srvSendOp({ kind:"live.clear", mid:mid });
+}
+function srvConfigOp(){
+  if (!srvActive() || VIEWER) return;
+  if (srv.cfgTimer) clearTimeout(srv.cfgTimer);
+  srv.cfgTimer = setTimeout(function(){
+    srvSendOp({ kind:"config.replace", config:{ meta: state.meta, events: state.events, trash: state.trash || [], open: state.open || {}, upset: state.upsetSessions || {}, configTs: state.configTs || 0 } });
+  }, 700);
+}
+function srvStateOp(){
+  if (!srvActive() || VIEWER) return;
+  srvSendOp({ kind:"state.replace", state: srvStateDoc() });
+}
+function applyServerState(doc, entityRevs, rev){
+  if (!doc) return;
+  state.meta = doc.meta || {}; state.events = doc.events || []; state.results = doc.results || {};
+  state.live = doc.live || {}; state.liveCourt = doc.liveCourt || {}; state.liveTs = doc.liveTs || 0;
+  state.tombstones = doc.tombstones || {}; state.trash = doc.trash || []; state.open = doc.open || {};
+  state.upsetSessions = doc.upset || {}; state.configTs = doc.configTs || 0;
+  if (entityRevs) srv.entityRevs = entityRevs;
+  if (rev) srv.rev = rev;
+  invalidateCaches(); saveState(); srvSaveCfg(); render();
+}
+function applyServerOp(op){
+  if (!op) return;
+  var changed = true;
+  if (op.kind === "result.set"){ state.results[op.mid] = op.rec; if (state.tombstones) delete state.tombstones[op.mid]; if (state.live) delete state.live[op.mid]; if (state.liveCourt) delete state.liveCourt[op.mid]; if (op.entityRev) srv.entityRevs[op.mid] = op.entityRev; }
+  else if (op.kind === "result.clear"){ delete state.results[op.mid]; state.tombstones = state.tombstones || {}; state.tombstones[op.mid] = op.at || Date.now(); if (op.entityRev) srv.entityRevs[op.mid] = op.entityRev; }
+  else if (op.kind === "live.set"){ state.live = state.live || {}; state.live[op.mid] = op.at || Date.now(); state.liveCourt = state.liveCourt || {}; if (op.court) state.liveCourt[op.mid] = op.court; else delete state.liveCourt[op.mid]; state.liveTs = op.at || Date.now(); }
+  else if (op.kind === "live.clear"){ if (state.live) delete state.live[op.mid]; if (state.liveCourt) delete state.liveCourt[op.mid]; }
+  else if (op.kind === "config.replace"){ var c = op.config || {}; state.meta = c.meta || {}; state.events = c.events || []; state.trash = c.trash || []; state.open = c.open || {}; state.upsetSessions = c.upset || {}; if (c.configTs) state.configTs = c.configTs; }
+  else if (op.kind === "state.replace"){ applyServerState(op.state, null, 0); return; }
+  else changed = false;
+  if (changed){ invalidateCaches(); saveState(); srvSaveCfg(); render(); }
+}
+function srvOnMessage(msg){
+  if (!msg) return;
+  if (msg.type === "state"){ applyServerState(msg.state, msg.entityRevs, msg.rev); }
+  else if (msg.type === "ops"){ (msg.ops || []).forEach(function(e){ applyServerOp(e.op); }); srv.rev = msg.rev; srvSaveCfg(); }
+  else if (msg.type === "op"){ srv.rev = msg.rev; applyServerOp(msg.op); srvSaveCfg(); }
+  else if (msg.type === "synced"){ srv.rev = msg.rev; }
+  else if (msg.type === "ack"){
+    var p = srv._pending[msg.opId];
+    if (p){ delete srv._pending[msg.opId]; if ((p.kind === "result.set" || p.kind === "result.clear") && msg.entityRev) srv.entityRevs[p.mid] = msg.entityRev; }
+    srv.rev = msg.rev; srvSaveCfg();
+  }
+  else if (msg.type === "conflict"){
+    delete srv._pending[msg.opId];
+    srv.entityRevs[msg.mid] = msg.entityRev;
+    if (msg.current){ state.results[msg.mid] = msg.current; if (state.tombstones) delete state.tombstones[msg.mid]; }
+    else { delete state.results[msg.mid]; state.tombstones = state.tombstones || {}; state.tombstones[msg.mid] = Date.now(); }
+    invalidateCaches(); saveState(); srvSaveCfg(); render();
+    srvToast("他の端末で変更されていたため、サーバーの内容に合わせました");
+  }
+  else if (msg.type === "denied"){
+    delete srv._pending[msg.opId];
+    if (Date.now() - srv._deniedAt > 30000){ srv._deniedAt = Date.now(); srvToast(msg.reason === "admin only" ? "その操作は責任者のみ可能です（サーバーへは送信されませんでした）" : "サーバーへ送信できませんでした"); }
+  }
+}
+// --- server account / binding actions (settings screen) ---
+function srvApi(path, opts){
+  opts = opts || {};
+  return fetch(srv.base + path, { method: opts.method || "GET", credentials: "include", headers: { "content-type": "application/json" }, body: opts.body ? JSON.stringify(opts.body) : undefined })
+    .then(function(r){ return r.json().catch(function(){ return {}; }).then(function(d){ return { status: r.status, data: d }; }); })
+    .catch(function(){ return { status: 0, data: {} }; });
+}
+function srvCheckLogin(){
+  srvUi.checking = true;
+  return srvApi("/api/tournaments").then(function(r){
+    srvUi.checking = false; srvUi.checked = true;
+    if (r.status === 200){ srvUi.user = true; srvUi.list = r.data.tournaments || []; }
+    else { srvUi.user = false; srvUi.list = []; }
+    if (view === "config") render();
+  });
+}
+function srvLogin(){
+  var em = document.getElementById("srv-email"), pw = document.getElementById("srv-pass");
+  if (!em || !pw) return;
+  var srvBody = { email: em.value }; srvBody["password"] = pw.value;
+  srvApi("/api/auth/sign-in/email", { method: "POST", body: srvBody }).then(function(r){
+    if (r.status === 200) srvCheckLogin();
+    else alert("ログインできませんでした。メールアドレスとパスワードを確認してください。");
+  });
+}
+function srvLogout(){
+  srvApi("/api/auth/sign-out", { method: "POST", body: {} }).then(function(){ srvUi.user = false; srvUi.list = []; render(); });
+}
+function srvBind(tid, name, role){
+  srv.tid = tid; srv.boundName = name || ""; srv.role = role || ""; srv.on = true; srv.rev = 0; srv.entityRevs = {}; srv.queue = [];
+  srvSaveCfg();
+  if (sync.client){ try{ sync.client.end(true); }catch(e){} sync.client = null; sync.connected = false; }
+  if (srv.ws){ try{ srv.ws.close(); }catch(e){} srv.ws = null; }
+  srvConnect();
+  render();
+}
+function srvCreateOnServer(){
+  srvApi("/api/tournaments", { method: "POST", body: { name: state.meta.name || "無題の大会" } }).then(function(r){
+    if (r.status === 200){ srvBind(r.data.id, r.data.name, "admin"); srvStateOp(); alert("サーバーに大会を作成し、この端末の内容を送りました"); }
+    else alert("サーバーに大会を作成できませんでした");
+  });
+}
+function srvSeed(){
+  if (!confirm("サーバーの内容を、この端末のいまの状態で置き換えますか？")) return;
+  srvStateOp();
+  alert("送信しました");
+}
+function srvIssueViewerToken(){
+  srvApi("/api/tournaments/" + srv.tid + "/viewer-token", { method: "POST" }).then(function(r){
+    if (r.status === 200){ srv.vt = r.data.token; srvSaveCfg(); render(); }
+    else alert("発行できませんでした（責任者のみ発行できます）");
+  });
+}
+function srvDetach(silent){
+  var was = srv.on;
+  srv.on = false; srv.tid = ""; srv.vt = ""; srv.role = ""; srv.boundName = ""; srv.rev = 0; srv.entityRevs = {}; srv.queue = [];
+  if (srv.ws){ try{ srv.ws.close(); }catch(e){} srv.ws = null; }
+  srvSaveCfg();
+  if (was && !VIEWER){ setConn("", "この端末のみ"); connectBroker(0); }
+  if (!silent) render();
 }
 </script>
 <script>
@@ -2838,6 +3042,7 @@ function startMatch(mid, court){
   state.liveCourt = state.liveCourt || {};
   if (court) state.liveCourt[mid] = court; else delete state.liveCourt[mid];
   touchLive();
+  srvLiveOp(mid, "set");
   sync.lastEdit = Date.now(); saveState(); publishState(); render();
 }
 // The court a live match is actually played on: an explicit choice made
@@ -2853,6 +3058,7 @@ function cancelMatch(mid){
   if (state.live) delete state.live[mid];
   if (state.liveCourt) delete state.liveCourt[mid];
   touchLive();
+  srvLiveOp(mid, "clear");
   sync.lastEdit = Date.now(); saveState(); publishState(); render();
 }
 // Court picker shown when a match is started from its card or the queue:
@@ -6301,6 +6507,32 @@ function uniformEventCode(field){
   var ks = Object.keys(vals);
   return ks.length <= 1 ? (ks[0] || "") : "__keep";
 }
+function srvCardHTML(){
+  if (!srvUi.checked && !srvUi.checking) srvCheckLogin();
+  var h = '<div class="card"><h3 style="margin-top:0">サーバー接続（新方式）</h3>';
+  if (srvActive()){
+    h += '<div class="sub">サーバーの大会と同期しています。結果はサーバーが正本を持ち、端末の時計に左右されず、削除も正しく伝わります。観戦者は今までどおりリンクだけです。</div>' +
+      '<div style="margin-top:8px">大会：<strong>' + esc(srv.boundName || srv.tid) + '</strong>' + (srv.role ? '（権限：' + (srv.role === "admin" ? "責任者" : "作業者") + '）' : '') + '<br>状態：' + esc(srv.statusText || "接続中…") + '</div>' +
+      '<div class="row" style="margin-top:10px">' +
+      (srv.role === "admin" ? '<button class="btn ghost small" onclick="srvSeed()">この端末の内容でサーバーを置き換える</button>' : '') +
+      '<button class="btn ghost small" onclick="srvDetach(false)">サーバー接続をやめる</button>' +
+      '<button class="btn ghost small" onclick="srvLogout()">ログアウト</button></div>' +
+      (srv.role === "admin" ? '<div class="sub" style="margin-top:10px">観戦用リンクは上の「共有リンク」欄に出ます。トークンを発行するとサーバー方式の観戦リンクに切り替わります（発行し直すと前のリンクは無効になります）。</div><div style="margin-top:6px"><button class="btn ghost small" onclick="srvIssueViewerToken()">観戦トークンを発行／再発行</button></div>' : '');
+  } else if (!srvUi.checked || srvUi.checking){
+    h += '<div class="sub">確認中…</div>';
+  } else if (srvUi.user){
+    h += '<div class="sub">ログイン済みです。使う大会を選んでください。サーバーの大会を開くと、その内容がこの端末に表示されます（この端末の大会一覧とは別に管理されます）。</div>' +
+      (srvUi.list.length ? srvUi.list.map(function(t){ return '<div class="rankrow"><span><strong>' + esc(t.name) + '</strong></span><span class="mini">' + (t.role === "admin" ? "責任者" : "作業者") + '</span><span class="updown"><button style="width:auto;padding:0 12px;font-size:13px" onclick="srvBind(\'' + t.id + '\',\'' + esc(t.name).replace(/'/g, "") + '\',\'' + t.role + '\')">この大会を使う</button></span></div>'; }).join("") : '<div class="sub" style="margin-top:8px">サーバーに大会がまだありません。</div>') +
+      '<div style="margin-top:10px"><button class="btn" onclick="srvCreateOnServer()">サーバーに新しい大会を作る（この端末の内容を送る）</button></div>' +
+      '<div style="margin-top:8px"><button class="btn ghost small" onclick="srvLogout()">ログアウト</button></div>';
+  } else {
+    h += '<div class="sub">サーバー方式では、運営する人だけがログインします。保護者・観戦者は今までどおりリンクを開くだけで、アカウントは要りません。最初の責任者アカウントは<a href="' + esc(srv.base) + '/setup" target="_blank" rel="noopener">サーバーの初期設定ページ</a>で作ります。</div>' +
+      '<label class="f">メールアドレス</label><input type="email" id="srv-email" autocomplete="email">' +
+      '<label class="f">パスワード</label><input type="password" id="srv-pass" autocomplete="current-password">' +
+      '<div style="margin-top:12px"><button class="btn" onclick="srvLogin()">ログイン</button></div>';
+  }
+  return h + '</div>';
+}
 function vConfig(){
   var link = location.origin + location.pathname + "#r=" + sync.room;
   var h = "<h1>設定・共有</h1>";
@@ -6348,6 +6580,7 @@ function vConfig(){
     (syncDiag.pingOkAt ? ' / テスト送信OK ' + new Date(syncDiag.pingOkAt).toTimeString().slice(0,8) : '') +
     (syncDiag.attempts.length ? '<br>接続できなかった中継: ' + syncDiag.attempts.map(function(a){ return esc(a.url.replace("wss://", "").split("/")[0]); }).join(", ") : '') +
     '</div><div style="margin-top:6px"><button class="btn ghost small" onclick="syncPing()">同期テスト送信</button> <span class="mini">押して数秒後に「テスト送信OK」と出れば、この端末から中継へ往復できています。もう1台で同じリンクを開き、片方で結果を1つ入れてもう片方が変われば、別端末間の同期は実証完了です。</span></div></details></div>';
+  h += srvCardHTML();
   h += '<div class="card"><h3 style="margin-top:0">印刷・出力</h3>' +
     '<div class="sub">当日に使う印刷と書き出しです。審判用紙は、対戦が確定した試合だけを出すのが当日の運用に合います。賞状は順位が決まった種目だけ出ます。</div>' +
     state.events.map(function(ev){
@@ -6462,6 +6695,10 @@ function syncPing(){
 // edits at all); anywhere else it falls back to the #v=1 flag.
 function viewerPageUrl(){
   var p = location.pathname || "";
+  if (srv.tid && srv.vt){
+    var base = /\/manager\//.test(p) ? location.origin + p.replace(/\/manager\//, "/viewer/") : location.origin + p;
+    return base + "#srv=" + srv.tid + "&vt=" + srv.vt;
+  }
   if (/\/manager\//.test(p)) return location.origin + p.replace(/\/manager\//, "/viewer/") + "#r=" + sync.room;
   return location.origin + p + "#r=" + sync.room + "&v=1";
 }
@@ -6477,7 +6714,7 @@ function restoreSnapshot(i){
   try{ state = JSON.parse(sn.data); }catch(e){ alert("復元できませんでした"); return; }
   if (keepTid) state.tid = keepTid;
   if (keepRoom) state.room = keepRoom;
-  state.configTs = Date.now(); invalidateCaches(); saveState(); publishState(); go("home");
+  state.configTs = Date.now(); invalidateCaches(); saveState(); publishState(); srvStateOp(); go("home");
 }
 function copyLink(){ var i = document.getElementById("shareLink"); i.select(); if (navigator.clipboard) navigator.clipboard.writeText(i.value); else document.execCommand("copy"); }
 function exportJson(){
@@ -6488,10 +6725,10 @@ function exportJson(){
 function importJson(inp){
   var f = inp.files[0]; if (!f) return;
   var rd = new FileReader();
-  rd.onload = function(){ try{ var s = JSON.parse(rd.result); if (s.meta && s.events){ pushSnapshot("読み込みの前"); var kTid = state.tid, kRoom = state.room; state = s; if (kTid) state.tid = kTid; if (kRoom) state.room = kRoom; invalidateCaches(); touchConfig(); render(); alert("読み込みました"); } }catch(e){ alert("読み込めませんでした"); } };
+  rd.onload = function(){ try{ var s = JSON.parse(rd.result); if (s.meta && s.events){ pushSnapshot("読み込みの前"); var kTid = state.tid, kRoom = state.room; state = s; if (kTid) state.tid = kTid; if (kRoom) state.room = kRoom; invalidateCaches(); touchConfig(); srvStateOp(); render(); alert("読み込みました"); } }catch(e){ alert("読み込めませんでした"); } };
   rd.readAsText(f);
 }
-function resetAll(){ if (!confirm("大会・参加者・結果を全て消します。元に戻せません。")) return; pushSnapshot("全消去の前"); var kTid2 = state.tid, kRoom2 = state.room; state = defaultState(); if (kTid2) state.tid = kTid2; if (kRoom2) state.room = kRoom2; invalidateCaches(); touchConfig(); go("home"); }
+function resetAll(){ if (!confirm("大会・参加者・結果を全て消します。元に戻せません。")) return; pushSnapshot("全消去の前"); var kTid2 = state.tid, kRoom2 = state.room; state = defaultState(); if (kTid2) state.tid = kTid2; if (kRoom2) state.room = kRoom2; invalidateCaches(); touchConfig(); srvStateOp(); go("home"); }
 // ===== printing: referee score sheets =====
 function schedMap(){
   var map = {}; buildSchedule().forEach(function(x){ map[x.match.id] = x; }); return map;
