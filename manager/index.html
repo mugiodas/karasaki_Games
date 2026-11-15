@@ -1134,11 +1134,12 @@ try {
 var sync = {client:null, connected:false, room:"", bc:null, lastEdit:0, configTs:0};
 function defaultState(){
   return { meta:{name:"", date:"", venue:"", courts:4, start:"09:30", interval:12, detail:"full"},
-           events:[], results:{}, live:{}, liveCourt:{}, open:{}, trash:[], upsetSessions:{}, configTs:0, created:Date.now() };
+           events:[], results:{}, live:{}, liveCourt:{}, open:{}, trash:[], upsetSessions:{}, roster:[], configTs:0, created:Date.now() };
 }
 function normalizeState(st){
   if (!st) return st;
   st.live = st.live || {}; st.liveCourt = st.liveCourt || {}; st.trash = st.trash || []; st.open = st.open || {}; st.upsetSessions = st.upsetSessions || {};
+  st.roster = Array.isArray(st.roster) ? st.roster : [];
   st.tombstones = st.tombstones || {}; if (st.liveTs == null) st.liveTs = 0;
   st.meta = st.meta || {}; st.meta.detail = "full"; // score entry is always required
   if (st.configTs == null) st.configTs = 0;
@@ -2491,7 +2492,7 @@ var _pubTimer = null;
 function publishState(){
   if (typeof window !== "undefined" && window.__VIEWER_BUILD__) return; // viewer build never writes to the room
   if (srvActive()) return; // server mode: changes travel as ops, not whole states
-  var payload = {type:"state", from: CLIENT_ID, configTs: state.configTs||0, meta: state.meta, events: state.events, results: state.results, live: state.live||{}, liveCourt: state.liveCourt||{}, liveTs: state.liveTs||0, tombstones: state.tombstones||{}, trash: state.trash||[], open: state.open||{}, upset: state.upsetSessions||{}};
+  var payload = {type:"state", from: CLIENT_ID, configTs: state.configTs||0, meta: state.meta, events: state.events, results: state.results, live: state.live||{}, liveCourt: state.liveCourt||{}, liveTs: state.liveTs||0, tombstones: state.tombstones||{}, trash: state.trash||[], open: state.open||{}, upset: state.upsetSessions||{}, roster: state.roster||[]};
   if (sync.bc) try{ sync.bc.postMessage(payload); }catch(e){}
   if (_pubTimer) clearTimeout(_pubTimer);
   _pubTimer = setTimeout(function(){ mqttSendState(payload); }, 600);
@@ -2634,7 +2635,7 @@ function receiveState(payload, local){
   });
   // config: newer configTs wins
   if ((payload.configTs||0) > (state.configTs||0) && Date.now() - sync.lastEdit > 2500){
-    state.meta = payload.meta; state.events = payload.events; state.trash = payload.trash || []; state.open = payload.open || {}; state.upsetSessions = payload.upset || {}; state.configTs = payload.configTs; changed = true;
+    state.meta = payload.meta; state.events = payload.events; state.trash = payload.trash || []; state.open = payload.open || {}; state.upsetSessions = payload.upset || {}; state.roster = payload.roster || []; state.configTs = payload.configTs; changed = true;
   }
   if (changed){ invalidateCaches(); saveState(); render(); }
 }
@@ -2741,7 +2742,7 @@ function srvSendOp(op){
   }
 }
 function srvStateDoc(){
-  return { meta: state.meta, events: state.events, results: state.results, live: state.live || {}, liveCourt: state.liveCourt || {}, liveTs: state.liveTs || 0, tombstones: state.tombstones || {}, trash: state.trash || [], open: state.open || {}, upset: state.upsetSessions || {}, configTs: state.configTs || 0 };
+  return { meta: state.meta, events: state.events, results: state.results, live: state.live || {}, liveCourt: state.liveCourt || {}, liveTs: state.liveTs || 0, tombstones: state.tombstones || {}, trash: state.trash || [], open: state.open || {}, upset: state.upsetSessions || {}, roster: state.roster || [], configTs: state.configTs || 0 };
 }
 function srvResultOp(mid){
   if (!srvActive() || VIEWER) return;
@@ -2758,7 +2759,7 @@ function srvConfigOp(){
   if (!srvActive() || VIEWER) return;
   if (srv.cfgTimer) clearTimeout(srv.cfgTimer);
   srv.cfgTimer = setTimeout(function(){
-    srvSendOp({ kind:"config.replace", config:{ meta: state.meta, events: state.events, trash: state.trash || [], open: state.open || {}, upset: state.upsetSessions || {}, configTs: state.configTs || 0 } });
+    srvSendOp({ kind:"config.replace", config:{ meta: state.meta, events: state.events, trash: state.trash || [], open: state.open || {}, upset: state.upsetSessions || {}, roster: state.roster || [], configTs: state.configTs || 0 } });
   }, 700);
 }
 function srvStateOp(){
@@ -2771,7 +2772,7 @@ function applyServerState(doc, entityRevs, rev){
   state.meta = doc.meta || {}; state.events = doc.events || []; state.results = doc.results || {};
   state.live = doc.live || {}; state.liveCourt = doc.liveCourt || {}; state.liveTs = doc.liveTs || 0;
   state.tombstones = doc.tombstones || {}; state.trash = doc.trash || []; state.open = doc.open || {};
-  state.upsetSessions = doc.upset || {}; state.configTs = doc.configTs || 0;
+  state.upsetSessions = doc.upset || {}; state.roster = doc.roster || []; state.configTs = doc.configTs || 0;
   if (entityRevs) srv.entityRevs = entityRevs;
   if (rev) srv.rev = rev;
   invalidateCaches(); saveState(); srvSaveCfg(); render();
@@ -2784,7 +2785,7 @@ function applyServerOp(op){
   else if (op.kind === "result.clear"){ delete state.results[op.mid]; state.tombstones = state.tombstones || {}; state.tombstones[op.mid] = op.at || Date.now(); if (op.entityRev) srv.entityRevs[op.mid] = op.entityRev; }
   else if (op.kind === "live.set"){ state.live = state.live || {}; state.live[op.mid] = op.at || Date.now(); state.liveCourt = state.liveCourt || {}; if (op.court) state.liveCourt[op.mid] = op.court; else delete state.liveCourt[op.mid]; state.liveTs = op.at || Date.now(); }
   else if (op.kind === "live.clear"){ if (state.live) delete state.live[op.mid]; if (state.liveCourt) delete state.liveCourt[op.mid]; }
-  else if (op.kind === "config.replace"){ var c = op.config || {}; state.meta = c.meta || {}; state.events = c.events || []; state.trash = c.trash || []; state.open = c.open || {}; state.upsetSessions = c.upset || {}; if (c.configTs) state.configTs = c.configTs; }
+  else if (op.kind === "config.replace"){ var c = op.config || {}; state.meta = c.meta || {}; state.events = c.events || []; state.trash = c.trash || []; state.open = c.open || {}; state.upsetSessions = c.upset || {}; if (c.roster) state.roster = c.roster; if (c.configTs) state.configTs = c.configTs; }
   else if (op.kind === "state.replace"){ applyServerState(op.state, null, 0); return; }
   else changed = false;
   if (changed){ invalidateCaches(); saveState(); srvSaveCfg(); render(); }
@@ -4283,9 +4284,9 @@ function guideInfo(){
   var steps = ["大会設定", "種目・参加者", "組合せ", "リーグ", "トーナメント", "表彰・出力"];
   function act(cur, text, btn, view, evId){ return {steps: steps, cur: cur, act: {text: text, btn: btn, view: view, evId: evId || null}}; }
   if (!state.meta.name) return act(0, "まず大会名・会場・コート数を設定しましょう", "設定を開く", "config");
-  if (!state.events.length) return act(1, "種目を作成して、参加者を貼り付けましょう", "参加者・種目を開く", "entry");
+  if (!state.events.length) return act(1, "種目を作成して、名簿から参加者を選びましょう", "参加者・種目を開く", "entry");
   var noP = state.events.find(function(e){ return !e.participants.length; });
-  if (noP) return act(1, "「" + noP.name + "」に参加者を貼り付けましょう", "参加者・種目を開く", "entry", noP.id);
+  if (noP) return act(1, "「" + noP.name + "」に名簿から参加者を選びましょう", "参加者・種目を開く", "entry", noP.id);
   var noB = state.events.find(function(e){ return e.format !== "tournament" && e.participants.length && !e.blocks; });
   if (noB) return act(2, "「" + noB.name + "」の組合せを作成しましょう", "参加者・種目を開く", "entry", noB.id);
   var lrem = 0, trem = 0, lEv = null, tEv = null;
@@ -4666,6 +4667,7 @@ function vEntry(){
     '<div class="mini">複数日の大会用です。2日目以降の日付は「設定・共有」の大会情報で登録します。</div>' +
     '<div style="margin-top:12px"><button class="btn" onclick="addEvent()">種目を追加</button></div>' +
     '<details class="help" style="margin-top:10px"><summary>ポイントコードの書き方</summary>5桁=点2桁+ゲーム数+延長2桁（21330 / 15315）。3桁=点+ゲーム数で延長は自動（(点-1)×1.5切捨て）。2桁=点のみで3ゲーム標準。</details></div>';
+  h += rosterCardHTML();
   h += eventPickerHTML(state.events);
   var curEv = pickEvent(state.events);
   if (curEv) h += eventEntryCard(curEv);
@@ -4684,9 +4686,7 @@ function eventEntryCard(ev){
     '<input type="text" id="one-name-' + ev.id + '" placeholder="名前" style="flex:2;min-width:140px"><input type="text" id="one-aff-' + ev.id + '" placeholder="所属" style="flex:1;min-width:100px"><input type="text" id="one-kana-' + ev.id + '" placeholder="ふりがな（任意）" style="flex:1;min-width:100px"><input type="text" id="one-grade-' + ev.id + '" placeholder="学年（例：3・4）" style="flex:1;min-width:90px"><input type="text" id="one-gender-' + ev.id + '" placeholder="性別（例：男・女）" style="flex:1;min-width:90px">' +
     '<button class="btn ghost small" onclick="oneAdd(\'' + ev.id + '\')">1件追加</button></div>';
   if (ev.format !== "team"){
-    h += '<div class="row" style="margin-top:8px"><button class="btn ghost small" onclick="exportTeamSheet(\'' + ev.id + '\')">チーム配布用Excelを出力</button>' +
-      '<button class="btn ghost small" onclick="importParticipants(\'' + ev.id + '\')">Excel・CSVから取り込む</button>' +
-      '<span class="sub">各チームに配る記入用Excel（黄色いセルだけ入力でき、所属はチーム名から自動で入る固定様式）を出し、返ってきたファイルを取り込むと、そのチームの参加者がまとめて登録されます。</span></div>';
+    h += pickerHTML(ev);
   }
   if (ev.participants.length){
     h += '<table class="ptable" style="margin-top:10px"><tr><th style="width:34px">#</th><th>名前</th><th>所属</th><th style="width:64px">シード</th><th style="width:110px">操作</th></tr>';
@@ -5159,6 +5159,243 @@ async function readParticipantsFile(file){
     throw new Error("「名前」の見出し行が見つかりませんでした");
   }
   return parseParticipantRows(csvToRows(decodeTextBytes(u8))).list;
+}
+// ===== player roster (選手名簿) =====
+// Teams hand in their FULL roster (every class, not just one
+// event's entries), so registration lands here once and each event
+// SELECTS its entries from the roster (user decision, 2026-11-15).
+// Entries copy the person's data at selection time; later roster
+// edits do not rewrite entries already made.
+function rosterList(){ return state.roster || []; }
+function rosterById(id){ return rosterList().find(function(r){ return r.id === id; }); }
+function rosterKey(name, aff){ return String(name || "") + "\u0001" + String(aff || ""); }
+function rosterAddPeople(list){
+  state.roster = state.roster || [];
+  var seen = {}; state.roster.forEach(function(r){ seen[rosterKey(r.name, r.aff)] = true; });
+  var added = 0, dup = 0;
+  (list || []).forEach(function(x){
+    var name = String(x.name || "").trim(); if (!name) return;
+    var aff = String(x.aff || "").trim();
+    var k = rosterKey(name, aff);
+    if (seen[k]){ dup++; return; }
+    seen[k] = true;
+    state.roster.push({ id: uid("rp"), name: name, aff: aff, kana: String(x.kana || "").trim(), grade: normGradeVal(x.grade || ""), gender: normGenderVal(x.gender || "") });
+    added++;
+  });
+  return { added: added, dup: dup };
+}
+function rosterLabel(rp){
+  var parts = [];
+  if (rp.grade) parts.push(rp.grade + "年");
+  if (rp.gender) parts.push(rp.gender);
+  return parts.join(" ・ ");
+}
+function importRoster(){
+  var inp = document.createElement("input");
+  inp.type = "file"; inp.accept = ".xlsx,.csv,.txt";
+  inp.onchange = async function(){
+    var file = inp.files && inp.files[0]; if (!file) return;
+    try {
+      var list = await readParticipantsFile(file);
+      if (!list.length){ alert("登録できる選手がファイルに見つかりませんでした"); return; }
+      var res = rosterAddPeople(list);
+      touchConfig(); render();
+      alert("名簿に " + res.added + " 名を登録しました" + (res.dup ? "（" + res.dup + " 名は登録済みのため除きました）" : ""));
+    } catch (e){ alert("読み込めませんでした：" + (e && e.message ? e.message : e)); }
+  };
+  inp.click();
+}
+function rosterPasteAdd(){
+  var ta = document.getElementById("roster-paste"); if (!ta) return;
+  var list = ta.value.split(/\n/).map(function(ln){
+    var parts = ln.split(/[,，\t]/);
+    return { name: (parts[0] || "").trim(), aff: (parts[1] || "").trim(), kana: (parts[2] || "").trim(), grade: parts[3] || "", gender: parts[4] || "" };
+  }).filter(function(x){ return x.name; });
+  if (!list.length){ alert("名前が読み取れませんでした"); return; }
+  var res = rosterAddPeople(list);
+  touchConfig(); render();
+  alert("名簿に " + res.added + " 名を登録しました" + (res.dup ? "（" + res.dup + " 名は登録済みのため除きました）" : ""));
+}
+function delRosterPerson(id){
+  var rp = rosterById(id); if (!rp) return;
+  if (!confirm("名簿から「" + rp.name + "」を削除しますか？（すでに種目に入れた分はそのまま残ります）")) return;
+  state.roster = rosterList().filter(function(r){ return r.id !== id; });
+  touchConfig(); render();
+}
+function editRosterGG(id){
+  var rp = rosterById(id); if (!rp) return;
+  var g = prompt("学年を入力してください（空欄で消去）", rp.grade || "");
+  if (g == null) return;
+  var d = prompt("性別を入力してください（男／女。空欄で消去）", rp.gender || "");
+  if (d == null) return;
+  rp.grade = normGradeVal(g); rp.gender = normGenderVal(d);
+  touchConfig(); render();
+}
+function rosterCardHTML(){
+  var list = rosterList();
+  var h = '<div class="card"><div class="row spread"><strong>選手登録（チーム名簿）</strong><span class="sub">' + list.length + ' 名登録済み</span></div>' +
+    '<div class="sub">各チームからは全員分の名簿が届きます。まずここに全員を登録して、種目では「登録選手から選ぶ」で選ぶだけにします。名簿を直しても、すでに種目に入れた分には反映されません。</div>' +
+    '<div class="row" style="margin-top:8px"><button class="btn ghost small" onclick="exportTeamSheet(\'\')">チーム配布用Excelを出力</button>' +
+    '<button class="btn ghost small" onclick="importRoster()">Excel・CSVから取り込む（名簿へ）</button>' +
+    '<span class="sub">配布用Excel（黄色いセルだけ入力可・所属はチーム名から自動）を各チームへ渡し、返ってきた全員分のファイルをここへ取り込みます。</span></div>' +
+    '<label class="f">名簿を貼り付け（1行に1人: 名前,所属,ふりがな,学年,性別）</label>' +
+    '<textarea id="roster-paste" placeholder="山田 太郎,唐崎Jr,やまだ たろう,3,男"></textarea>' +
+    '<div style="margin-top:6px"><button class="btn small" onclick="rosterPasteAdd()">名簿に追加</button></div>';
+  if (list.length){
+    h += '<input type="text" id="roster-q" placeholder="名簿を検索（名前・所属・ふりがな）" style="margin-top:10px" oninput="renderRosterList()">' +
+      '<div id="roster-list">' + rosterListHTML("") + '</div>';
+  }
+  return h + '</div>';
+}
+function rosterFiltered(q){
+  q = String(q || "").trim();
+  return rosterList().filter(function(r){ return !q || r.name.indexOf(q) >= 0 || (r.aff || "").indexOf(q) >= 0 || (r.kana || "").indexOf(q) >= 0; });
+}
+function rosterListHTML(q){
+  var list = rosterFiltered(q);
+  if (!list.length) return '<div class="sub" style="margin-top:8px">該当する選手がいません</div>';
+  var groups = {}, order = [];
+  list.forEach(function(r){ var a = r.aff || "（所属なし）"; if (!groups[a]){ groups[a] = []; order.push(a); } groups[a].push(r); });
+  return order.map(function(a){
+    return '<div style="margin-top:10px"><strong>' + esc(a) + '</strong> <span class="mini">' + groups[a].length + '名</span></div>' +
+      groups[a].map(function(r){
+        return '<div class="qrow"><span class="qnames">' + esc(r.name) + (r.kana ? '<span class="mini">（' + esc(r.kana) + '）</span>' : "") + (rosterLabel(r) ? '<span class="mini"> ' + esc(rosterLabel(r)) + '</span>' : "") + '</span>' +
+          '<span><button class="linkbtn" onclick="editRosterGG(\'' + r.id + '\')">学年・性別</button><button class="linkbtn" style="color:var(--bad)" onclick="delRosterPerson(\'' + r.id + '\')">削除</button></span></div>';
+      }).join("");
+  }).join("");
+}
+function renderRosterList(){
+  var el = document.getElementById("roster-list"); if (!el) return;
+  var q = document.getElementById("roster-q");
+  el.innerHTML = rosterListHTML(q ? q.value : "");
+}
+// ===== event entry picker: select from the roster =====
+var uiPicker = {}, uiPickSel = {}, uiPickOrder = [], uiPickMode = {}, uiPickEv = "";
+function pickerHTML(ev){
+  var open = !!uiPicker[ev.id];
+  var h = '<div style="margin-top:10px"><button class="btn' + (open ? "" : " ghost") + ' small" onclick="togglePicker(\'' + ev.id + '\')">登録選手から選ぶ' + (open ? "（閉じる）" : "") + '</button>' +
+    '<span class="sub" style="margin-left:8px">名簿に登録した選手から、この種目に出る人を選びます。</span></div>';
+  if (!open) return h;
+  if (!rosterList().length) return h + '<div class="sub" style="margin-top:6px">名簿がまだ空です。上の「選手登録（チーム名簿）」から登録してください。</div>';
+  var mode = uiPickMode[ev.id] || "single";
+  h += '<div style="border:1px solid var(--line);border-radius:10px;padding:10px;margin-top:8px">' +
+    '<div class="row"><span class="mini" style="align-self:center">追加方法</span>' +
+    '<button class="btn small' + (mode === "single" ? "" : " ghost") + '" onclick="pickSetMode(\'' + ev.id + '\',\'single\')">1人ずつ追加</button>' +
+    '<button class="btn small' + (mode === "pair" ? "" : " ghost") + '" onclick="pickSetMode(\'' + ev.id + '\',\'pair\')">2人でペアにして追加</button></div>' +
+    '<div class="row" style="margin-top:8px"><input type="text" id="pick-q-' + ev.id + '" placeholder="検索（名前・所属・ふりがな）" style="flex:2;min-width:140px" oninput="renderPickList(\'' + ev.id + '\')">' +
+    '<select id="pick-grade-' + ev.id + '" onchange="renderPickList(\'' + ev.id + '\')"><option value="">学年：全て</option>' + [1,2,3,4,5,6,7,8,9].map(function(g){ return '<option value="' + g + '">' + g + '年</option>'; }).join("") + '</select>' +
+    '<select id="pick-gender-' + ev.id + '" onchange="renderPickList(\'' + ev.id + '\')"><option value="">性別：全て</option><option value="男">男</option><option value="女">女</option></select></div>' +
+    '<div id="pick-list-' + ev.id + '" style="max-height:320px;overflow:auto;margin-top:6px">' + pickListHTML(ev) + '</div>' +
+    '<div id="pick-foot-' + ev.id + '">' + pickFootHTML(ev) + '</div></div>';
+  return h;
+}
+function pickEnteredIds(ev){
+  var ids = {};
+  ev.participants.forEach(function(p){
+    if (p.personId) ids[p.personId] = true;
+    (p.personIds || []).forEach(function(x){ ids[x] = true; });
+  });
+  return ids;
+}
+function pickListHTML(ev){
+  var qEl = document.getElementById("pick-q-" + ev.id), gEl = document.getElementById("pick-grade-" + ev.id), dEl = document.getElementById("pick-gender-" + ev.id);
+  var q = qEl ? qEl.value : "", gf = gEl ? gEl.value : "", df = dEl ? dEl.value : "";
+  var entered = pickEnteredIds(ev);
+  var list = rosterList().filter(function(r){
+    if (gf && r.grade !== gf) return false;
+    if (df && r.gender !== df) return false;
+    if (q && r.name.indexOf(q) < 0 && (r.aff || "").indexOf(q) < 0 && (r.kana || "").indexOf(q) < 0) return false;
+    return true;
+  });
+  if (!list.length) return '<div class="sub">該当する選手がいません</div>';
+  var groups = {}, order = [];
+  list.forEach(function(r){ var a = r.aff || "（所属なし）"; if (!groups[a]){ groups[a] = []; order.push(a); } groups[a].push(r); });
+  return order.map(function(a){
+    return '<div style="margin-top:8px"><strong>' + esc(a) + '</strong></div>' + groups[a].map(function(r){
+      var isIn = !!entered[r.id], sel = !!uiPickSel[r.id];
+      return '<label style="display:flex;gap:8px;align-items:center;padding:6px 4px;border-bottom:1px solid #eee;cursor:pointer">' +
+        '<input type="checkbox" style="width:20px;height:20px"' + (sel ? " checked" : "") + (isIn ? " disabled" : "") + ' onchange="pickToggle(\'' + ev.id + '\',\'' + r.id + '\',this.checked)">' +
+        '<span>' + esc(r.name) + (r.kana ? '<span class="mini">（' + esc(r.kana) + '）</span>' : "") + (rosterLabel(r) ? '<span class="mini"> ' + esc(rosterLabel(r)) + '</span>' : "") + (isIn ? ' <span class="chip">登録済み</span>' : "") + (sel && (uiPickMode[ev.id] || "single") === "pair" ? '<span class="mini"> ペア順 ' + (uiPickOrder.indexOf(r.id) + 1) + ' 人目</span>' : "") + '</span></label>';
+    }).join("");
+  }).join("");
+}
+function pickFootHTML(ev){
+  var n = uiPickOrder.length;
+  if (!n) return '<div class="sub" style="margin-top:8px">選手にチェックを入れると、ここに追加ボタンが出ます。</div>';
+  if ((uiPickMode[ev.id] || "single") === "pair"){
+    var pairs = [];
+    for (var i = 0; i + 1 < uiPickOrder.length; i += 2){
+      var a = rosterById(uiPickOrder[i]), b = rosterById(uiPickOrder[i + 1]);
+      if (a && b) pairs.push(esc(a.name) + "・" + esc(b.name));
+    }
+    return '<div style="margin-top:8px"><div class="mini">ペア（選んだ順に2人ずつ）：' + (pairs.join(" ／ ") || "まだ組めません") + (n % 2 ? ' ／ あと1人選ぶとペアになります' : "") + '</div>' +
+      '<div class="row" style="margin-top:6px"><button class="btn small" onclick="pickAdd(\'' + ev.id + '\')">' + pairs.length + 'ペアを追加</button><button class="btn ghost small" onclick="pickClear(\'' + ev.id + '\')">選択をクリア</button></div></div>';
+  }
+  return '<div class="row" style="margin-top:8px"><button class="btn small" onclick="pickAdd(\'' + ev.id + '\')">' + n + '名を追加</button><button class="btn ghost small" onclick="pickClear(\'' + ev.id + '\')">選択をクリア</button></div>';
+}
+function renderPickList(evId){
+  var ev = evById(evId); if (!ev) return;
+  var el = document.getElementById("pick-list-" + evId);
+  if (el) el.innerHTML = pickListHTML(ev);
+  var f = document.getElementById("pick-foot-" + evId);
+  if (f) f.innerHTML = pickFootHTML(ev);
+}
+function togglePicker(evId){
+  if (uiPickEv !== evId){ uiPickSel = {}; uiPickOrder = []; uiPickEv = evId; }
+  uiPicker[evId] = !uiPicker[evId];
+  render();
+}
+function pickSetMode(evId, mode){ uiPickMode[evId] = mode; render(); }
+function pickToggle(evId, rid, checked){
+  if (checked){ if (!uiPickSel[rid]){ uiPickSel[rid] = true; uiPickOrder.push(rid); } }
+  else { delete uiPickSel[rid]; uiPickOrder = uiPickOrder.filter(function(x){ return x !== rid; }); }
+  renderPickList(evId);
+}
+function pickClear(evId){ uiPickSel = {}; uiPickOrder = []; renderPickList(evId); }
+function pairGradeGender(np, a, b){
+  if (a.grade || b.grade){ if (a.grade && a.grade === b.grade) np.grade = a.grade; else np.gradeSeg = [a.grade || "", b.grade || ""]; }
+  if (a.gender || b.gender){
+    if (a.gender && a.gender === b.gender) np.gender = a.gender;
+    else { np.genderSeg = [a.gender || "", b.gender || ""]; if (a.gender && b.gender) np.gender = "混合"; }
+  }
+}
+function pickAdd(evId){
+  var ev = evById(evId); if (!ev) return;
+  var mode = uiPickMode[evId] || "single";
+  var ids = uiPickOrder.slice();
+  if (!ids.length) return;
+  if (mode === "pair" && ids.length < 2){ alert("ペアには2人選んでください"); return; }
+  if (!guardPartChange(ev)) return;
+  var entered = pickEnteredIds(ev);
+  var added = 0;
+  if (mode === "pair"){
+    for (var i = 0; i + 1 < ids.length; i += 2){
+      var a = rosterById(ids[i]), b = rosterById(ids[i + 1]);
+      if (!a || !b || entered[a.id] || entered[b.id]) continue;
+      var np = { id: uid("p"), name: a.name + "・" + b.name, aff: a.aff === b.aff ? (a.aff || "") : [a.aff, b.aff].filter(Boolean).join("・"), kana: [a.kana, b.kana].filter(Boolean).join("・"), seed: false, personIds: [a.id, b.id] };
+      pairGradeGender(np, a, b);
+      ev.participants.push(np); entered[a.id] = entered[b.id] = true; added++;
+      delete uiPickSel[a.id]; delete uiPickSel[b.id];
+    }
+    uiPickOrder = uiPickOrder.filter(function(x){ return uiPickSel[x]; });
+    if (!added){ alert("追加できるペアがありませんでした（登録済みの選手は除かれます）"); return; }
+    touchConfig(); render();
+    alert(added + "ペアを追加しました");
+  } else {
+    ids.forEach(function(rid){
+      var r = rosterById(rid);
+      if (!r || entered[rid]) return;
+      var np = { id: uid("p"), name: r.name, aff: r.aff || "", kana: r.kana || "", seed: false, personId: rid };
+      if (r.grade) np.grade = r.grade;
+      if (r.gender) np.gender = r.gender;
+      ev.participants.push(np); entered[rid] = true; added++;
+      delete uiPickSel[rid];
+    });
+    uiPickOrder = uiPickOrder.filter(function(x){ return uiPickSel[x]; });
+    if (!added){ alert("追加できる選手がいませんでした（登録済みの選手は除かれます）"); return; }
+    touchConfig(); render();
+    alert(added + "名を追加しました");
+  }
 }
 function importParticipants(evId){
   var ev = evById(evId); if (!ev) return;
