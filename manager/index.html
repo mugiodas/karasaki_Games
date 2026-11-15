@@ -354,6 +354,12 @@ input,select,textarea{font-size:16px}
 .openstrip{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;margin-top:10px;padding:10px 12px;border:1.5px dashed #12a5e5;background:rgba(18,165,229,.06)}
 .qmeta{font-size:12.5px;color:var(--sub);font-weight:700;white-space:nowrap}
 .qnames{flex:1;font-size:16px;font-weight:700;line-height:1.35;min-width:0}
+/* tidy two-side name block for queue rows: each pair keeps its
+   players on their own lines and both sides share one layout,
+   instead of one long string wrapping wherever it happens to end */
+.qnames2{display:flex;align-items:center;gap:8px;flex:1;min-width:0}
+.qnames2 .qside{flex:1;min-width:0;font-size:15.5px;font-weight:700;line-height:1.3}
+.qnames2 i{font-style:normal;font-size:11.5px;font-weight:800;color:var(--sub);flex:none}
 .qnames i{color:var(--cy-dark);font-style:normal;font-weight:900;margin:0 3px}
 .qstart{min-height:42px;padding:0 14px;flex:none}
 
@@ -571,6 +577,7 @@ input,select,textarea{font-size:16px}
      their own full-width line instead of wrapping mid-name. */
   .qrow{flex-wrap:wrap}
   .qrow:has(> .qmeta) .qnames{flex:1 1 100%;order:5}
+  .qrow:has(> .qmeta) .qnames2{flex:1 1 100%;order:5}
   .qrow .qstart{margin-left:auto}
   /* League summary table: keep the name column readable — affiliation
      drops under the name, numeric columns and padding tighten. */
@@ -2576,11 +2583,12 @@ var NAV = [
 ];
 var uiOpenScore = {};
 function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
-function go(v){ if (VIEWER && (v === "entry" || v === "config" || v === "lgwiz" || v === "library" || v.indexOf("upset") === 0)) v = "home"; view = v; render(); window.scrollTo(0,0); }
+function go(v){ if (VIEWER && (v === "config" || v === "lgwiz" || v === "library" || v.indexOf("upset") === 0)) v = "home"; view = v; render(); window.scrollTo(0,0); }
 function renderNav(){
-  // Viewers never see the operator-only tabs (participants and
-  // settings are editing surfaces; user, 2026-11-15).
-  var nav = VIEWER ? NAV.filter(function(n){ return n.id !== "entry" && n.id !== "config"; }) : NAV;
+  // Viewers never see the settings tab (an editing surface).
+  // The participants tab stays: spectators want the roster, and
+  // for them it renders read-only (user, 2026-11-15).
+  var nav = VIEWER ? NAV.filter(function(n){ return n.id !== "config"; }) : NAV;
   var html = nav.map(function(n){ return '<button class="navbtn' + (view===n.id?" active":"") + '" onclick="go(\'' + n.id + '\')"><span class="ico">' + n.ico + '</span>' + n.label + '</button>'; }).join("");
   document.getElementById("sideNav").innerHTML = html + '<div style="padding:12px 10px 0"><span class="conn" id="connSide">…</span></div>';
   document.getElementById("bottomNav").innerHTML = nav.map(function(n){ return '<button class="' + (view===n.id?"active":"") + '" onclick="go(\'' + n.id + '\')"><span class="ico">' + n.ico + '</span>' + n.label.replace("参加者・種目","参加者").replace("タイムテーブル","時間").replace("設定・共有","設定") + '</button>'; }).join("");
@@ -4005,8 +4013,18 @@ function vLibrary(){
 }
 function vHome(){
   var totalP = state.events.reduce(function(a,e){ return a + e.participants.length; }, 0);
-  var allM = state.events.reduce(function(a,e){ return a + allMatches(e).length; }, 0);
-  var doneM = Object.keys(state.results).filter(function(k){ return state.results[k].winner; }).length;
+  // Progress counts only matches of the CURRENT events: results
+  // left in state from other tournaments or older event ids once
+  // pushed this past 4000% (user report, 2026-11-15).
+  var allM = 0, doneM = 0;
+  state.events.forEach(function(e){
+    allMatches(e).forEach(function(m){
+      var r = state.results[m.id];
+      if (r && r.skip) return;
+      allM++;
+      if (r && r.winner) doneM++;
+    });
+  });
   var champs = [];
   state.events.forEach(function(ev){
     if (ev.format === "league2" || ev.format === "tournament"){ var c = championOf(ev, "upper"); if (c) champs.push(ev.name + " 上位優勝: " + playerName(ev, c)); }
@@ -4071,7 +4089,49 @@ function formatLabel(ev){
   return "トーナメントのみ";
 }
 // --- entry ---
+// A participant's record in this event (decided matches only;
+// walkovers with a winner count, same-team skips do not).
+function playerRecord(ev, pid){
+  var all = allMatches(ev), w = 0, l = 0;
+  all.forEach(function(m){
+    var r = state.results[m.id];
+    if (!r || !r.winner || r.skip) return;
+    var pl = matchPlayers(ev, m, all);
+    if (pl.p1 !== pid && pl.p2 !== pid) return;
+    if (r.winner === pid) w++; else l++;
+  });
+  return { w: w, l: l };
+}
+// Read-only roster for spectators (viewer links): names,
+// affiliations and per-player grades, grouped by block when the
+// draw exists. No editing surface of any kind.
+function vRoster(){
+  var evs = state.events;
+  var h = "<h1>参加者一覧</h1><div class='sub'>種目ごとの参加者です。</div>" + eventPickerHTML(evs);
+  var ev = evById(uiEventId) || evs[0];
+  if (!ev) return h + '<div class="card">まだ種目がありません。</div>';
+  function row(p, n){
+    var rec = playerRecord(ev, p.id);
+    return '<div class="qrow"><span class="qmeta">' + n + '</span><span class="qnames" style="font-size:15px">' + playerMatrixName(ev, p) + '</span>' +
+      '<span style="text-align:right"><span style="font-weight:800;white-space:nowrap">' + rec.w + '勝 ' + rec.l + '敗</span>' +
+      '<span class="mini" style="display:block">' + esc(p.aff || "") + (p.gender === "混合" ? ' ・男女混合' : "") + (p.seed ? ' ・⭐シード' : "") + (p.retired ? ' <span class="chip red">棄権</span>' : "") + '</span></span></div>';
+  }
+  var blocks = (ev.format !== "tournament" && ev.blocks) ? leagueBlocks(ev) : null;
+  if (blocks && blocks.length){
+    blocks.forEach(function(b, bi){
+      h += '<div class="card" style="margin-top:12px"><h3 style="margin-top:0">' + String.fromCharCode(65 + bi) + 'ブロック</h3>' + b.map(function(p, i){ return row(p, i + 1); }).join("") + "</div>";
+    });
+    var inBlocks = {};
+    blocks.forEach(function(b){ b.forEach(function(p){ inBlocks[p.id] = 1; }); });
+    var rest = ev.participants.filter(function(p){ return !inBlocks[p.id]; });
+    if (rest.length) h += '<div class="card" style="margin-top:12px"><h3 style="margin-top:0">ブロック未定</h3>' + rest.map(function(p, i){ return row(p, i + 1); }).join("") + "</div>";
+  } else {
+    h += '<div class="card" style="margin-top:12px"><h3 style="margin-top:0">' + esc(ev.name) + '（' + ev.participants.length + '）</h3>' + ev.participants.map(function(p, i){ return row(p, i + 1); }).join("") + "</div>";
+  }
+  return h;
+}
 function vEntry(){
+  if (VIEWER) return vRoster();
   var h = "<h1>参加者・種目</h1>";
   var warns = validateEvents();
   if (warns.length){
@@ -4123,7 +4183,8 @@ function eventEntryCard(ev){
   if (ev.participants.length){
     h += '<table class="ptable" style="margin-top:10px"><tr><th style="width:34px">#</th><th>名前</th><th>所属</th><th style="width:64px">シード</th><th style="width:110px">操作</th></tr>';
     ev.participants.forEach(function(p, i){
-      h += "<tr><td>" + (i+1) + "</td><td><strong>" + nameLinesHTML(p.name) + "</strong>" + (p.kana ? '<span class="mini" style="display:block">' + esc(p.kana) + '</span>' : "") + (p.retired ? ' <span class="chip red">棄権</span>' : "") + "</td><td>" + esc(p.aff||"") + "</td>" +
+      var rec = playerRecord(ev, p.id);
+      h += "<tr><td>" + (i+1) + "</td><td><strong>" + nameLinesHTML(p.name) + "</strong>" + (p.kana ? '<span class="mini" style="display:block">' + esc(p.kana) + '</span>' : "") + (p.retired ? ' <span class="chip red">棄権</span>' : "") + "</td><td>" + esc(p.aff||"") + ((rec.w + rec.l) ? '<span class="mini" style="display:block;font-weight:700;color:var(--ink)">' + rec.w + "勝 " + rec.l + "敗</span>" : "") + "</td>" +
         '<td><button class="linkbtn" onclick="toggleSeed(\'' + ev.id + "','" + p.id + '\')">' + (p.seed ? "⭐" : "☆") + "</button></td>" +
         '<td class="ops" style="white-space:nowrap"><button class="linkbtn" onclick="movePart(\'' + ev.id + "','" + p.id + ',-1)">↑</button><button class="linkbtn" onclick="movePart(\'' + ev.id + "','" + p.id + ',1)">↓</button><button class="linkbtn" onclick="renamePart(\'' + ev.id + "','" + p.id + '\')">名前</button>' + (ev.format === "team" ? '<button class="linkbtn" onclick="toggleRoster(\'' + ev.id + "','" + p.id + '\')">メンバー</button>' : "") + '<button class="linkbtn" onclick="toggleRetire(\'' + ev.id + "','" + p.id + '\')">' + (p.retired ? "棄権を戻す" : "棄権") + '</button><button class="linkbtn" style="color:var(--bad)" onclick="delPart(\'' + ev.id + "','" + p.id + '\')">削除</button></td></tr>' +
         (ev.format === "team" && uiRoster[ev.id] === p.id ? '<tr><td></td><td colspan="4"><textarea id="roster-' + ev.id + '" placeholder="メンバーを1行に1人で入力">' + esc((p.members || []).join("\n")) + '</textarea><div style="margin-top:6px"><button class="btn small" onclick="saveRoster(\'' + ev.id + "','" + p.id + '\')">メンバーを保存</button></div></td></tr>' : "");
@@ -5170,7 +5231,7 @@ function vLive(){
       var isLive = !!(state.live && state.live[mid] && !o.winner);
       var mins = isLive ? Math.max(0, Math.round((Date.now() - state.live[mid]) / 60000)) : 0;
       return '<div class="qrow"><span class="qmeta">' + (sx ? (isMultiDay() ? esc(dayShort(sx.day)) + " " : "") + esc(sx.time) + " ・ " + (liveCourt(mid) || sx.court) + "コート" : "時刻未定") + " ・ " + esc(f.ev.name) + '</span>' +
-        '<span class="qnames">' + esc(playerName(f.ev, o.a)) + '<i>vs</i>' + esc(playerName(f.ev, o.b)) + '</span>' +
+        '<span class="qnames2"><span class="qside">' + nameLinesHTML(playerName(f.ev, o.a)) + '</span><i>vs</i><span class="qside">' + nameLinesHTML(playerName(f.ev, o.b)) + '</span></span>' +
         (VIEWER
           ? '<span class="mini">' + (o.winner ? esc(playerName(f.ev, o.winner)) + ' の勝ち' + (o.score ? " " + esc(o.score) : "") : (isLive ? "試合中" : "予定")) + '</span>'
           : o.winner
@@ -5185,8 +5246,8 @@ function vLive(){
   h += '<div class="card" style="margin-top:12px"><h3 style="margin-top:0">待機中の試合' + (VIEWER ? "" : "（開始できる順）") + '</h3>' +
     (queue.length ? queue.map(function(x){
       var ev = evById(x.match.evId); var pl = matchPlayers(ev, x.match, null);
-      return '<div class="qrow"><span class="qmeta">' + (isMultiDay() ? esc(dayShort(x.day)) + " " : "") + esc(x.time) + " ・ コート" + x.court + '</span>' +
-        '<span class="qnames">' + esc(playerName(ev, pl.p1)) + '<i>vs</i>' + esc(playerName(ev, pl.p2)) + '</span>' +
+      return '<div class="qrow"><span class="qmeta">' + (isMultiDay() ? esc(dayShort(x.day)) + " " : "") + esc(x.time) + " ・ コート" + x.court + " ・ " + esc(ev.name) + '</span>' +
+        '<span class="qnames2"><span class="qside">' + nameLinesHTML(playerName(ev, pl.p1)) + '</span><i>vs</i><span class="qside">' + nameLinesHTML(playerName(ev, pl.p2)) + '</span></span>' +
         (VIEWER ? "" : '<button class="btn small qstart" onclick="pickCourtAndStart(\'' + x.match.id + '\')">▶ 開始</button>' +
         '<button class="linkbtn" onclick="openReferee(\'' + ev.id + "','" + x.match.id + '\')">審判</button>') + '</div>';
     }).join("") : '<div class="sub">開始できる試合はありません</div>') + "</div>";
