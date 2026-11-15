@@ -4894,24 +4894,35 @@ var ttMode = "auto";
 // "when is that player's next match?" — and doubles as the way to
 // process a same-day withdrawal without hunting through the entry list.
 var _searchQ = "";
+// Typing must never re-render the whole view: a full render destroys
+// the input element itself, which cancels Japanese IME composition
+// mid-word (typed kana vanish or garble) and loses the caret. Only
+// the results block under the input is refreshed; the input element
+// is left completely untouched.
 function setSearchQ(v){
-  _searchQ = v; render();
-  var i = document.getElementById("psearch");
-  if (i){ i.focus(); try { i.setSelectionRange(i.value.length, i.value.length); } catch (e){} }
+  _searchQ = v;
+  var r = document.getElementById("psearch-results");
+  if (r) r.innerHTML = playerSearchResultsHTML();
+  else render();
 }
 function playerSearchHTML(){
-  var q = (_searchQ || "").trim();
   var h = '<div class="card"><h3 style="margin-top:0">選手を探す</h3>' +
     '<input type="text" id="psearch" placeholder="名前・ふりがなで検索（例： やまだ）" value="' + esc(_searchQ) + '" oninput="setSearchQ(this.value)">' +
-    '<div class="mini" style="margin-top:4px">その選手の全試合（時刻・コート・相手・結果）が分かります。' + (VIEWER ? "" : '欠場した選手はここから「棄権にする」こともできます。') + '</div>';
-  if (!q) return h + "</div>";
+    '<div class="mini" style="margin-top:4px">その選手の全試合（時刻・コート・相手・結果）が分かります。' + (VIEWER ? "" : '欠場した選手はここから「棄権にする」こともできます。') + '</div>' +
+    '<div id="psearch-results">' + playerSearchResultsHTML() + '</div>';
+  return h + "</div>";
+}
+function playerSearchResultsHTML(){
+  var q = (_searchQ || "").trim();
+  if (!q) return "";
+  var h = "";
   var hits = [];
   state.events.forEach(function(ev){
     ev.participants.forEach(function(p){
       if (p.name.indexOf(q) >= 0 || (p.kana || "").indexOf(q) >= 0) hits.push({ ev: ev, p: p });
     });
   });
-  if (!hits.length) return h + '<div class="sub" style="margin-top:8px">「' + esc(q) + '」に合う選手はいません</div></div>';
+  if (!hits.length) return h + '<div class="sub" style="margin-top:8px">「' + esc(q) + '」に合う選手はいません</div>';
   var sm = schedMap();
   h += hits.slice(0, 12).map(function(hit){
     var ev = hit.ev, p = hit.p;
@@ -4937,7 +4948,7 @@ function playerSearchHTML(){
       (VIEWER ? "" : '<button class="linkbtn" style="color:var(--bad)" onclick="toggleRetire(\'' + ev.id + "','" + p.id + '\')">' + (p.retired ? "棄権を取り消す" : "棄権にする") + '</button>') + '</div>' + rows + '</div>';
   }).join("");
   if (hits.length > 12) h += '<div class="sub" style="margin-top:8px">ほか ' + (hits.length - 12) + ' 件あります（検索を絞ってください）</div>';
-  return h + "</div>";
+  return h;
 }
 function vTime(){
   var sched = buildSchedule();
