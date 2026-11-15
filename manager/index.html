@@ -705,6 +705,30 @@ table.mx{border-collapse:collapse;width:auto}
 .mxleft{display:flex;flex-direction:column;align-items:center;min-width:30px}
 .mxgames{display:flex;flex-direction:column;text-align:left;gap:1px}
 .mxgame{font-size:10.5px;color:var(--sub);font-variant-numeric:tabular-nums;white-space:nowrap;line-height:1.45}
+/* Phones / narrow screens: the matrix must fit the screen width with
+   no sideways sliding (user, 2026-11-15 — pinch-zoom is fine, a
+   table wider than the screen is not). The seven stat columns are
+   dropped here because the standings table below the matrix shows
+   the same numbers; cells stack their mark and scores vertically. */
+@media (max-width: 900px){
+  .mx .stat{display:none}
+  table.mx{width:100%;table-layout:fixed}
+  .mx th.mxh{min-width:0;max-width:none;font-size:10px;padding:4px 1px}
+  .mx th.mxh:first-child{width:24%}
+  .mx th.mxr{min-width:0;font-size:10.5px;padding:4px 3px}
+  .mx td.mxd{min-width:0;font-size:11px;padding:3px 1px;overflow:hidden}
+  .mxcell{flex-direction:column;gap:0}
+  .mxleft{min-width:0}
+  .mxmark{font-size:13px}
+  .mxg{font-size:10px}
+  .mxgames{text-align:center}
+  .mxgame{font-size:9px}
+  /* Column-header names run vertically (the way printed matrices
+     do): a full name fits a narrow column at a readable size
+     instead of shrinking to a few pixels. */
+  .mx th.mxh .fitline{writing-mode:vertical-rl;text-orientation:upright;margin:0 auto}
+  .mx th.mxh .mini{writing-mode:vertical-rl;text-orientation:upright;margin:0 auto}
+}
 .evpicker{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0 6px}
 .evchip{border:2px solid var(--ink);background:#fff;color:var(--ink);font:inherit;font-weight:700;font-size:14px;padding:9px 12px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;min-height:44px}
 .evchip .evprog{font-size:11px;font-weight:400;color:#777}
@@ -4620,6 +4644,7 @@ function fitNameLines(){
     function needScale(el){
       var w = el.clientWidth; if (!w) return 1;
       var cs = window.getComputedStyle(el);
+      if (cs.writingMode && cs.writingMode.indexOf("vertical") === 0) return 1; // vertical names size themselves
       var base = parseFloat(cs.fontSize) || 16;
       var tw;
       if (el.closest && el.closest(".vsname.right")) tw = fitTextWidth(el, cs);
