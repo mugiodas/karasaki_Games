@@ -3873,8 +3873,8 @@ function eventEntryCard(ev){
   }
   h += '<details style="margin-top:12px"><summary style="cursor:pointer;font-weight:700">種目の設定を変更</summary>' +
     '<div class="grid3"><div><label class="f">対戦順パターン</label><select id="es-pat-' + ev.id + '"><option value="moriage"' + (ev.pattern === "moriage" ? " selected" : "") + '>盛上</option><option value="sokuketsu"' + (ev.pattern === "sokuketsu" ? " selected" : "") + '>即決</option><option value="standard"' + (ev.pattern === "standard" ? " selected" : "") + '>標準</option></select></div>' +
-    '<div><label class="f">1ブロックの人数</label><select id="es-bs-' + ev.id + '"><option' + (ev.blockSize === 3 ? " selected" : "") + '>3</option><option' + (ev.blockSize === 4 ? " selected" : "") + '>4</option><option' + (ev.blockSize === 5 ? " selected" : "") + '>5</option></select></div>' +
-    '<div><label class="f">上位に進む人数</label><select id="es-adv-' + ev.id + '"><option' + (ev.advance === 1 ? " selected" : "") + '>1</option><option' + (ev.advance === 2 ? " selected" : "") + '>2</option></select></div>' +
+    '<div><label class="f">1ブロックの人数</label><select id="es-bs-' + ev.id + '">' + [3, 4, 5].concat((ev.blockSize && [3, 4, 5].indexOf(ev.blockSize) < 0) ? [ev.blockSize] : []).map(function(n){ return '<option value="' + n + '"' + (ev.blockSize === n ? " selected" : "") + '>' + n + '</option>'; }).join("") + '</select></div>' +
+    '<div><label class="f">上位に進む人数</label><select id="es-adv-' + ev.id + '">' + [0, 1, 2].map(function(n){ return '<option value="' + n + '"' + ((ev.advance || 0) === n ? " selected" : "") + '>' + (n === 0 ? "0（リーグのみ）" : n) + '</option>'; }).join("") + '</select></div>' +
     '<div><label class="f">トーナメント組み合わせ方式</label><select id="es-seed-' + ev.id + '"><option value="standard"' + (ev.seedMode !== "asami" ? " selected" : "") + '>標準（アプリ方式）</option><option value="asami"' + (ev.seedMode === "asami" ? " selected" : "") + '>ASAMI方式</option></select></div></div>' +
     '<label class="f">3位決定戦</label><select id="es-3p-' + ev.id + '"><option value=""' + (!ev.thirdPlace ? " selected" : "") + '>なし</option><option value="1"' + (ev.thirdPlace ? " selected" : "") + '>あり（準決勝の敗者同士）</option></select>' +
     '<div class="grid2"><div><label class="f">チャレンジトーナメント（敗者復活）</label><select id="es-ch-' + ev.id + '"><option value=""' + (!ev.challengeUntil ? " selected" : "") + '>なし</option><option value="1"' + (ev.challengeUntil === 1 ? " selected" : "") + '>あり（1回戦までの敗者）</option><option value="2"' + (ev.challengeUntil === 2 ? " selected" : "") + '>あり（2回戦までの敗者）</option></select></div>' +
@@ -3908,7 +3908,7 @@ function saveEventSettings(eid){
   if (chp && !/^\d{2,5}$/.test(chp)){ alert("チャレンジ用ポイントは2〜5桁の数字コードで入力してください"); return; }
   var seedEl2 = document.getElementById("es-seed-" + eid);
   var seedMode = seedEl2 ? seedEl2.value : (ev.seedMode || "standard");
-  var structural = (pat !== ev.pattern || bs !== (ev.blockSize || 4) || adv !== (ev.advance || 2) || tp !== !!ev.thirdPlace || chU !== (ev.challengeUntil || 0) || seedMode !== (ev.seedMode || "standard"));
+  var structural = (pat !== ev.pattern || bs !== (ev.blockSize == null ? 4 : ev.blockSize) || adv !== (ev.advance == null ? 2 : ev.advance) || tp !== !!ev.thirdPlace || chU !== (ev.challengeUntil || 0) || seedMode !== (ev.seedMode || "standard"));
   if (structural && ev.blocks){
     if (!confirm("人数・対戦順・進出人数・3位決定戦・チャレンジ・組み合わせ方式の変更は、組合せと入力済みの結果をリセットします。続けますか？")) return;
     pushSnapshot("種目設定変更の前: " + ev.name);
