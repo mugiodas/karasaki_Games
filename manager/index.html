@@ -700,6 +700,7 @@ input,select,textarea{font-size:16px}
 table.mx{border-collapse:collapse;width:auto}
 .mx th.mxh{background:var(--ink);color:#fff;font-size:11px;padding:6px 4px;min-width:66px;max-width:88px;line-height:1.3}
 .mx th.mxr{background:#f4f4f1;color:var(--ink);border:1px solid var(--line);font-size:12px;text-align:left;padding:6px 9px;min-width:112px;line-height:1.3}
+.mxaff{display:block;font-size:10px;font-weight:400;color:var(--sub);margin-top:2px;line-height:1.3}
 .mx td.mxd{border:1px solid var(--line);text-align:center;padding:5px 4px;font-size:12px;min-width:94px;cursor:pointer;background:#fff;vertical-align:middle}
 .mx td.mxd:hover{background:rgba(18,165,229,.08)}
 .mx td.mxd.diag{background:#ececea;color:#a9a9a4;cursor:default}
@@ -5094,7 +5095,7 @@ function matrixHTML(ev, block, bi, lms){
     block.map(function(p){ return '<th class="mxh">' + playerMatrixName(ev, p) + '</th>'; }).join("") +
     statHeads.map(function(t){ return '<th class="mxh stat">' + t + '</th>'; }).join("") + '</tr>';
   block.forEach(function(pa){
-    out += '<tr><th class="mxr">' + playerMatrixName(ev, pa) + '</th>';
+    out += '<tr><th class="mxr">' + playerMatrixName(ev, pa) + (pa.aff ? '<span class="mxaff">' + esc(pa.aff) + '</span>' : '') + '</th>';
     block.forEach(function(pb){
       if (pa.id === pb.id){ out += '<td class="mxd diag">—</td>'; return; }
       var m = findM(pa.id, pb.id);
@@ -5320,6 +5321,7 @@ function bracketHTML(ev, tier, tms){
     var isFinal = final && m.id === final.id;
     txt += '<text class="bkadv" x="' + (barX(m.round) + 5) + '" y="' + (nodeY(m) - 5) + '">' +
       (isFinal ? '<tspan class="bkwin">優勝 </tspan>' : "") + esc(playerName(ev, adv)) +
+      (playerAff(ev, adv) ? '<tspan class="bkaffT">（' + esc(playerAff(ev, adv)) + "）</tspan>" : "") +
       (r && r.score ? '<tspan class="bksc"> ' + esc(r.score) + "</tspan>" : "") + "</text>";
   });
   return '<div class="bkwrap"><div class="bkstage" style="width:' + W + 'px;height:' + H + 'px"><svg width="' + W + '" height="' + H + '">' + gray + red + txt + "</svg></div></div>";
@@ -5338,7 +5340,7 @@ function vTour(){
       var tms = tournamentMatches(ev, tier, lms);
 
       h += '<div class="card"><div class="row"><span class="chip ' + tier + '">' + (tier === "upper" ? (ev.format === "team" ? "決勝トーナメント" : "上位トーナメント") : "下位トーナメント") + "</span>" +
-        (championOf(ev, tier) ? '<span class="chip green">優勝: ' + esc(playerName(ev, championOf(ev, tier))) + "</span>" +
+        (championOf(ev, tier) ? '<span class="chip green">優勝: ' + esc(playerName(ev, championOf(ev, tier))) + (playerAff(ev, championOf(ev, tier)) ? '（' + esc(playerAff(ev, championOf(ev, tier))) + '）' : "") + "</span>" +
           (VIEWER ? "" : '<button class="btn ghost small" onclick="printAwards(\'' + ev.id + '\')">賞状</button>') : "") +
         '<span style="margin-left:auto"></span><button class="btn ghost small" onclick="uiTourView=\'bracket\';render()">トーナメント表</button>' +
         '<button class="btn ghost small" onclick="uiTourView=\'cards\';render()">カード</button></div>';
