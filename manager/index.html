@@ -159,6 +159,7 @@ table.tt th.time,table.tt td.time{position:sticky;left:0;background:#fff;min-wid
 .ttcell.done{opacity:.5}
 .ttcell .tag{font-size:10px;color:var(--sub)}
 table.tt td.ttcell{cursor:pointer;transition:background .08s linear}
+body.viewer .mx td.mxd,body.viewer table.tt td.ttcell{cursor:default}
 table.tt td.ttcell:active{background:rgba(18,165,229,.14)}
 .flash{box-shadow:0 0 0 3px var(--cy)!important}
 /* ===== standings / warnings ===== */
@@ -714,8 +715,8 @@ table.mx{border-collapse:collapse;width:auto}
   .mx .stat{display:none}
   table.mx{width:100%;table-layout:fixed}
   .mx th.mxh{min-width:0;max-width:none;font-size:10px;padding:4px 1px}
-  .mx th.mxh:first-child{width:24%}
-  .mx th.mxr{min-width:0;font-size:10.5px;padding:4px 3px}
+  .mx th.mxh:first-child{width:30%}
+  .mx th.mxr{min-width:0;font-size:10.5px;padding:4px 2px}
   .mx td.mxd{min-width:0;font-size:11px;padding:3px 1px;overflow:hidden}
   .mxcell{flex-direction:column;gap:0}
   .mxleft{min-width:0}
@@ -728,6 +729,9 @@ table.mx{border-collapse:collapse;width:auto}
      instead of shrinking to a few pixels. */
   .mx th.mxh .fitline{writing-mode:vertical-rl;text-orientation:upright;margin:0 auto}
   .mx th.mxh .mini{writing-mode:vertical-rl;text-orientation:upright;margin:0 auto}
+  /* Column headers: family name only, so the two players of a
+     pair stay visually separate in the narrow vertical header. */
+  .mx th.mxh .mxgiv{display:none}
 }
 .evpicker{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0 6px}
 .evchip{border:2px solid var(--ink);background:#fff;color:var(--ink);font:inherit;font-weight:700;font-size:14px;padding:9px 12px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;min-height:44px}
@@ -1137,6 +1141,35 @@ function saveState(){
   }catch(e5){}
 }
 function touchConfig(){ state.configTs = Date.now(); sync.lastEdit = Date.now(); invalidateCaches(); saveState(); publishState(); libStoreCurrent(); }
+// Point rules are a tournament-wide decision (user, 2026-11-15:
+// per-event changes are the exception, bulk changes are the norm).
+// Applies the codes chosen on the settings screen to the meta
+// default AND every event. league / tour may be "__keep" (events
+// differ — leave them) or "" (same as the common code). Entered
+// results keep the code they were recorded with; only matches
+// entered afterwards use the new codes. Takes a snapshot first
+// when anything actually changes. Returns true when changed.
+function applyPointCodes(common, league, tour){
+  common = String(common || "").trim() || "21330";
+  function differs(){
+    if ((state.meta.pointDefault || "") !== common) return true;
+    return state.events.some(function(ev){
+      if ((ev.pointCode || "") !== common) return true;
+      if (league !== "__keep" && league != null && (ev.pointCodeLeague || "") !== (league || "")) return true;
+      if (tour !== "__keep" && tour != null && (ev.pointCodeTour || "") !== (tour || "")) return true;
+      return false;
+    });
+  }
+  if (!differs()) return false;
+  pushSnapshot("ポイント設定変更の前");
+  state.meta.pointDefault = common;
+  state.events.forEach(function(ev){
+    ev.pointCode = common;
+    if (league !== "__keep" && league != null) ev.pointCodeLeague = league || "";
+    if (tour !== "__keep" && tour != null) ev.pointCodeTour = tour || "";
+  });
+  return true;
+}
 // ===== tournament library: several tournaments side by side =====
 // The ACTIVE tournament keeps living in LS_KEY exactly as before;
 // every tournament also has a slot (LS_KEY + ":t:" + tid) and the
@@ -1785,6 +1818,7 @@ function buildLeagueTournament(w){
     lg.entries.forEach(function(e, i){
       var p = { id: ev.id + "p" + (i + 1), name: e.name, aff: e.aff || "", seed: false };
       if (e.grade) p.grade = e.grade;
+      if (e.gradeSeg) p.gradeSeg = e.gradeSeg.slice();
       if (e.gender) p.gender = e.gender;
       if (e.genderSeg) p.genderSeg = e.genderSeg.slice();
       ev.participants.push(p);
@@ -2524,9 +2558,13 @@ var uiOpenScore = {};
 function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
 function go(v){ if (VIEWER && (v === "entry" || v === "config" || v === "lgwiz" || v === "library" || v.indexOf("upset") === 0)) v = "home"; view = v; render(); window.scrollTo(0,0); }
 function renderNav(){
-  var html = NAV.map(function(n){ return '<button class="navbtn' + (view===n.id?" active":"") + '" onclick="go(\'' + n.id + '\')"><span class="ico">' + n.ico + '</span>' + n.label + '</button>'; }).join("");
+  // Viewers never see the operator-only tabs (participants and
+  // settings are editing surfaces; user, 2026-11-15).
+  var nav = VIEWER ? NAV.filter(function(n){ return n.id !== "entry" && n.id !== "config"; }) : NAV;
+  var html = nav.map(function(n){ return '<button class="navbtn' + (view===n.id?" active":"") + '" onclick="go(\'' + n.id + '\')"><span class="ico">' + n.ico + '</span>' + n.label + '</button>'; }).join("");
   document.getElementById("sideNav").innerHTML = html + '<div style="padding:12px 10px 0"><span class="conn" id="connSide">…</span></div>';
-  document.getElementById("bottomNav").innerHTML = NAV.map(function(n){ return '<button class="' + (view===n.id?"active":"") + '" onclick="go(\'' + n.id + '\')"><span class="ico">' + n.ico + '</span>' + n.label.replace("参加者・種目","参加者").replace("タイムテーブル","時間").replace("設定・共有","設定") + '</button>'; }).join("");
+  document.getElementById("bottomNav").innerHTML = nav.map(function(n){ return '<button class="' + (view===n.id?"active":"") + '" onclick="go(\'' + n.id + '\')"><span class="ico">' + n.ico + '</span>' + n.label.replace("参加者・種目","参加者").replace("タイムテーブル","時間").replace("設定・共有","設定") + '</button>'; }).join("");
+  if (document.body && document.body.classList && typeof document.body.classList.toggle === "function") document.body.classList.toggle("viewer", VIEWER);
   var t = state.meta.name || "大会運営 Web";
   document.getElementById("topTitle").textContent = t;
   document.getElementById("sideTName").textContent = state.meta.name ? (state.meta.name + (state.meta.date ? " / " + state.meta.date : "")) : "（大会未設定）";
@@ -2580,10 +2618,10 @@ function teamCard(ev, m, showMeta){
   if (showMeta !== false){
     meta = '<div class="meta">' + kind + '<span>' + esc(m.id.split("-").slice(-2).join("-")) + '</span>' +
       (ref ? '<span class="chip gray">審判: ' + esc(playerName(ev, ref)) + '</span>' : "") +
-      (!r.winner && state.live && state.live[m.id] ? '<span class="chip" style="background:rgba(221,136,0,.1);color:#a86400;border-color:#dd8800">● 試合中</span><button class="linkbtn" onclick="cancelMatch(\'' + m.id + '\')">開始取消</button>' : "") +
-      (!r.winner && !(state.live && state.live[m.id]) && pl.p1 && pl.p2 && pl.p1 !== "BYE" && pl.p2 !== "BYE" ? '<button class="linkbtn" onclick="pickCourtAndStart(\'' + m.id + '\')">▶ 開始</button>' : "") +
-      (r.winner ? '<button class="linkbtn" onclick="clearResult(\'' + m.id + '\')">取り消し</button>' : "") +
-      '<button class="linkbtn" onclick="openScoreModal(\'' + ev.id + "','" + m.id + '\')">オーダー/スコア</button></div>';
+      (!r.winner && state.live && state.live[m.id] ? '<span class="chip" style="background:rgba(221,136,0,.1);color:#a86400;border-color:#dd8800">● 試合中</span>' + (VIEWER ? "" : '<button class="linkbtn" onclick="cancelMatch(\'' + m.id + '\')">開始取消</button>') : "") +
+      (!VIEWER && !r.winner && !(state.live && state.live[m.id]) && pl.p1 && pl.p2 && pl.p1 !== "BYE" && pl.p2 !== "BYE" ? '<button class="linkbtn" onclick="pickCourtAndStart(\'' + m.id + '\')">▶ 開始</button>' : "") +
+      (!VIEWER && r.winner ? '<button class="linkbtn" onclick="clearResult(\'' + m.id + '\')">取り消し</button>' : "") +
+      (VIEWER ? "" : '<button class="linkbtn" onclick="openScoreModal(\'' + ev.id + "','" + m.id + '\')">オーダー/スコア</button>') + '</div>';
   }
   function teamBtn(pid){
     if (!pid) return '<div class="pbtn tbd">未定</div>';
@@ -2616,7 +2654,9 @@ function matchCard(ev, m, showMeta){
     if (pid === "BYE") return '<div class="pbtn tbd">（不戦勝）</div>';
     var pend = !winner && _pendingWinner[m.id] === pid;
     var cls = "pbtn" + (winner ? (winner === pid ? " win" : " lose") : (pend ? " win" : ""));
-    return '<button class="' + cls + '" onclick="tapPlayer(\'' + ev.id + '\',\'' + m.id + '\',\'' + pid + '\')">' + nameLinesHTML(playerName(ev, pid), 8) + '<span class="aff">' + esc(playerAff(ev, pid)) + (winner === pid ? " ・勝" : (pend ? " ・勝者（未確定）" : "")) + '</span></button>';
+    var inner = nameLinesHTML(playerName(ev, pid), 8) + '<span class="aff">' + esc(playerAff(ev, pid)) + (winner === pid ? " ・勝" : (pend ? " ・勝者（未確定）" : "")) + '</span>';
+    if (VIEWER) return '<div class="' + cls + '">' + inner + '</div>';
+    return '<button class="' + cls + '" onclick="tapPlayer(\'' + ev.id + '\',\'' + m.id + '\',\'' + pid + '\')">' + inner + '</button>';
   }
   var meta = "";
   if (showMeta !== false){
@@ -2630,12 +2670,12 @@ function matchCard(ev, m, showMeta){
       (noteLabel ? '<span class="chip red">' + noteLabel + '</span>' : "") +
       (r && r.point ? '<span class="chip gray">' + esc(decodePoint(r.point).label) + '</span>' : "") +
       (r && r.ts ? '<span>' + new Date(r.ts).toTimeString().slice(0,5) + ' 入力</span>' : "") +
-      (winner ? '<button class="linkbtn" onclick="clearResult(\'' + m.id + '\')">取り消し</button>' : "") +
-      (!winner && state.live && state.live[m.id] ? '<span class="chip" style="background:rgba(221,136,0,.1);color:#a86400;border-color:#dd8800">● 試合中 ' + Math.max(0, Math.round((Date.now() - state.live[m.id]) / 60000)) + '分</span><button class="linkbtn" onclick="cancelMatch(\'' + m.id + '\')">開始取消</button>' : "") +
-      (!winner && !(state.live && state.live[m.id]) && pl.p1 && pl.p2 && pl.p1 !== "BYE" && pl.p2 !== "BYE" ? '<button class="linkbtn" onclick="pickCourtAndStart(\'' + m.id + '\')">▶ 開始</button>' : "") +
-      (pl.p1 && pl.p2 && pl.p1 !== "BYE" && pl.p2 !== "BYE" ? '<button class="linkbtn" onclick="printOneSheet(\'' + m.id + '\')">審判用紙</button>' : "") +
-      (winner ? '<button class="linkbtn" onclick="printOfficialSheet(\'' + m.id + '\')">スコアシート</button>' : "") +
-      '<button class="linkbtn" onclick="openScoreModal(\'' + ev.id + "','" + m.id + '\')">' + (winner || (r && r.score) ? "スコア修正" : "スコア入力") + '</button></div>';
+      (!VIEWER && winner ? '<button class="linkbtn" onclick="clearResult(\'' + m.id + '\')">取り消し</button>' : "") +
+      (!winner && state.live && state.live[m.id] ? '<span class="chip" style="background:rgba(221,136,0,.1);color:#a86400;border-color:#dd8800">● 試合中 ' + Math.max(0, Math.round((Date.now() - state.live[m.id]) / 60000)) + '分</span>' + (VIEWER ? "" : '<button class="linkbtn" onclick="cancelMatch(\'' + m.id + '\')">開始取消</button>') : "") +
+      (!VIEWER && !winner && !(state.live && state.live[m.id]) && pl.p1 && pl.p2 && pl.p1 !== "BYE" && pl.p2 !== "BYE" ? '<button class="linkbtn" onclick="pickCourtAndStart(\'' + m.id + '\')">▶ 開始</button>' : "") +
+      (!VIEWER && pl.p1 && pl.p2 && pl.p1 !== "BYE" && pl.p2 !== "BYE" ? '<button class="linkbtn" onclick="printOneSheet(\'' + m.id + '\')">審判用紙</button>' : "") +
+      (!VIEWER && winner ? '<button class="linkbtn" onclick="printOfficialSheet(\'' + m.id + '\')">スコアシート</button>' : "") +
+      (VIEWER ? "" : '<button class="linkbtn" onclick="openScoreModal(\'' + ev.id + "','" + m.id + '\')">' + (winner || (r && r.score) ? "スコア修正" : "スコア入力") + '</button>') + '</div>';
   }
   return '<div class="match" id="card-' + m.id + '">' + meta + '<div class="vs">' + btn(pl.p1,1) + '<div class="vsmid">vs</div>' + btn(pl.p2,2) + '</div>' + openStripHTML(ev, m) + '</div>';
 }
@@ -2941,7 +2981,7 @@ function showUndoToast(){
   _toastTimer = setTimeout(hideToast, 12000);
 }
 function hideToast(){ var t = document.getElementById("toast"); if (t) t.className = ""; }
-function jumpMatch(mid){ var f = findMatchGlobal(mid); if (f) openScoreModal(f.ev.id, mid); }
+function jumpMatch(mid){ if (VIEWER) return; var f = findMatchGlobal(mid); if (f) openScoreModal(f.ev.id, mid); }
 // ===== open (exhibition) match UI =====
 function showSheet(html){
   var ov = document.getElementById("modalOverlay");
@@ -3962,7 +4002,7 @@ function vHome(){
   if (!VIEWER) h += '<div class="row" style="gap:10px;margin-bottom:14px"><div style="flex:1;text-align:center;padding:13px 6px;border:2px solid var(--ink);background:var(--ink);color:#fff;font-weight:800;min-height:52px;display:flex;align-items:center;justify-content:center">大会運営</div><button class="btn" style="flex:1;min-height:52px" onclick="go(\'upset\')">下克上練習会 →</button></div>';
   if (!VIEWER) h += '<div class="row" style="margin-bottom:14px"><span class="mini" style="align-self:center">複数の大会を並行して準備・切り替えできます</span><button class="btn ghost small" onclick="go(\'library\')">大会一覧</button></div>';
   var gd = guideInfo();
-  var guideHTML = '<div class="guide"><div class="guide-steps">' + gd.steps.map(function(s, i){
+  var guideHTML = VIEWER ? "" : '<div class="guide"><div class="guide-steps">' + gd.steps.map(function(s, i){
       return '<span class="gstep' + (i < gd.cur ? " done" : (i === gd.cur ? " cur" : "")) + '"><span class="gnum">' + (i < gd.cur ? "✓" : "0" + (i + 1)) + '</span>' + s + '</span>';
     }).join('<span class="gsep">—</span>') + '</div>' +
     '<div class="guide-act"><div><div class="en cy">Next Action — 次にやること</div><div class="guide-text">' + esc(gd.act.text) + '</div></div>' +
@@ -4092,7 +4132,7 @@ function eventEntryCard(ev){
     '<label class="f">3位決定戦</label><select id="es-3p-' + ev.id + '"><option value=""' + (!ev.thirdPlace ? " selected" : "") + '>なし</option><option value="1"' + (ev.thirdPlace ? " selected" : "") + '>あり（準決勝の敗者同士）</option></select>' +
     '<div class="grid2"><div><label class="f">チャレンジトーナメント（敗者復活）</label><select id="es-ch-' + ev.id + '"><option value=""' + (!ev.challengeUntil ? " selected" : "") + '>なし</option><option value="1"' + (ev.challengeUntil === 1 ? " selected" : "") + '>あり（1回戦までの敗者）</option><option value="2"' + (ev.challengeUntil === 2 ? " selected" : "") + '>あり（2回戦までの敗者）</option></select></div>' +
     '<div><label class="f">チャレンジ用ポイント（任意）</label><input type="text" id="es-chp-' + ev.id + '" value="' + esc(ev.challengePoint || "") + '" placeholder="空欄＝トーナメント用/共通（例: 15121）"></div></div>' +
-    '<label class="f">ポイント設定（数字コード・当日変更可）</label><input type="text" id="es-pt-' + ev.id + '" value="' + esc(ev.pointCode || "") + '">' +
+    '<label class="f">ポイント設定（この種目だけ変えるとき・通常は「設定」の試合のルールで一括変更）</label><input type="text" id="es-pt-' + ev.id + '" value="' + esc(ev.pointCode || "") + '">' +
     '<div class="grid2"><div><label class="f">リーグ用ポイント（任意）</label><input type="text" id="es-ptl-' + ev.id + '" value="' + esc(ev.pointCodeLeague || "") + '" placeholder="空欄＝共通設定"></div>' +
     '<div><label class="f">トーナメント用ポイント（任意）</label><input type="text" id="es-ptt-' + ev.id + '" value="' + esc(ev.pointCodeTour || "") + '" placeholder="空欄＝共通設定"></div></div>' +
     '<div class="grid2"><div><label class="f">開催日（リーグ／初日）</label><select id="es-day-' + ev.id + '"><option value="1"' + (evDay(ev) === 1 ? " selected" : "") + '>1日目</option><option value="2"' + (evDay(ev) === 2 ? " selected" : "") + '>2日目</option><option value="3"' + (evDay(ev) === 3 ? " selected" : "") + '>3日目</option></select></div>' +
@@ -4594,7 +4634,7 @@ function makeBlocks(id){
 // --- league ---
 var uiLeagueView = "matrix";
 function setLeagueView(v){ uiLeagueView = v; render(); }
-function leagueJump(mid){ var f = findMatchGlobal(mid); if (f) openScoreModal(f.ev.id, mid); }
+function leagueJump(mid){ if (VIEWER) return; var f = findMatchGlobal(mid); if (f) openScoreModal(f.ev.id, mid); }
 function playerGradeSuffix(p){
   if (!p || !state.meta.showGrade || !p.grade) return "";
   return "（" + p.grade + "）";
@@ -4680,6 +4720,13 @@ if (typeof window !== "undefined" && window.addEventListener){
   window.addEventListener("resize", function(){ clearTimeout(_fitRzT); _fitRzT = setTimeout(fitNameLines, 150); });
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(function(){ fitNameLines(); });
 }
+// Grade as a circled number (③): the number alone is enough —
+// the event's class tells everyone whether it is elementary or
+// junior high (user, 2026-11-15).
+function circledGrade(g){
+  var m = String(g || "").match(/[1-9]/);
+  return m ? "①②③④⑤⑥⑦⑧⑨"[+m[0] - 1] : "";
+}
 function playerMatrixName(ev, p){
   var nm = playerName(ev, p.id);
   var segs = nm.split("・");
@@ -4690,10 +4737,29 @@ function playerMatrixName(ev, p){
       col = g === "男" ? "#2563eb" : (g === "女" ? "#dc2626" : "");
     }
     var sc = fitScale(seg, 7);
-    return '<span class="fitline" style="display:block;white-space:nowrap' + (col ? ";color:" + col : "") + (sc < 1 ? ";font-size:" + Math.round(sc * 100) + "%" : "") + '">' + esc(seg) + '</span>';
+    // Family / given split: on narrow screens the column headers
+    // show the family name only (CSS hides .mxgiv there), so the
+    // first player's given name cannot run into the second
+    // player's family name.
+    var sp = seg.search(/[　 ]/);
+    var nameHTML = sp > 0
+      ? '<span class="mxfam">' + esc(seg.slice(0, sp)) + '</span><span class="mxgiv">' + esc(seg.slice(sp)) + '</span>'
+      : esc(seg);
+    // Grade per player (mixed-grade pairs exist), as ③.
+    var gr = "";
+    if (state.meta.showGrade && p){
+      var gv = p.gradeSeg ? p.gradeSeg[i] : (segs.length === 1 ? p.grade : "");
+      gr = circledGrade(gv);
+      if (!gr && gv) gr = "（" + gv + "）";
+    }
+    return '<span class="fitline" style="display:block;white-space:nowrap' + (col ? ";color:" + col : "") + (sc < 1 ? ";font-size:" + Math.round(sc * 100) + "%" : "") + '">' + nameHTML + (gr ? ' <span class="mxgr">' + esc(gr) + '</span>' : "") + '</span>';
   }).join("");
-  var suf = playerGradeSuffix(p);
-  return lines + (suf ? '<span style="display:block" class="mini">' + esc(suf) + '</span>' : "");
+  // Pairs without per-player grades keep the shared suffix line.
+  if (segs.length > 1 && !(p && p.gradeSeg)){
+    var suf = playerGradeSuffix(p);
+    if (suf) lines += '<span style="display:block" class="mini">' + esc(suf) + '</span>';
+  }
+  return lines;
 }
 function matrixHTML(ev, block, bi, lms){
   var bm = lms.filter(function(x){ return x.block === bi; });
@@ -4719,7 +4785,7 @@ function matrixHTML(ev, block, bi, lms){
       if (!m){ out += '<td class="mxd"></td>'; return; }
       var r = state.results[m.id];
       if (r && r.skip){ out += '<td class="mxd" style="color:#9ca3af">―</td>'; return; }
-      if (!r || !r.winner){ out += '<td class="mxd todo" onclick="leagueJump(\'' + m.id + '\')">・</td>'; return; }
+      if (!r || !r.winner){ out += '<td class="mxd todo"' + (VIEWER ? "" : ' onclick="leagueJump(\'' + m.id + '\')"') + '>・</td>'; return; }
       var pl = matchPlayers(ev, m, lms);
       var iAmP1 = pl.p1 === pa.id;
       var ss = scoreStats(parseScore(r.score || ""));
@@ -4727,7 +4793,7 @@ function matrixHTML(ev, block, bi, lms){
       var win = r.winner === pa.id;
       var scTxt = r.score ? (iAmP1 ? r.score : flipScore(r.score)) : "";
       var gameLines = scTxt ? scTxt.trim().split(/\s+/).filter(Boolean).map(function(t){ return '<span class="mxgame">' + scoreHTML(t) + '</span>'; }).join("") : "";
-      out += '<td class="mxd ' + (win ? "w" : "l") + '" onclick="leagueJump(\'' + m.id + '\')"><div class="mxcell"><div class="mxleft"><span class="mxmark">' + (win ? "○" : "×") + '</span>' + (gTxt ? '<span class="mxg">' + gTxt + '</span>' : "") + '</div>' + (gameLines ? '<div class="mxgames">' + gameLines + '</div>' : "") + '</div></td>';
+      out += '<td class="mxd ' + (win ? "w" : "l") + '"' + (VIEWER ? "" : ' onclick="leagueJump(\'' + m.id + '\')"') + '><div class="mxcell"><div class="mxleft"><span class="mxmark">' + (win ? "○" : "×") + '</span>' + (gTxt ? '<span class="mxg">' + gTxt + '</span>' : "") + '</div>' + (gameLines ? '<div class="mxgames">' + gameLines + '</div>' : "") + '</div></td>';
     });
     var st = statOf[pa.id];
     if (st){
@@ -4770,9 +4836,9 @@ function vLeague(){
   var evs = state.events.filter(function(e){ return e.format !== "tournament"; });
   if (!evs.length) return "<h1>リーグ</h1><div class='empty'>リーグ形式の種目がありません。「参加者・種目」で種目を作ってください。</div>";
   var ev = pickEvent(evs);
-  var h = "<h1>リーグ</h1><div class='sub'>対戦表（星取表）が標準表示です。セルをタップすると、その試合の入力カードに移動します。結果は「勝者をタップ → スコアを入力して保存」の順に入れます。</div>" +
+  var h = "<h1>リーグ</h1><div class='sub'>" + (VIEWER ? "対戦表（星取表）が標準表示です。" : "対戦表（星取表）が標準表示です。セルをタップすると、その試合の入力カードに移動します。結果は「勝者をタップ → スコアを入力して保存」の順に入れます。") + "</div>" +
     eventPickerHTML(evs) +
-    '<div class="row" style="margin:10px 0 4px"><button class="btn small' + (uiLeagueView === "matrix" ? "" : " ghost") + '" onclick="setLeagueView(\'matrix\')">対戦表（星取表）</button><button class="btn small' + (uiLeagueView === "list" ? "" : " ghost") + '" onclick="setLeagueView(\'list\')">試合リスト（入力用）</button></div>';
+    '<div class="row" style="margin:10px 0 4px"><button class="btn small' + (uiLeagueView === "matrix" ? "" : " ghost") + '" onclick="setLeagueView(\'matrix\')">対戦表（星取表）</button><button class="btn small' + (uiLeagueView === "list" ? "" : " ghost") + '" onclick="setLeagueView(\'list\')">' + (VIEWER ? "試合リスト" : "試合リスト（入力用）") + '</button></div>';
   {
     var lms = leagueMatchList(ev); var blocks = leagueBlocks(ev);
     h += "<h2>" + esc(ev.name) + "</h2>";
@@ -4789,16 +4855,17 @@ function vLeague(){
       var standHTML = '<table class="standsum"><tr><th style="width:30px">順</th><th>選手</th><th class="num">勝</th><th class="num">ゲーム差</th><th class="num">P差</th></tr>';
       rows.forEach(function(r, i){
         var swapping = uiSwapPick && uiSwapPick.evId === ev.id;
-        standHTML += "<tr><td>" + (i+1) + "</td><td><strong>" + nameLinesHTML(byPid[r.pid].name, 9) + '</strong> <span class="mini">' + esc(byPid[r.pid].aff||"") + '</span></td><td class="num">' + r.w + '</td><td class="num">' + (r.gd>0?"+":"") + r.gd + '</td><td class="num">' + (r.pd>0?"+":"") + r.pd + '</td><td style="width:86px"><button class="linkbtn" onclick="swapPick(\'' + ev.id + "','" + r.pid + '\')">' + (swapping && uiSwapPick.pid === r.pid ? "選択中…" : (swapping ? "ここに入替" : "入替")) + "</button></td></tr>";
+        standHTML += "<tr><td>" + (i+1) + "</td><td><strong>" + nameLinesHTML(byPid[r.pid].name, 9) + '</strong> <span class="mini">' + esc(byPid[r.pid].aff||"") + '</span></td><td class="num">' + r.w + '</td><td class="num">' + (r.gd>0?"+":"") + r.gd + '</td><td class="num">' + (r.pd>0?"+":"") + r.pd + '</td>' + (VIEWER ? "" : '<td style="width:86px"><button class="linkbtn" onclick="swapPick(\'' + ev.id + "','" + r.pid + '\')">' + (swapping && uiSwapPick.pid === r.pid ? "選択中…" : (swapping ? "ここに入替" : "入替")) + "</button></td>") + "</tr>";
       });
       standHTML += "</table>";
       if (blockDone(ev, bi, lms) && rank.ties && rank.ties.length && !rank.manual){
-        standHTML += '<div class="tiebox"><strong>同率で自動確定できません。</strong><div class="mini">公式の順位が決まったら、下の順番を ↑↓ で直して確定してください（この順番でトーナメントに入ります）。</div>' +
+        standHTML += '<div class="tiebox"><strong>同率で自動確定できません。</strong>' + (VIEWER ? '<div class="mini">順位は運営が確定します。</div>' :
+          '<div class="mini">公式の順位が決まったら、下の順番を ↑↓ で直して確定してください（この順番でトーナメントに入ります）。</div>' +
           rank.order.map(function(pid, i){
             return '<div class="rankrow"><span>' + (i+1) + '.</span><strong>' + nameLinesHTML(byPid[pid].name, 9) + '</strong><span class="updown"><button onclick="moveRank(\'' + ev.id + "'," + bi + ",'" + pid + ',-1)">↑</button><button onclick="moveRank(\'' + ev.id + "'," + bi + ",'" + pid + ',1)">↓</button></span></div>';
-          }).join("") + "</div>";
+          }).join("")) + "</div>";
       }
-      if (rank.manual) standHTML += '<div class="mini">手動で確定した順位です <button class="linkbtn" onclick="clearRank(\'' + ev.id + "'," + bi + ')">手動順位を解除</button></div>';
+      if (rank.manual) standHTML += '<div class="mini">手動で確定した順位です' + (VIEWER ? "" : ' <button class="linkbtn" onclick="clearRank(\'' + ev.id + "'," + bi + ')">手動順位を解除</button>') + '</div>';
       if (uiLeagueView === "matrix" && !ev.teamComp){
         h += matrixHTML(ev, block, bi, lms);
         // the matrix has no match cards, so walkover slots that can host
@@ -5050,15 +5117,16 @@ function vLive(){
       var cev = evById(cur.match.evId);
       h += vsHTML(cev, cur.match, "live", '<i class="livedot">●</i> 試合中') +
         '<div class="vsfoot" style="border-top:0;padding-left:2px"><span class="vselap">' + mins + '</span><span style="font-weight:700">分経過</span>' +
+        (VIEWER ? "" :
         '<button class="btn" style="margin-left:auto" onclick="jumpMatch(\'' + cur.match.id + '\')">結果を入れる</button>' +
-        '<button class="btn ghost" style="margin-left:8px;white-space:nowrap" onclick="cancelMatch(\'' + cur.match.id + '\')">開始を取消</button></div>' +
-        '<div style="margin-top:6px"><button class="btn ghost small" style="min-height:40px" onclick="openReferee(\'' + cev.id + "','" + cur.match.id + '\')">審判モードで数える</button></div>';
+        '<button class="btn ghost" style="margin-left:8px;white-space:nowrap" onclick="cancelMatch(\'' + cur.match.id + '\')">開始を取消</button>') + '</div>' +
+        (VIEWER ? "" : '<div style="margin-top:6px"><button class="btn ghost small" style="min-height:40px" onclick="openReferee(\'' + cev.id + "','" + cur.match.id + '\')">審判モードで数える</button></div>');
     } else {
       var nxt = sched.filter(function(x){ return x.court === c && ready(x); }).sort(function(a,b){ return (a.day - b.day) || (a.slot - b.slot); })[0];
       if (nxt){
         var nev = evById(nxt.match.evId);
         h += vsHTML(nev, nxt.match, "next", (isMultiDay() ? esc(dayShort(nxt.day)) + " " : "") + esc(nxt.time) + " 開始予定") +
-          '<div style="margin-top:8px"><button class="btn" style="min-height:46px" onclick="startMatch(\'' + nxt.match.id + '\',' + c + ')">▶ このコートで開始</button></div>';
+          (VIEWER ? "" : '<div style="margin-top:8px"><button class="btn" style="min-height:46px" onclick="startMatch(\'' + nxt.match.id + '\',' + c + ')">▶ このコートで開始</button></div>');
       }
       else h += '<div style="font-weight:700;margin:6px 0;color:var(--sub)">空き</div><div class="mini">入れる試合はありません</div>';
     }
@@ -5071,9 +5139,9 @@ function vLive(){
       var f = findMatchGlobal(mid); if (!f) return "";
       var mins = Math.max(0, Math.round((Date.now() - state.live[mid]) / 60000));
       return vsHTML(f.ev, f.m, "live", '<i class="livedot">●</i> 試合中 ' + mins + '分' + (courtOf[mid] ? ' ・ コート' + courtOf[mid] : "")) +
-        '<div style="margin-top:6px"><button class="btn small" style="min-height:42px" onclick="jumpMatch(\'' + mid + '\')">結果を入れる</button> ' +
+        (VIEWER ? "" : '<div style="margin-top:6px"><button class="btn small" style="min-height:42px" onclick="jumpMatch(\'' + mid + '\')">結果を入れる</button> ' +
         '<button class="btn ghost small" style="min-height:42px" onclick="openReferee(\'' + f.ev.id + "','" + mid + '\')">審判モード</button> ' +
-        '<button class="btn ghost small" style="min-height:42px" onclick="cancelMatch(\'' + mid + '\')">開始を取消</button></div>';
+        '<button class="btn ghost small" style="min-height:42px" onclick="cancelMatch(\'' + mid + '\')">開始を取消</button></div>');
     }).join("") + "</div>";
   }
   var openMids = Object.keys(state.open || {}).filter(function(mid){ return state.open[mid] && findMatchGlobal(mid); });
@@ -5096,13 +5164,13 @@ function vLive(){
     }).join("") + "</div>";
   }
   var queue = sched.filter(ready).sort(function(a,b){ return (a.day - b.day) || (a.slot - b.slot) || (a.court - b.court); }).slice(0, 20);
-  h += '<div class="card" style="margin-top:12px"><h3 style="margin-top:0">待機中の試合（開始できる順）</h3>' +
+  h += '<div class="card" style="margin-top:12px"><h3 style="margin-top:0">待機中の試合' + (VIEWER ? "" : "（開始できる順）") + '</h3>' +
     (queue.length ? queue.map(function(x){
       var ev = evById(x.match.evId); var pl = matchPlayers(ev, x.match, null);
       return '<div class="qrow"><span class="qmeta">' + (isMultiDay() ? esc(dayShort(x.day)) + " " : "") + esc(x.time) + " ・ コート" + x.court + '</span>' +
         '<span class="qnames">' + esc(playerName(ev, pl.p1)) + '<i>vs</i>' + esc(playerName(ev, pl.p2)) + '</span>' +
-        '<button class="btn small qstart" onclick="pickCourtAndStart(\'' + x.match.id + '\')">▶ 開始</button>' +
-        '<button class="linkbtn" onclick="openReferee(\'' + ev.id + "','" + x.match.id + '\')">審判</button></div>';
+        (VIEWER ? "" : '<button class="btn small qstart" onclick="pickCourtAndStart(\'' + x.match.id + '\')">▶ 開始</button>' +
+        '<button class="linkbtn" onclick="openReferee(\'' + ev.id + "','" + x.match.id + '\')">審判</button>') + '</div>';
     }).join("") : '<div class="sub">開始できる試合はありません</div>') + "</div>";
   return h;
 }
@@ -5216,7 +5284,7 @@ function vTime(){
           if (r && r.winner) return '<div class="who losew">' + nameLinesHTML(playerName(ev, pid), 9) + '</div>';
           return '<div class="who">' + nameLinesHTML(playerName(ev, pid), 9) + '</div>';
         }
-        h += '<td class="ttcell' + (r && r.winner ? " done" : "") + '" onclick="jumpMatch(\'' + s.match.id + '\')" title="タップで入力へ"><div class="tag">' + esc(tag) + '</div>' + who(pl.p1) + '<div class="tag">vs</div>' + who(pl.p2) + (r && r.score ? '<div class="tag">' + scoreHTML(r.score) + '</div>' : "") + "</td>";
+        h += '<td class="ttcell' + (r && r.winner ? " done" : "") + '"' + (VIEWER ? "" : ' onclick="jumpMatch(\'' + s.match.id + '\')" title="タップで入力へ"') + '><div class="tag">' + esc(tag) + '</div>' + who(pl.p1) + '<div class="tag">vs</div>' + who(pl.p2) + (r && r.score ? '<div class="tag">' + scoreHTML(r.score) + '</div>' : "") + "</td>";
       }
       h += "</tr>";
     });
@@ -5322,7 +5390,7 @@ function wizEntries(){
     var a = _wiz.roster[pr[0]], b = _wiz.roster[pr[1]]; if (!a || !b) return null;
     var mixed = a.gender && b.gender && a.gender !== b.gender;
     return { name: a.name + "・" + b.name, aff: a.aff === b.aff ? a.aff : [a.aff, b.aff].filter(Boolean).join("・"),
-      grade: a.grade === b.grade ? (a.grade || "") : "",
+      grade: a.grade === b.grade ? (a.grade || "") : "", gradeSeg: [a.grade || "", b.grade || ""],
       gender: mixed ? "混合" : (a.gender || b.gender || ""), genderSeg: mixed ? [a.gender, b.gender] : null,
       rank: Math.min(a.rank || 999, b.rank || 999) };
   }).filter(Boolean);
@@ -6106,32 +6174,59 @@ function upsetFixModal(sid, mid){
   if (s.phase === "playing" && info.match.round === s.round){ upsetScoreModal(sid, mid, false); return; }
   upsetScoreModal(sid, mid, true);
 }
+// Point-code <option>s with human labels (no raw codes to memorize).
+// sel === "__keep" means the events disagree (settings screen only).
+function pointOptions(sel, allowCommon){
+  var presets = ["21330", "15321", "15121"];
+  var out = "";
+  if (allowCommon) out += '<option value=""' + (sel === "" ? " selected" : "") + '>共通と同じ</option>';
+  if (sel === "__keep") out += '<option value="__keep" selected>種目ごとに異なる（変更しない）</option>';
+  presets.forEach(function(c){ out += '<option value="' + c + '"' + (sel === c ? " selected" : "") + '>' + esc(decodePoint(c).label) + '</option>'; });
+  if (sel && sel !== "__keep" && presets.indexOf(sel) < 0) out += '<option value="' + esc(sel) + '" selected>' + esc(decodePoint(sel).label) + '（コード: ' + esc(sel) + '）</option>';
+  return out;
+}
+function uniformEventCode(field){
+  var vals = {};
+  state.events.forEach(function(ev){ vals[ev[field] || ""] = 1; });
+  var ks = Object.keys(vals);
+  return ks.length <= 1 ? (ks[0] || "") : "__keep";
+}
 function vConfig(){
   var link = location.origin + location.pathname + "#r=" + sync.room;
   var h = "<h1>設定・共有</h1>";
-  h += '<div class="card"><h3 style="margin-top:0">大会情報</h3>' +
+  h += '<div class="card"><h3 style="margin-top:0">大会情報</h3><div class="sub">大会を作るときに設定します。</div>' +
     '<label class="f">大会名</label><input type="text" id="cf-name" value="' + esc(state.meta.name) + '">' +
     '<div class="grid3"><div><label class="f">開催日</label><input type="date" id="cf-date" value="' + esc(state.meta.date) + '"></div>' +
     '<div><label class="f">開催日（2日目・任意）</label><input type="date" id="cf-date2" value="' + esc(state.meta.date2 || "") + '"></div>' +
     '<div><label class="f">開催日（3日目・任意）</label><input type="date" id="cf-date3" value="' + esc(state.meta.date3 || "") + '"></div></div>' +
-    '<div class="grid3"><div><label class="f">会場</label><input type="text" id="cf-venue" value="' + esc(state.meta.venue) + '"></div>' +
-    '<div><label class="f">コート数</label><input type="number" id="cf-courts" min="1" max="30" value="' + (state.meta.courts||4) + '"></div>' +
-    '<div><label class="f">開始時刻</label><input type="time" id="cf-start" value="' + esc(state.meta.start||"09:30") + '"></div></div>' +
-    '<div class="grid2"><div><label class="f">1試合の目安（分）</label><input type="number" id="cf-interval" min="5" max="60" value="' + (state.meta.interval||12) + '"></div><div></div></div>' +
+    '<label class="f">会場</label><input type="text" id="cf-venue" value="' + esc(state.meta.venue) + '">' +
     '<div class="mini">2日間・3日間の大会では、2日目以降の日付を入れてください。どの種目を何日目に行うかは「参加者・種目」の種目設定で種目ごとに選びます。リーグとトーナメントで日を分けることもできます（例：1日目リーグ、2日目トーナメント）。日を変えても結果は消えません。</div>' +
-    '<div class="grid2"><div><label class="f">主催者名（賞状用・任意）</label><input type="text" id="cf-org" value="' + esc(state.meta.organizer || "") + '"></div>' +
-    '<div><label class="f">代表者名（賞状用・任意）</label><input type="text" id="cf-rep" value="' + esc(state.meta.representative || "") + '"></div></div>' +
     '<div style="margin-top:12px"><button class="btn" onclick="saveMeta()">保存</button></div></div>';
-  h += '<div class="card"><h3 style="margin-top:0">試合のルール</h3>' +
-    '<label class="f">結果入力</label><div><strong>スコア必須</strong><div class="mini">勝敗だけの記録はできません。勝者をタップしたあと、スコアを入力して保存します。不戦勝は、試合カードの備考で「試合棄権（不戦勝）」を選べばスコアなしで記録できます。</div></div><input type="hidden" id="cf-detail" value="full">' +
+  h += '<div class="card"><h3 style="margin-top:0">試合のルール</h3><div class="sub">大会の最初に決めて、全種目に共通で使うルールです。</div>' +
+    '<label class="f">ポイント設定（全種目共通）</label>' +
+    '<div class="grid3"><div><label class="f">共通</label><select id="cf-pt">' + pointOptions(state.meta.pointDefault || "21330", false) + '</select></div>' +
+    '<div><label class="f">リーグ用</label><select id="cf-ptl">' + pointOptions(uniformEventCode("pointCodeLeague"), true) + '</select></div>' +
+    '<div><label class="f">トーナメント用</label><select id="cf-ptt">' + pointOptions(uniformEventCode("pointCodeTour"), true) + '</select></div></div>' +
+    '<div class="mini">保存すると全種目に反映されます。入力済みの結果は記録したときのルールのまま変わりません（これから入力する試合に新しいルールが使われます）。種目ごとに変えたいときだけ、「参加者・種目」の種目設定でその種目のポイントを変えてください。</div>' +
     '<label class="f">不戦勝の集計（スコアなしで記録した「試合棄権」の数え方）</label>' +
     '<select id="cf-walkover">' +
     '<option value="std"' + (walkoverMode() === "std" ? " selected" : "") + '>現行：1ゲーム・0点</option>' +
     '<option value="g30"' + (walkoverMode() === "g30" ? " selected" : "") + '>2ゲーム・30-0点（びわこ式）</option>' +
     '<option value="winonly"' + (walkoverMode() === "winonly" ? " selected" : "") + '>勝敗のみ：ゲーム・ポイントを数えない（倉敷式）</option></select>' +
     '<div class="mini">大会ごとに選べます。スコアを入れた不戦勝（例：15-0 15-0）は、どの設定でも入力したスコアで集計します。設定を変えると、すでに入っている結果の順位も新しい数え方で計算し直します。</div>' +
+    '<label class="f">結果入力</label><div><strong>スコア必須</strong><div class="mini">勝敗だけの記録はできません。勝者をタップしたあと、スコアを入力して保存します。不戦勝は、試合カードの備考で「試合棄権（不戦勝）」を選べばスコアなしで記録できます。</div></div><input type="hidden" id="cf-detail" value="full">' +
+    '<div style="margin-top:12px"><button class="btn" onclick="saveMeta()">保存（ポイントは全種目に反映）</button></div></div>';
+  h += '<div class="card"><h3 style="margin-top:0">当日の運営</h3><div class="sub">タイムテーブルと進行の計算に使います。当日の状況で変えることがあります。</div>' +
+    '<div class="grid3"><div><label class="f">コート数</label><input type="number" id="cf-courts" min="1" max="30" value="' + (state.meta.courts||4) + '"></div>' +
+    '<div><label class="f">開始時刻</label><input type="time" id="cf-start" value="' + esc(state.meta.start||"09:30") + '"></div>' +
+    '<div><label class="f">1試合の目安（分）</label><input type="number" id="cf-interval" min="5" max="60" value="' + (state.meta.interval||12) + '"></div></div>' +
+    '<div class="mini">複数日の大会では、日ごとに開始時刻から計算し直します。</div>' +
     '<div style="margin-top:12px"><button class="btn" onclick="saveMeta()">保存</button></div></div>';
-  h += '<div class="card"><h3 style="margin-top:0">共有リンク</h3><div class="sub">このリンクを開いた端末同士で、結果と設定が同期されます（全員が編集できます）。</div>' +
+  h += '<div class="card"><h3 style="margin-top:0">表示</h3><div class="sub">リーグ表や順位表の見え方です。</div>' +
+    '<label style="display:block;margin:6px 0"><input type="checkbox" id="cf-showgrade"' + (state.meta.showGrade ? " checked" : "") + ' style="width:20px;height:20px;vertical-align:-4px"> リーグ表・順位表に学年を表示</label>' +
+    '<label style="display:block;margin:6px 0"><input type="checkbox" id="cf-colorgender"' + (state.meta.colorGender ? " checked" : "") + ' style="width:20px;height:20px;vertical-align:-4px"> リーグ表で男女を色分け（男は青・女は赤）</label>' +
+    '<div style="margin-top:12px"><button class="btn" onclick="saveMeta()">保存</button></div></div>';
+  h += '<div class="card"><h3 style="margin-top:0">共有リンク</h3><div class="sub">他の端末や観戦者に渡すリンクです。このリンクを開いた端末同士で、結果と設定が同期されます（全員が編集できます）。</div>' +
     '<div class="row" style="margin-top:8px"><input type="text" readonly value="' + esc(link) + '" id="shareLink" style="flex:1"><button class="btn ghost" onclick="copyLink()">コピー</button></div>' +
     '<div class="sub" style="margin-top:10px">👀 観戦用リンク（見る専用・入力できません。保護者や観客への配布はこちら）</div>' +
     '<div class="row" style="margin-top:6px"><input type="text" readonly value="' + esc(link + "&v=1") + '" id="watchLink" style="flex:1"><button class="btn ghost" onclick="copyWatchLink()">コピー</button></div>' +
@@ -6144,7 +6239,7 @@ function vConfig(){
     (syncDiag.attempts.length ? '<br>接続できなかった中継: ' + syncDiag.attempts.map(function(a){ return esc(a.url.replace("wss://", "").split("/")[0]); }).join(", ") : '') +
     '</div><div style="margin-top:6px"><button class="btn ghost small" onclick="syncPing()">同期テスト送信</button> <span class="mini">押して数秒後に「テスト送信OK」と出れば、この端末から中継へ往復できています。もう1台で同じリンクを開き、片方で結果を1つ入れてもう片方が変われば、別端末間の同期は実証完了です。</span></div></details></div>';
   h += '<div class="card"><h3 style="margin-top:0">印刷・出力</h3>' +
-    '<div class="sub">審判用紙は、対戦が確定した試合だけを出すのが当日の運用に合います。賞状は順位が決まった種目だけ出ます。</div>' +
+    '<div class="sub">当日に使う印刷と書き出しです。審判用紙は、対戦が確定した試合だけを出すのが当日の運用に合います。賞状は順位が決まった種目だけ出ます。</div>' +
     state.events.map(function(ev){
       return '<div class="rankrow"><span><strong>' + esc(ev.name) + '</strong></span><span class="updown">' +
         '<button style="width:auto;padding:0 12px;font-size:13px" onclick="printSheets(\'' + ev.id + '\',\'ready\')">審判用紙（確定分）</button>' +
@@ -6161,7 +6256,9 @@ function vConfig(){
       return '<option value="' + o[0] + '"' + (sel === o[0] ? " selected" : "") + '>' + o[1] + '</option>';
     }).join("");
   }
-  if (CL) h += '<div class="card certset"><h3 style="margin-top:0">賞状</h3>' +
+  if (CL) h += '<div class="card certset"><h3 style="margin-top:0">賞状</h3><div class="sub">賞状の書式です。賞状を印刷する大会だけ設定します。</div>' +
+    '<div class="grid2"><div><label class="f">主催者名（任意）</label><input type="text" id="cf-org" value="' + esc(state.meta.organizer || "") + '"></div>' +
+    '<div><label class="f">代表者名（任意）</label><input type="text" id="cf-rep" value="' + esc(state.meta.representative || "") + '"></div></div>' +
     '<label class="f">書式</label>' +
     '<select id="cc-style" onchange="saveCertSettings(true)">' +
     '<option value="v"' + (CST === "v" ? " selected" : "") + '>縦書き（A3・既製賞状用紙）</option>' +
@@ -6187,7 +6284,7 @@ function vConfig(){
     '<div class="mini" style="margin-top:6px">サンプルには位置合わせ用ガイド（枠・中心線・項目の範囲）が付きます。本番の賞状にはガイドは印刷されません。</div></div>';
   var snaps = listSnapshots();
   var trash = (state.trash || []).filter(function(t){ return Date.now() - t.ts < 30 * 864e5; });
-  h += '<div class="card"><h3 style="margin-top:0">データとバックアップ</h3>' +
+  h += '<div class="card"><h3 style="margin-top:0">データとバックアップ</h3><div class="sub">困ったときの復旧と、次の大会の準備に使います。</div>' +
     '<h4 style="margin:4px 0 6px">自動バックアップ（この端末内）</h4>' +
     '<div class="sub">大きな操作の前と、結果が20件増えるごとに自動で保存します（最新8件）。消してしまったときはここから戻せます。</div>' +
     '<div style="margin:8px 0"><button class="btn ghost small" onclick="pushSnapshot(\'手動バックアップ\');render()">今すぐバックアップ</button></div>' +
@@ -6240,6 +6337,10 @@ function saveMeta(){
   state.meta.interval = Math.max(5, +document.getElementById("cf-interval").value || 12);
   var dt = document.getElementById("cf-detail"); if (dt) state.meta.detail = dt.value;
   var wo = document.getElementById("cf-walkover"); if (wo) state.meta.walkoverMode = (wo.value === "g30" || wo.value === "winonly") ? wo.value : "std";
+  var sg = document.getElementById("cf-showgrade"); if (sg) state.meta.showGrade = !!sg.checked;
+  var cg = document.getElementById("cf-colorgender"); if (cg) state.meta.colorGender = !!cg.checked;
+  var pt = document.getElementById("cf-pt");
+  if (pt) applyPointCodes(pt.value, (document.getElementById("cf-ptl") || {}).value, (document.getElementById("cf-ptt") || {}).value);
   touchConfig(); render();
 }
 function syncPing(){
