@@ -531,21 +531,21 @@ function viewNext(res, flags){
   DATA.matches.forEach(function(m){
     var fl = flags[m.code];
     if (!matchHit(m, fl)) return;
-    if (!fl.kz && !fl.poss) return;
-    if (fl.rm.decided !== null){ if (fl.kz) done.push(m); return; }
-    if (fl.kz && inputReady(m, fl)) ready.push(m); else upcoming.push(m);
+    if (fl.rm.decided !== null){ done.push(m); return; }
+    if (inputReady(m, fl)) ready.push(m); else upcoming.push(m);
   });
   ready.sort(byFlow); upcoming.sort(byFlow);
   done.sort(function(a, b){ return byFlow(b, a); });
+  var who = App.karaOnly ? "唐崎の" : "";
   var h = "";
-  h += '<div class="sec">いま入力できる唐崎の試合<span class="cnt">' + ready.length + '件</span></div>';
+  h += '<div class="sec">いま入力できる' + who + '試合<span class="cnt">' + ready.length + '件</span></div>';
   h += ready.length ? ready.map(function(m){ return cardHtml(m, flags[m.code], true); }).join("") : '<div class="empty">いま入力できる試合はありません</div>';
   if (upcoming.length){
-    h += '<div class="sec">唐崎のこれからの試合<span class="cnt">相手や順位が決まると入力できるようになります</span></div>';
+    h += '<div class="sec">' + who + 'これからの試合<span class="cnt">相手や順位が決まると入力できるようになります</span></div>';
     h += upcoming.map(function(m){ return cardHtml(m, flags[m.code], false); }).join("");
   }
   if (done.length){
-    h += '<div class="sec">終わった唐崎の試合</div>';
+    h += '<div class="sec">終わった' + who + '試合</div>';
     h += done.map(function(m){ return cardHtml(m, flags[m.code], false); }).join("");
   }
   return h;
