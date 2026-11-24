@@ -1119,7 +1119,16 @@ try{ __step("core"); }catch(e){}
 </script>
 <script>
 // ===== state =====
-var LS_KEY = "tmgr-v1";
+// Storage-key sandbox for the spectator build (P1-5): the viewer
+// page (/viewer/ and #v=1 on the manager) shares this origin with
+// the manager, so using the same keys let it overwrite the
+// operator's own tournament in tmgr-v1 — and its ping loop overwrote
+// the parked queue for the same server id with an empty one.
+// The spectator build gets its own keys and can never touch the
+// operator's stored data.
+var __VIEWER_KEYS = (typeof window !== "undefined" && window.__VIEWER_BUILD__ === true) || (typeof location !== "undefined" && /[&#]v=1(&|$)/.test(location.hash || ""));
+var __KEY_SUFFIX = __VIEWER_KEYS ? "-viewer" : "";
+var LS_KEY = "tmgr-v1" + __KEY_SUFFIX;
 var state = loadState();
 initLibrary();
 try{ __step("state"); }catch(e){}
@@ -1149,7 +1158,7 @@ function loadState(){
   try{ var s = JSON.parse(localStorage.getItem(LS_KEY)); if (s && s.meta && s.events) return normalizeState(s); }catch(e){}
   // main data broken/missing: recover from the newest automatic snapshot (fail-safe)
   try{
-    var snaps = JSON.parse(localStorage.getItem("tmgr-backups")) || [];
+    var snaps = JSON.parse(localStorage.getItem("tmgr-backups" + __KEY_SUFFIX)) || [];
     for (var i = 0; i < snaps.length; i++){
       try{ var r = JSON.parse(snaps[i].data); if (r && r.meta && r.events) return normalizeState(r); }catch(e2){}
     }
@@ -1426,7 +1435,7 @@ function deleteTournament(tid){
 // Viewer mode: opened with a watch-only link (#r=room&v=1), or the
 // dedicated viewer build (window.__VIEWER_BUILD__), which cannot
 // publish at all. Editing is disabled in both.
-var VIEWER = (typeof window !== "undefined" && window.__VIEWER_BUILD__ === true) || /[&#]v=1(&|$)/.test(location.hash || "");
+var VIEWER = __VIEWER_KEYS;
 // A manager-page terminal whose stored binding is viewer-role: it can
 // see the tournament but the server refuses its ops as read-only.
 // Treat it as read-only on the client too (VR-01).
@@ -2253,7 +2262,7 @@ function resetEventData(ev){
   invalidateCaches();
 }
 // Automatic timestamped snapshots (ring of 8) in local storage
-var BK_KEY = "tmgr-backups";
+var BK_KEY = "tmgr-backups" + __KEY_SUFFIX;
 function pushSnapshot(label){
   try{
     var arr = [];
@@ -2723,10 +2732,10 @@ function receiveState(payload, local){
 // revision and per-match entity revisions, and fans them out over
 // a WebSocket. Client clocks no longer decide conflicts. When
 // nothing is bound, everything behaves exactly as before (MQTT).
-var SRV_KEY = "tmgr-server";
+var SRV_KEY = "tmgr-server" + __KEY_SUFFIX;
 var SRV_DEFAULT_BASE = "https://tmgr-api.smashstats.workers.dev";
-var srv = { on:false, base:SRV_DEFAULT_BASE, tid:"", vt:"", role:"", boundName:"", ws:null, rev:0, entityRevs:{}, queue:[], cfgTimer:0, rcDelay:1000, statusText:"", _pending:{}, _deniedAt:0, _pendingMid:{}, _midQueue:{}, _synced:false, _lastPongAt:0, _pingTimer:0 };
-var SRV_QUEUE_KEY = "tmgr-server-queue";
+var srv = { on:false, base:SRV_DEFAULT_BASE, tid:"", vt:"", role:"", boundName:"", ws:null, rev:0, entityRevs:{}, queue:[], cfgTimer:0, rcDelay:1000, statusText:"", _pending:{}, _deniedAt:0, _pendingMid:{}, _midQueue:{}, _synced:false, _lastPongAt:0, _pingTimer:0, _rebinding:false };
+var SRV_QUEUE_KEY = "tmgr-server-queue" + __KEY_SUFFIX;
 // Unsent ops, parked per server tournament id so they survive a
 // reload and a library switch (B-6: the queue used to be memory-only,
 // so closing the tab during an outage lost the offline edits).
@@ -2816,7 +2825,22 @@ function srvBoot(){
     }
     if (!VIEWER){
       var sb = srvBindingFor();
-      if (sb){ srvApplyBinding(sb); srv.on = true; srvRestoreQueue(sb.tid); srvConnect(); return true; }
+      if (sb){
+        if (sb.role === "viewer"){
+          // A stored spectator binding is stale on the manager page:
+          // the manager never binds as a spectator, so this can only
+          // be a leftover (P1-1). Drop it and stay local-only — never
+          // fall back to the legacy MQTT broker from here, so the
+          // terminal cannot publish local state to a public broker
+          // or look shared while it is not.
+          delete srvStore.byLocal[state.tid];
+          srvSaveCfg();
+          setConn("", "この端末のみ");
+          try{ showToastMsg("観戦者としての接続を解除しました。この端末のみで使います"); }catch(e){}
+          return true;
+        }
+        srvApplyBinding(sb); srv.on = true; srvRestoreQueue(sb.tid); srvConnect(); return true;
+      }
     }
   }catch(e){}
   return false;
@@ -2941,9 +2965,10 @@ function srvConfigOp(){
   }, 700);
 }
 function srvStateOp(){
-  if (!srvActive() || VIEWER) return;
-  if (srvIsViewer()){ showSrvViewerBar(true); showToastMsg("観戦者として接続中のため、データを置き換えられません"); return; }
+  if (!srvActive() || VIEWER) return false;
+  if (srvIsViewer()){ showSrvViewerBar(true); showToastMsg("観戦者として接続中のため、データを置き換えられません"); return false; }
   srvSendOp({ kind:"state.replace", state: srvStateDoc() });
+  return true;
 }
 function srvResync(){
   // A replacement op arrived without its payload (e.g. replayed from
@@ -3048,7 +3073,39 @@ function srvLogin(){
 function srvLogout(){
   srvApi("/api/auth/sign-out", { method: "POST", body: {} }).then(function(){ srvUi.user = false; srvUi.list = []; render(); });
 }
-function srvBind(tid, name, role){
+// Local content that adopting a server tournament would wipe (P1-3):
+// results are not the only thing applyServerState replaces — events,
+// open matches, the roster and gekokujo sessions go too.
+function srvLocalHasContent(){
+  if (typeof state === "undefined" || !state) return false;
+  if (state.results && Object.keys(state.results).length) return true;
+  if (state.events && state.events.length) return true;
+  if (state.open && Object.keys(state.open).length) return true;
+  if (state.roster && state.roster.length) return true;
+  if (state.upsetSessions && Object.keys(state.upsetSessions).length) return true;
+  return false;
+}
+// Snapshot + confirm before any bind that adopts the server
+// tournament. Every entry point goes through srvBind, so one check
+// here covers them all. Returns true when it is safe to replace
+// local state.
+function srvConfirmReplaceLocal(){
+  if (!srvLocalHasContent()) return true;
+  pushSnapshot("サーバーの大会を使う前");
+  return confirm("サーバーの大会の内容で、この端末の大会を置き換えます。この端末だけに入っている内容は消えます（置き換え前の状態はバックアップに保存してあります）。続けますか？");
+}
+function srvBind(tid, name, role, replace){
+  // The manager page never binds as a spectator: a viewer role here
+  // can only be stale (P1-1). Refuse it instead of connecting
+  // read-only and looking like an operator.
+  if (!VIEWER && role === "viewer"){ showToastMsg("この大会は観戦のみで参加しています。運営者としてつなぎ直すことはできません"); return false; }
+  // Binding to an existing server tournament adopts its state
+  // wholesale (applyServerState replaces meta/events/results/live/
+  // open/upset/roster). Protect local content first — every entry
+  // point goes through here (P1-3). Creating a fresh server
+  // tournament pushes local state up instead, so it takes no prompt.
+  if (replace !== false && !srvConfirmReplaceLocal()) return false;
+  srv._rebinding = false;
   srv.tid = tid; srv.boundName = name || ""; srv.role = role || ""; srv.on = true; srv.rev = 0; srv.entityRevs = {}; srv.queue = []; srv._pending = {}; srv._midQueue = {}; srv._pendingMid = {}; srv._synced = false;
   srvRestoreQueue(tid);
   srvStoreBinding();
@@ -3056,11 +3113,12 @@ function srvBind(tid, name, role){
   if (srv.ws){ try{ srv.ws.close(); }catch(e){} srv.ws = null; }
   srvConnect();
   render();
+  return true;
 }
 function srvCreateOnServer(fromFlow){
   srvApi("/api/tournaments", { method: "POST", body: { name: state.meta.name || "無題の大会" } }).then(function(r){
     if (r.status === 200){
-      srvBind(r.data.id, r.data.name, "admin"); srvStateOp();
+      srvBind(r.data.id, r.data.name, "admin", false); srvStateOp();
       if (fromFlow){ srvFlow.step = ""; if (!srv.vt) srvIssueViewerToken(); render(); }
       else alert("サーバーに大会を作成し、この端末の内容を送りました");
     }
@@ -3069,8 +3127,7 @@ function srvCreateOnServer(fromFlow){
 }
 function srvSeed(){
   if (!confirm("サーバーの内容を、この端末のいまの状態で置き換えますか？")) return;
-  srvStateOp();
-  alert("送信しました");
+  if (srvStateOp()) alert("送信しました");
 }
 function srvIssueViewerToken(){
   srvApi("/api/tournaments/" + srv.tid + "/viewer-token", { method: "POST" }).then(function(r){
@@ -3079,22 +3136,19 @@ function srvIssueViewerToken(){
   });
 }
 // Re-bind this terminal as an operator after it ended up connected
-// as a spectator (stale viewer binding). Drops the spectator binding
-// and restarts the one-tap sharing flow (login if the session
-// expired). The local tournament is snapshotted first, and the
-// unsent queue is parked under the old server id, so neither is
-// lost if the flow adopts the server tournament (VR-02).
+// as a spectator (stale viewer binding). The old binding — and its
+// banner — stay in place until the new bind succeeds: detaching
+// first would fall back to the public MQTT broker and publish local
+// state there (P1-4), and cancelling the flow would leave the
+// terminal unbound and unsynced. If the flow adopts the server
+// tournament, srvBind snapshots local state and asks first (P1-3).
 function srvRebindAsOperator(){
   if (VIEWER) return;
-  pushSnapshot("観戦者からのつなぎ直し前");
-  var oldTid = srv.tid;
-  srvPersistQueue();
-  var parked = (oldTid && srvQueueStore.byTid[oldTid]) ? srvQueueStore.byTid[oldTid] : null;
-  srvDetach(true);
-  if (oldTid && parked){ srvQueueStore.byTid[oldTid] = parked; try{ localStorage.setItem(SRV_QUEUE_KEY, JSON.stringify(srvQueueStore)); }catch(e){} }
+  srv._rebinding = true;
   srvStartSharing();
 }
 function srvDetach(silent){
+  srv._rebinding = false;
   var was = srv.on;
   var oldTid = srv.tid;
   if (oldTid && srvQueueStore.byTid[oldTid]){ delete srvQueueStore.byTid[oldTid]; try{ localStorage.setItem(SRV_QUEUE_KEY, JSON.stringify(srvQueueStore)); }catch(e){} }
@@ -3119,6 +3173,15 @@ function srvSuspend(){
 function srvResumeForCurrent(){
   var b = srvBindingFor();
   if (b && !VIEWER){
+    if (b.role === "viewer"){
+      // Same stale-binding discard as srvBoot (P1-1): never connect
+      // as a spectator from the manager, and never fall back to MQTT.
+      delete srvStore.byLocal[state.tid];
+      srvSaveCfg();
+      setConn("", "この端末のみ");
+      try{ showToastMsg("観戦者としての接続を解除しました。この端末のみで使います"); }catch(e){}
+      return;
+    }
     srvApplyBinding(b); srv.on = true; srv.rev = 0; srv.entityRevs = {}; srv.queue = []; srv._pending = {}; srv._midQueue = {}; srv._pendingMid = {}; srv._synced = false;
     srvRestoreQueue(b.tid);
     if (sync.client){ try{ sync.client.end(true); }catch(e){} sync.client = null; sync.connected = false; }
@@ -3128,7 +3191,7 @@ function srvResumeForCurrent(){
 // ----- one-tap sharing flow: press one button, sharing just starts -----
 var srvFlow = { step: "", candidates: [] };
 function srvStartSharing(){
-  if (srvActive() || VIEWER) return;
+  if ((srvActive() && !srv._rebinding) || VIEWER) return;
   uiCfgOpen = "server";
   if (view !== "config") go("config");
   if (srvUi.user){ srvFlow.step = "working"; render(); srvDecideBind(); }
@@ -3136,9 +3199,19 @@ function srvStartSharing(){
 }
 function srvDecideBind(){
   var b = srvBindingFor();
-  if (b){ srvBind(b.tid, b.boundName, b.role); srvFlow.step = ""; render(); return; }
+  if (b && !srv._rebinding){ srvBind(b.tid, b.boundName, b.role); srvFlow.step = ""; render(); return; }
   srvCheckLogin().then(function(){
     if (!srvUi.user){ srvFlow.step = "login"; render(); return; }
+    if (srv._rebinding){
+      // Re-binding as an operator: prefer the same server tournament
+      // we were spectating, if this account can operate it.
+      var same = null;
+      if (b) same = (srvUi.list || []).filter(function(t){ return t.id === b.tid; })[0] || null;
+      srv._rebinding = false;
+      if (same){ srvBind(same.id, same.name, same.role); srvFlow.step = ""; render(); return; }
+      // Not on the list (renamed / removed / spectator-only): fall
+      // through to the normal choose/create flow below.
+    }
     var mine = (srvUi.list || []).filter(function(t){ return t.name === (state.meta.name || ""); });
     var hasContent = state.events.length > 0;
     if (mine.length && !hasContent){ srvBind(mine[0].id, mine[0].name, mine[0].role); srvFlow.step = ""; render(); }
@@ -3146,7 +3219,7 @@ function srvDecideBind(){
     else srvCreateOnServer(true);
   });
 }
-function srvUseExisting(){ var c = srvFlow.candidates[0]; if (!c) return; if (state.results && Object.keys(state.results).length){ pushSnapshot("サーバーの大会を使う前"); if (!confirm("サーバーの大会の内容で、この端末の大会を置き換えます。この端末だけに入っている結果は消えます（置き換え前の状態はバックアップに保存してあります）。続けますか？")) return; } srvFlow.step = ""; srvBind(c.id, c.name, c.role); render(); }
+function srvUseExisting(){ var c = srvFlow.candidates[0]; if (!c) return; srvFlow.step = ""; srvBind(c.id, c.name, c.role); render(); }
 function srvCreateNew(){ srvFlow.step = "working"; srvCreateOnServer(true); render(); }
 </script>
 <script>
