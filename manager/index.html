@@ -1196,7 +1196,47 @@ function showSaveFailBar(show){
       bar.style.display = "block";
     } else if (bar){ bar.style.display = "none"; }
   }catch(e){}
+  try{ layoutTopBars(); }catch(e){}
 }
+// Viewer-role connection on the manager page (found 2026-11-24 live
+// check): the page used to look exactly like an operator connection
+// ("サーバー共有中") while the server denied every op as read-only,
+// so results looked entered and never arrived. This bar stays until
+// the terminal is re-bound as an operator.
+var _srvViewerBarShown = false;
+function showSrvViewerBar(show){
+  if (show === _srvViewerBarShown) return;
+  _srvViewerBarShown = show;
+  try{
+    var bar = document.getElementById("srvViewerBar");
+    if (show){
+      if (!bar){
+        bar = document.createElement("div"); bar.id = "srvViewerBar";
+        bar.style.cssText = "position:fixed;left:0;right:0;top:0;z-index:10000;background:#8a6d00;color:#fff;font-weight:700;padding:10px 12px;font-size:14px;line-height:1.5";
+        bar.innerHTML = "この端末は観戦者として接続しています。入力した結果はサーバーに届きません。 <button onclick=\"srvRebindAsOperator()\" style=\"margin-left:8px;font-weight:700;padding:6px 10px\">運営者としてつなぎ直す</button>";
+        document.body.appendChild(bar);
+      }
+      bar.style.display = "block";
+    } else if (bar){ bar.style.display = "none"; }
+  }catch(e){}
+  try{ layoutTopBars(); }catch(e){}
+}
+function layoutTopBars(){
+  // The save-failure bar is also fixed at top:0 — push it below the
+  // viewer bar when both are visible instead of overlapping it.
+  try{
+    var vb = document.getElementById("srvViewerBar");
+    var sf = document.getElementById("saveFailBar");
+    var vh = (vb && vb.style.display !== "none") ? (vb.offsetHeight || 48) : 0;
+    if (sf) sf.style.top = vh + "px";
+  }catch(e){}
+}
+// Single place that keeps the viewer banner in sync with the
+// connection state — call it from every path that changes srv.on /
+// srv.role / srv.tid instead of relying on setConn being called
+// (VR-04).
+function syncSrvViewerBar(){ showSrvViewerBar(srvIsViewer() && !!(typeof srv !== "undefined" && srv && srv.on)); }
+if (typeof window !== "undefined" && window.addEventListener) window.addEventListener("resize", function(){ try{ layoutTopBars(); }catch(e){} });
 function touchConfig(){ state.configTs = Date.now(); sync.lastEdit = Date.now(); invalidateCaches(); saveState(); publishState(); libStoreCurrent(); srvConfigOp(); }
 // Live (in-progress) state has its own clock: receivers adopt the
 // sender's whole live map when its liveTs is newer. Until 2026-11-15
@@ -1387,10 +1427,15 @@ function deleteTournament(tid){
 // dedicated viewer build (window.__VIEWER_BUILD__), which cannot
 // publish at all. Editing is disabled in both.
 var VIEWER = (typeof window !== "undefined" && window.__VIEWER_BUILD__ === true) || /[&#]v=1(&|$)/.test(location.hash || "");
-function canEdit(){ return !VIEWER; }
+// A manager-page terminal whose stored binding is viewer-role: it can
+// see the tournament but the server refuses its ops as read-only.
+// Treat it as read-only on the client too (VR-01).
+function srvIsViewer(){ return typeof srv !== "undefined" && srv && srv.role === "viewer" && !VIEWER; }
+function canEdit(){ return !VIEWER && !srvIsViewer(); }
 var _lastUndo = null;
 function setResult(mid, rec, isUndo){
   if (VIEWER) return;
+  if (srvIsViewer()){ showSrvViewerBar(true); showToastMsg("観戦者として接続中のため、結果を入力できません"); return; }
   if (!isUndo) _lastUndo = {mid: mid, prev: state.results[mid] ? JSON.parse(JSON.stringify(state.results[mid])) : null};
   if (rec) { rec.ts = Date.now(); state.results[mid] = rec; if (state.tombstones) delete state.tombstones[mid]; }
   else { delete state.results[mid]; state.tombstones = state.tombstones || {}; state.tombstones[mid] = Date.now(); }
@@ -2482,8 +2527,13 @@ function writeConnPill(){
   var side = document.getElementById("connSide"); if (side){ side.className = "conn " + connClsSaved; side.textContent = text; }
 }
 function setConn(cls, text){
+  // A spectator connection on the manager page must never look like
+  // an operator one — rewrite the pill here too, so direct callers
+  // (e.g. the legacy MQTT path) cannot show "共有中" for it (VR-08).
+  if (!VIEWER && typeof srv !== "undefined" && srv && srv.on && srv.role === "viewer" && cls === "on"){ cls = "mid"; text = "観戦者として接続中"; }
   connClsSaved = cls; connTextSaved = text;
   writeConnPill();
+  try{ syncSrvViewerBar(); }catch(e){}
 }
 function connectBroker(idx){
   if (typeof mqtt === "undefined"){
@@ -2723,10 +2773,16 @@ function srvLoadCfg(){
   }catch(e){}
 }
 function srvBindingFor(localTid){ return srvStore.byLocal[localTid || (typeof state !== "undefined" && state && state.tid) || ""] || null; }
+function srvRoleLabel(r){ return r === "admin" ? "責任者" : r === "viewer" ? "観戦者" : "作業者"; }
 function srvApplyBinding(b){
   srv.tid = b ? (b.tid || "") : ""; srv.vt = b ? (b.vt || "") : ""; srv.boundName = b ? (b.boundName || "") : ""; srv.role = b ? (b.role || "") : "";
 }
 function srvStoreBinding(){
+  // The manager page never binds as a spectator (its boot never
+  // takes the spectator-hash branch — that is VIEWER-only), so a
+  // viewer role here can only be a stale binding. Never let it
+  // overwrite a stored operator/admin binding.
+  if (!VIEWER && srv.role === "viewer") return;
   if (srv.tid && typeof state !== "undefined" && state && state.tid) srvStore.byLocal[state.tid] = { tid: srv.tid, vt: srv.vt || "", boundName: srv.boundName || "", role: srv.role || "" };
   srvSaveCfg();
 }
@@ -2765,7 +2821,12 @@ function srvBoot(){
   }catch(e){}
   return false;
 }
-function srvSetStatus(cls, text){ srv.statusText = text; setConn(cls, text); }
+function srvSetStatus(cls, text){
+  // A spectator connection on the manager page must never look like
+  // an operator one: the server denies its ops as read-only.
+  if (!VIEWER && typeof srv !== "undefined" && srv && srv.role === "viewer" && cls === "on"){ cls = "mid"; text = "観戦者として接続中"; }
+  srv.statusText = text; setConn(cls, text);
+}
 function srvStartPing(){
   srvStopPing();
   srv._lastPongAt = Date.now();
@@ -2777,7 +2838,7 @@ function srvStartPing(){
     // the server dedups them, so this cannot double-apply).
     Object.keys(srv._pending).forEach(function(k){
       var p = srv._pending[k];
-      if (p && p._sentAt && now - p._sentAt > 30000){ p._sentAt = now; srvWsSend({ type:"op", op:p }); }
+      if (p && p._sentAt && now - p._sentAt > 30000 && srv.role !== "viewer"){ p._sentAt = now; srvWsSend({ type:"op", op:p }); }
     });
     srvPersistQueue();
     // Dead socket: no pong for a while means the connection is half
@@ -2808,6 +2869,7 @@ function srvFlushMidQueue(mid){
   srvSendOp(op);
 }
 function srvFlushQueue(){
+  if (srv.role === "viewer") return;
   // Only after the server has answered hello (state / ops / synced):
   // sending queued ops against a stale local state could overwrite
   // newer server state with an old config.replace.
@@ -2828,6 +2890,10 @@ function srvFlushQueue(){
 }
 function srvSendOp(op){
   if (!srvActive() || VIEWER) return;
+  // A spectator connection can only be denied by the server — do not
+  // send at all; the banner explains why. Local state is already
+  // saved; re-binding as an operator can push it via seed.
+  if (srv.role === "viewer"){ showSrvViewerBar(true); return; }
   if (!op.opId) op.opId = "op" + Date.now().toString(36) + randStr(6);
   if ((op.kind === "result.set" || op.kind === "result.clear") && op.mid){
     // One in-flight op per match: a second edit waits behind the
@@ -2876,6 +2942,7 @@ function srvConfigOp(){
 }
 function srvStateOp(){
   if (!srvActive() || VIEWER) return;
+  if (srvIsViewer()){ showSrvViewerBar(true); showToastMsg("観戦者として接続中のため、データを置き換えられません"); return; }
   srvSendOp({ kind:"state.replace", state: srvStateDoc() });
 }
 function srvResync(){
@@ -3011,6 +3078,22 @@ function srvIssueViewerToken(){
     else alert("発行できませんでした（責任者のみ発行できます）");
   });
 }
+// Re-bind this terminal as an operator after it ended up connected
+// as a spectator (stale viewer binding). Drops the spectator binding
+// and restarts the one-tap sharing flow (login if the session
+// expired). The local tournament is snapshotted first, and the
+// unsent queue is parked under the old server id, so neither is
+// lost if the flow adopts the server tournament (VR-02).
+function srvRebindAsOperator(){
+  if (VIEWER) return;
+  pushSnapshot("観戦者からのつなぎ直し前");
+  var oldTid = srv.tid;
+  srvPersistQueue();
+  var parked = (oldTid && srvQueueStore.byTid[oldTid]) ? srvQueueStore.byTid[oldTid] : null;
+  srvDetach(true);
+  if (oldTid && parked){ srvQueueStore.byTid[oldTid] = parked; try{ localStorage.setItem(SRV_QUEUE_KEY, JSON.stringify(srvQueueStore)); }catch(e){} }
+  srvStartSharing();
+}
 function srvDetach(silent){
   var was = srv.on;
   var oldTid = srv.tid;
@@ -3021,6 +3104,7 @@ function srvDetach(silent){
   if (typeof state !== "undefined" && state && state.tid) delete srvStore.byLocal[state.tid];
   srvSaveCfg();
   if (was && !VIEWER){ setConn("", "この端末のみ"); connectBroker(0); }
+  try{ syncSrvViewerBar(); }catch(e){}
   if (!silent) render();
 }
 function srvSuspend(){
@@ -3062,7 +3146,7 @@ function srvDecideBind(){
     else srvCreateOnServer(true);
   });
 }
-function srvUseExisting(){ var c = srvFlow.candidates[0]; if (!c) return; srvFlow.step = ""; srvBind(c.id, c.name, c.role); render(); }
+function srvUseExisting(){ var c = srvFlow.candidates[0]; if (!c) return; if (state.results && Object.keys(state.results).length){ pushSnapshot("サーバーの大会を使う前"); if (!confirm("サーバーの大会の内容で、この端末の大会を置き換えます。この端末だけに入っている結果は消えます（置き換え前の状態はバックアップに保存してあります）。続けますか？")) return; } srvFlow.step = ""; srvBind(c.id, c.name, c.role); render(); }
 function srvCreateNew(){ srvFlow.step = "working"; srvCreateOnServer(true); render(); }
 </script>
 <script>
@@ -3303,6 +3387,7 @@ function tapPlayer(evId, mid, pid){
 }
 function startMatch(mid, court){
   if (VIEWER) return;
+  if (srvIsViewer()){ showSrvViewerBar(true); showToastMsg("観戦者として接続中のため、試合を開始できません"); return; }
   state.live = state.live || {}; state.live[mid] = Date.now();
   state.liveCourt = state.liveCourt || {};
   if (court) state.liveCourt[mid] = court; else delete state.liveCourt[mid];
@@ -3319,6 +3404,7 @@ function liveCourt(mid){
 }
 function cancelMatch(mid){
   if (VIEWER) return;
+  if (srvIsViewer()){ showSrvViewerBar(true); showToastMsg("観戦者として接続中のため、取り消しできません"); return; }
   if (!confirm("この試合の開始を取り消しますか？\n（コートが空き、開始前の状態に戻ります）")) return;
   if (state.live) delete state.live[mid];
   if (state.liveCourt) delete state.liveCourt[mid];
@@ -3370,6 +3456,7 @@ function findMatchGlobal(mid){
 var _modalMid = null;
 function openScoreModal(evId, mid){
   if (VIEWER) return;
+  if (srvIsViewer()){ showSrvViewerBar(true); showToastMsg("観戦者として接続中のため、結果を入力できません"); return; }
   var ev = evById(evId); if (!ev) return;
   var all = allMatches(ev);
   var m = all.find(function(x){ return x.id === mid; }); if (!m) return;
@@ -4657,6 +4744,7 @@ function vViewerHome(){
 }
 function shareStatusHTML(){
   if (srvActive()){
+    if (!VIEWER && srv.role === "viewer") return '<div class="card" style="margin-bottom:14px"><div class="row spread"><strong>⚠️ 観戦者として接続中</strong><span class="mini">' + esc(srv.statusText || "") + '</span></div><div class="mini" style="margin-top:6px">この端末は見るだけです。入力した結果はサーバーに届きません。</div><div style="margin-top:8px"><button class="btn small" onclick="srvRebindAsOperator()">運営者としてつなぎ直す</button></div></div>';
     var h = '<div class="card" style="margin-bottom:14px"><div class="row spread"><strong>🌐 オンライン共有中</strong><span class="mini">' + esc(srv.statusText || "") + '</span></div>';
     if (srv.vt) h += '<div class="row" style="margin-top:8px"><input type="text" readonly value="' + esc(viewerPageUrl()) + '" id="homeWatchLink" style="flex:1"><button class="btn ghost small" onclick="copyHomeWatchLink()">観戦リンクをコピー</button></div>';
     else h += '<div class="mini" style="margin-top:6px">観戦リンクは' + (srv.role === "admin" ? '設定の「オンライン共有」から発行できます' : '責任者の端末で発行されます') + '。</div>';
@@ -4946,6 +5034,7 @@ function addEvent(){
 function delEvent(id){ if (!confirm("この種目を削除しますか？（30日以内なら「設定・共有」から復元できます）")) return; pushSnapshot("種目削除の前"); var ev = evById(id); if (ev){ state.trash = state.trash || []; state.trash.unshift({ts: Date.now(), event: JSON.parse(JSON.stringify(ev))}); } state.events = state.events.filter(function(e){return e.id!==id;}); touchConfig(); render(); }
 
 function guardPartChange(ev){
+  if (srvIsViewer()){ showSrvViewerBar(true); showToastMsg("観戦者として接続中のため、参加者を変更できません"); return false; }
   var hasFixtures = (ev.format !== "tournament" && ev.blocks) ||
     Object.keys(state.results).some(function(k){ return k.indexOf(ev.id + "-") === 0; });
   if (!hasFixtures) return true;
@@ -7229,8 +7318,9 @@ function srvCardHTML(){
   if (!srvUi.checked && !srvUi.checking) srvCheckLogin();
   var h = '';
   if (srvActive()){
-    h += '<div class="sub">結果が他の運営端末と観戦者にリアルタイムで届いています（サーバーが正本です）。</div>' +
-      '<div style="margin-top:8px">大会：<strong>' + esc(srv.boundName || srv.tid) + '</strong>' + (srv.role ? '（' + (srv.role === "admin" ? "責任者" : "作業者") + '）' : '') + '<br>状態：' + esc(srv.statusText || "接続中…") + '</div>';
+    h += (srv.role === "viewer" ? '<div class="sub">この端末は観戦者として接続しています（見るだけです）。入力した結果はサーバーに届きません。</div>' : '<div class="sub">結果が他の運営端末と観戦者にリアルタイムで届いています（サーバーが正本です）。</div>') +
+      '<div style="margin-top:8px">大会：<strong>' + esc(srv.boundName || srv.tid) + '</strong>' + (srv.role ? '（' + srvRoleLabel(srv.role) + '）' : '') + '<br>状態：' + esc(srv.statusText || "接続中…") + '</div>' +
+      (srv.role === "viewer" ? '<div style="margin-top:10px"><button class="btn" style="min-height:52px;padding:0 22px" onclick="srvRebindAsOperator()">運営者としてつなぎ直す</button></div>' : '');
     if (srv.vt){
       h += '<label class="f" style="margin-top:10px">観戦リンク（保護者・関係者へ配るのはこれだけです）</label>' +
         '<div class="row"><input type="text" readonly value="' + esc(viewerPageUrl()) + '" id="srvWatchLink" style="flex:1"><button class="btn ghost small" onclick="copySrvWatchLink()">コピー</button></div>';
