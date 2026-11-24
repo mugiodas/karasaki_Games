@@ -1157,7 +1157,7 @@ function loadState(){
   return defaultState();
 }
 function saveState(){
-  try{ localStorage.setItem(LS_KEY, JSON.stringify(state)); return; }catch(e){}
+  try{ localStorage.setItem(LS_KEY, JSON.stringify(state)); showSaveFailBar(false); return true; }catch(e){}
   // Quota fallback (staged): drop oldest snapshots first, then old trash, retrying each time.
   // The tournament data itself is the last thing ever given up.
   try{
@@ -1165,14 +1165,37 @@ function saveState(){
     while (arr.length){
       arr.pop();
       try{ localStorage.setItem(BK_KEY, JSON.stringify(arr)); }catch(e2){}
-      try{ localStorage.setItem(LS_KEY, JSON.stringify(state)); return; }catch(e3){}
+      try{ localStorage.setItem(LS_KEY, JSON.stringify(state)); showSaveFailBar(false); return true; }catch(e3){}
     }
     var tr = (state.trash || []).slice();
     while (tr.length){
       tr.shift();
-      try{ localStorage.setItem(LS_KEY, JSON.stringify(Object.assign({}, state, {trash: tr}))); state.trash = tr; return; }catch(e4){}
+      try{ localStorage.setItem(LS_KEY, JSON.stringify(Object.assign({}, state, {trash: tr}))); state.trash = tr; showSaveFailBar(false); return true; }catch(e4){}
     }
   }catch(e5){}
+  // Nothing could be saved (quota, private mode, storage off): say so
+  // loudly and persistently instead of looking successful.
+  showSaveFailBar(true);
+  return false;
+}
+// D-7: a save failure used to be silent, so results looked entered
+// and vanished on reload. This bar stays until a save succeeds.
+var _saveFailed = false;
+function showSaveFailBar(show){
+  if (show === _saveFailed) return;
+  _saveFailed = show;
+  try{
+    var bar = document.getElementById("saveFailBar");
+    if (show){
+      if (!bar){
+        bar = document.createElement("div"); bar.id = "saveFailBar";
+        bar.style.cssText = "position:fixed;left:0;right:0;top:0;z-index:9999;background:#b00020;color:#fff;font-weight:700;padding:10px 12px;font-size:14px;line-height:1.5";
+        bar.innerHTML = "保存できませんでした（端末の容量がいっぱいか、プライベートモードです）。このままでは入力した結果が消えます。 <button onclick=\"exportJson()\" style=\"margin-left:8px;font-weight:700;padding:6px 10px\">大会データをダウンロードする</button>";
+        document.body.appendChild(bar);
+      }
+      bar.style.display = "block";
+    } else if (bar){ bar.style.display = "none"; }
+  }catch(e){}
 }
 function touchConfig(){ state.configTs = Date.now(); sync.lastEdit = Date.now(); invalidateCaches(); saveState(); publishState(); libStoreCurrent(); srvConfigOp(); }
 // Live (in-progress) state has its own clock: receivers adopt the
@@ -2447,8 +2470,10 @@ function syncTimeText(ts){
   var d = new Date(ts); function p2(n){ return ("0" + n).slice(-2); }
   return p2(d.getHours()) + ":" + p2(d.getMinutes()) + ":" + p2(d.getSeconds());
 }
+function srvPendingCount(){ var n = srv.queue.length + Object.keys(srv._pending).length; Object.keys(srv._midQueue).forEach(function(k){ if (srv._midQueue[k]) n++; }); return n; }
 function writeConnPill(){
   var text = connTextSaved;
+  if (!VIEWER && typeof srv !== "undefined" && srv && srvActive()){ var pn = srvPendingCount(); if (pn > 0) text += " ・ 未送信" + pn + "件"; }
   if (VIEWER && lastSyncAt){
     text += " ・ 最終更新 " + syncTimeText(lastSyncAt);
     if (connClsSaved !== "on") text += " の内容を表示中";
@@ -2650,7 +2675,31 @@ function receiveState(payload, local){
 // nothing is bound, everything behaves exactly as before (MQTT).
 var SRV_KEY = "tmgr-server";
 var SRV_DEFAULT_BASE = "https://tmgr-api.smashstats.workers.dev";
-var srv = { on:false, base:SRV_DEFAULT_BASE, tid:"", vt:"", role:"", boundName:"", ws:null, rev:0, entityRevs:{}, queue:[], cfgTimer:0, rcDelay:1000, statusText:"", _pending:{}, _deniedAt:0 };
+var srv = { on:false, base:SRV_DEFAULT_BASE, tid:"", vt:"", role:"", boundName:"", ws:null, rev:0, entityRevs:{}, queue:[], cfgTimer:0, rcDelay:1000, statusText:"", _pending:{}, _deniedAt:0, _pendingMid:{}, _midQueue:{}, _synced:false, _lastPongAt:0, _pingTimer:0 };
+var SRV_QUEUE_KEY = "tmgr-server-queue";
+// Unsent ops, parked per server tournament id so they survive a
+// reload and a library switch (B-6: the queue used to be memory-only,
+// so closing the tab during an outage lost the offline edits).
+var srvQueueStore = { byTid: {} };
+function srvQueueSnapshot(){
+  if (!srv.tid) return;
+  srvQueueStore.byTid[srv.tid] = { queue: srv.queue, pending: Object.keys(srv._pending).map(function(k){ return srv._pending[k]; }), midQueue: srv._midQueue };
+}
+function srvPersistQueue(){
+  try{ srvQueueSnapshot(); localStorage.setItem(SRV_QUEUE_KEY, JSON.stringify(srvQueueStore)); }catch(e){}
+  try{ writeConnPill(); }catch(e){}
+}
+function srvRestoreQueue(tid){
+  try{
+    var raw = localStorage.getItem(SRV_QUEUE_KEY);
+    if (raw){ var d = JSON.parse(raw); if (d && d.byTid) srvQueueStore.byTid = d.byTid; }
+  }catch(e){}
+  var e2 = (tid && srvQueueStore.byTid[tid]) || null;
+  if (!e2) return;
+  srv.queue = e2.queue || [];
+  (e2.pending || []).forEach(function(op){ if (op && op.opId) srv._pending[op.opId] = op; });
+  srv._midQueue = e2.midQueue || {};
+}
 var srvUi = { user:false, checked:false, checking:false, list:[] };
 // Bindings are kept per LOCAL tournament (2026-11-15 flow rework):
 // each tournament in the library remembers its own server binding,
@@ -2711,35 +2760,98 @@ function srvBoot(){
     }
     if (!VIEWER){
       var sb = srvBindingFor();
-      if (sb){ srvApplyBinding(sb); srv.on = true; srvConnect(); return true; }
+      if (sb){ srvApplyBinding(sb); srv.on = true; srvRestoreQueue(sb.tid); srvConnect(); return true; }
     }
   }catch(e){}
   return false;
 }
 function srvSetStatus(cls, text){ srv.statusText = text; setConn(cls, text); }
+function srvStartPing(){
+  srvStopPing();
+  srv._lastPongAt = Date.now();
+  srv._pingTimer = setInterval(function(){
+    if (!srv.on || !srv.ws || srv.ws.readyState !== 1) return;
+    try{ srv.ws.send(JSON.stringify({ type:"ping" })); }catch(e){}
+    var now = Date.now();
+    // Ack timeout: re-send ops that have waited too long (same opId;
+    // the server dedups them, so this cannot double-apply).
+    Object.keys(srv._pending).forEach(function(k){
+      var p = srv._pending[k];
+      if (p && p._sentAt && now - p._sentAt > 30000){ p._sentAt = now; srvWsSend({ type:"op", op:p }); }
+    });
+    srvPersistQueue();
+    // Dead socket: no pong for a while means the connection is half
+    // open — close it so the reconnect logic takes over.
+    if (now - srv._lastPongAt > 60000){ try{ srv.ws.close(); }catch(e){} }
+  }, 20000);
+}
+function srvStopPing(){ if (srv._pingTimer){ clearInterval(srv._pingTimer); srv._pingTimer = 0; } }
 function srvConnect(){
   if (!srv.tid) return;
+  srv._synced = false;
   srvSetStatus("mid", "サーバー接続中…");
   var url = srv.base.replace(/^http/, "ws") + (srv.role === "viewer" ? "/api/public/" + srv.tid + "/ws?vt=" + encodeURIComponent(srv.vt) : "/api/tournaments/" + srv.tid + "/ws");
   var ws;
   try{ ws = new WebSocket(url); }catch(e){ srvScheduleReconnect(); return; }
   srv.ws = ws;
-  ws.onopen = function(){ srv.rcDelay = 1000; srvSetStatus("on", "サーバー共有中"); srvWsSend({ type:"hello", lastRev: srv.rev }); srvFlushQueue(); if (view === "config") render(); };
+  ws.onopen = function(){ srv.rcDelay = 1000; srv._lastPongAt = Date.now(); srvSetStatus("on", "サーバー共有中"); srvWsSend({ type:"hello", lastRev: srv.rev }); srvStartPing(); if (view === "config") render(); };
   ws.onmessage = function(ev){ var msg; try{ msg = JSON.parse(ev.data); }catch(e){ return; } srvOnMessage(msg); };
-  ws.onclose = function(){ srv.ws = null; if (srv.on){ srvSetStatus("mid", "サーバー再接続中…"); srvScheduleReconnect(); } };
+  ws.onclose = function(){ if (srv.ws !== ws) return; srvStopPing(); srv._synced = false; srv.ws = null; if (srv.on){ srvSetStatus("mid", "サーバー再接続中…"); srvScheduleReconnect(); } };
   ws.onerror = function(){ try{ ws.close(); }catch(e){} };
 }
 function srvScheduleReconnect(){ if (!srv.on) return; var d = srv.rcDelay; srv.rcDelay = Math.min(30000, srv.rcDelay * 2); setTimeout(function(){ if (srv.on && !srv.ws) srvConnect(); }, d); }
 function srvWsSend(obj){ if (srv.ws && srv.ws.readyState === 1){ try{ srv.ws.send(JSON.stringify(obj)); return true; }catch(e){} } return false; }
-function srvFlushQueue(){ var q = srv.queue; srv.queue = []; q.forEach(function(op){ srv._pending[op.opId] = op; srvWsSend({ type:"op", op:op }); }); }
+function srvFlushMidQueue(mid){
+  var op = srv._midQueue[mid];
+  if (!op) return;
+  delete srv._midQueue[mid];
+  srvSendOp(op);
+}
+function srvFlushQueue(){
+  // Only after the server has answered hello (state / ops / synced):
+  // sending queued ops against a stale local state could overwrite
+  // newer server state with an old config.replace.
+  if (!srv._synced) return;
+  // Re-send ops that were sent but never acked (same opId: the
+  // server dedups them, so this cannot double-apply).
+  Object.keys(srv._pending).forEach(function(k){ var p = srv._pending[k]; if (p){ p._sentAt = Date.now(); srvWsSend({ type:"op", op:p }); } });
+  var q = srv.queue; srv.queue = [];
+  q.forEach(function(op){
+    if ((op.kind === "result.set" || op.kind === "result.clear") && op.mid && srv._pendingMid[op.mid] && srv._pendingMid[op.mid] !== op.opId){
+      srv.queue.push(op); // still blocked behind the in-flight op
+      return;
+    }
+    if ((op.kind === "result.set" || op.kind === "result.clear") && op.mid) delete srv._pendingMid[op.mid];
+    srvSendOp(op);
+  });
+  srvPersistQueue();
+}
 function srvSendOp(op){
   if (!srvActive() || VIEWER) return;
-  op.opId = "op" + Date.now().toString(36) + randStr(6);
-  srv._pending[op.opId] = op;
-  if (!srvWsSend({ type:"op", op:op })){
+  if (!op.opId) op.opId = "op" + Date.now().toString(36) + randStr(6);
+  if ((op.kind === "result.set" || op.kind === "result.clear") && op.mid){
+    // One in-flight op per match: a second edit waits behind the
+    // first one instead of racing it with a stale entity revision.
+    if (srv._pendingMid[op.mid] && srv._pendingMid[op.mid] !== op.opId){
+      srv._midQueue[op.mid] = op;
+      srvPersistQueue();
+      return;
+    }
+    op.entityRev = srv.entityRevs[op.mid] || 0;
+    srv._pendingMid[op.mid] = op.opId;
+  }
+  // Never send before the first sync of this connection completes:
+  // the local state may be stale and a config.replace would then
+  // overwrite newer server state.
+  if (!srv._synced || !srvWsSend({ type:"op", op:op })){
     if (op.kind === "config.replace") srv.queue = srv.queue.filter(function(q){ return q.kind !== "config.replace"; });
     srv.queue.push(op);
+    srvPersistQueue();
+    return;
   }
+  op._sentAt = Date.now();
+  srv._pending[op.opId] = op;
+  srvPersistQueue();
 }
 function srvStateDoc(){
   return { meta: state.meta, events: state.events, results: state.results, live: state.live || {}, liveCourt: state.liveCourt || {}, liveTs: state.liveTs || 0, tombstones: state.tombstones || {}, trash: state.trash || [], open: state.open || {}, upset: state.upsetSessions || {}, roster: state.roster || [], configTs: state.configTs || 0 };
@@ -2747,8 +2859,8 @@ function srvStateDoc(){
 function srvResultOp(mid){
   if (!srvActive() || VIEWER) return;
   var rec = state.results[mid];
-  if (rec) srvSendOp({ kind:"result.set", mid:mid, rec: JSON.parse(JSON.stringify(rec)), entityRev: srv.entityRevs[mid] || 0 });
-  else srvSendOp({ kind:"result.clear", mid:mid, entityRev: srv.entityRevs[mid] || 0 });
+  if (rec) srvSendOp({ kind:"result.set", mid:mid, rec: JSON.parse(JSON.stringify(rec)) });
+  else srvSendOp({ kind:"result.clear", mid:mid });
 }
 function srvLiveOp(mid, kind){
   if (!srvActive() || VIEWER) return;
@@ -2765,6 +2877,14 @@ function srvConfigOp(){
 function srvStateOp(){
   if (!srvActive() || VIEWER) return;
   srvSendOp({ kind:"state.replace", state: srvStateDoc() });
+}
+function srvResync(){
+  // A replacement op arrived without its payload (e.g. replayed from
+  // before the server started carrying payloads). Never apply an
+  // empty config over the local tournament — take the full state
+  // from the server instead.
+  srv.rev = 0; srv.entityRevs = {}; srv._synced = false;
+  srvWsSend({ type:"hello", lastRev: 0 });
 }
 function applyServerState(doc, entityRevs, rev){
   if (!doc) return;
@@ -2785,24 +2905,40 @@ function applyServerOp(op){
   else if (op.kind === "result.clear"){ delete state.results[op.mid]; state.tombstones = state.tombstones || {}; state.tombstones[op.mid] = op.at || Date.now(); if (op.entityRev) srv.entityRevs[op.mid] = op.entityRev; }
   else if (op.kind === "live.set"){ state.live = state.live || {}; state.live[op.mid] = op.at || Date.now(); state.liveCourt = state.liveCourt || {}; if (op.court) state.liveCourt[op.mid] = op.court; else delete state.liveCourt[op.mid]; state.liveTs = op.at || Date.now(); }
   else if (op.kind === "live.clear"){ if (state.live) delete state.live[op.mid]; if (state.liveCourt) delete state.liveCourt[op.mid]; }
-  else if (op.kind === "config.replace"){ var c = op.config || {}; state.meta = c.meta || {}; state.events = c.events || []; state.trash = c.trash || []; state.open = c.open || {}; state.upsetSessions = c.upset || {}; if (c.roster) state.roster = c.roster; if (c.configTs) state.configTs = c.configTs; }
-  else if (op.kind === "state.replace"){ applyServerState(op.state, null, 0); return; }
+  else if (op.kind === "config.replace"){ if (!op.config){ srvResync(); return; } var c = op.config; state.meta = c.meta || {}; state.events = c.events || []; state.trash = c.trash || []; state.open = c.open || {}; state.upsetSessions = c.upset || {}; if (c.roster) state.roster = c.roster; if (c.configTs) state.configTs = c.configTs; }
+  else if (op.kind === "state.replace"){ if (!op.state){ srvResync(); return; } applyServerState(op.state, null, 0); return; }
   else changed = false;
   if (changed){ invalidateCaches(); saveState(); srvSaveCfg(); render(); }
 }
 function srvOnMessage(msg){
   if (!msg) return;
-  if (msg.type === "state"){ applyServerState(msg.state, msg.entityRevs, msg.rev); }
-  else if (msg.type === "ops"){ (msg.ops || []).forEach(function(e){ applyServerOp(e.op); }); srv.rev = msg.rev; srvSaveCfg(); }
+  if (msg.type === "state"){ applyServerState(msg.state, msg.entityRevs, msg.rev); srv._synced = true; srvFlushQueue(); }
+  else if (msg.type === "ops"){ (msg.ops || []).forEach(function(e){ applyServerOp(e.op); }); srv.rev = msg.rev; srv._synced = true; srvFlushQueue(); srvSaveCfg(); }
   else if (msg.type === "op"){ srv.rev = msg.rev; applyServerOp(msg.op); srvSaveCfg(); }
-  else if (msg.type === "synced"){ srv.rev = msg.rev; }
+  else if (msg.type === "synced"){ srv.rev = msg.rev; srv._synced = true; srvFlushQueue(); }
+  else if (msg.type === "pong"){ srv._lastPongAt = Date.now(); }
   else if (msg.type === "ack"){
     var p = srv._pending[msg.opId];
-    if (p){ delete srv._pending[msg.opId]; if ((p.kind === "result.set" || p.kind === "result.clear") && msg.entityRev) srv.entityRevs[p.mid] = msg.entityRev; }
-    srv.rev = msg.rev; srvSaveCfg();
+    if (p){ delete srv._pending[msg.opId]; if ((p.kind === "result.set" || p.kind === "result.clear") && msg.entityRev) srv.entityRevs[p.mid] = msg.entityRev; if (p.mid && srv._pendingMid[p.mid] === msg.opId){ delete srv._pendingMid[p.mid]; srvFlushMidQueue(p.mid); } }
+    srv.rev = msg.rev; srvSaveCfg(); srvPersistQueue();
   }
   else if (msg.type === "conflict"){
+    var cp = srv._pending[msg.opId];
+    if (cp && !cp._retried && (cp.kind === "result.set" || cp.kind === "result.clear")){
+      // First conflict: this op was built on a stale entity revision —
+      // usually our own earlier op for the same match that had not
+      // been acked yet. Keep the user's input and re-send it on the
+      // fresh revision instead of discarding it.
+      cp._retried = true;
+      srv.entityRevs[msg.mid] = msg.entityRev;
+      delete srv._pending[msg.opId];
+      if (cp.mid && srv._pendingMid[cp.mid] === msg.opId) delete srv._pendingMid[cp.mid];
+      srvSendOp(cp);
+      srvPersistQueue();
+      return;
+    }
     delete srv._pending[msg.opId];
+    if (cp && cp.mid && srv._pendingMid[cp.mid] === msg.opId){ delete srv._pendingMid[cp.mid]; srvFlushMidQueue(cp.mid); }
     srv.entityRevs[msg.mid] = msg.entityRev;
     if (msg.current){ state.results[msg.mid] = msg.current; if (state.tombstones) delete state.tombstones[msg.mid]; }
     else { delete state.results[msg.mid]; state.tombstones = state.tombstones || {}; state.tombstones[msg.mid] = Date.now(); }
@@ -2810,8 +2946,11 @@ function srvOnMessage(msg){
     srvToast("他の端末で変更されていたため、サーバーの内容に合わせました");
   }
   else if (msg.type === "denied"){
+    var dp = srv._pending[msg.opId];
     delete srv._pending[msg.opId];
+    if (dp && dp.mid && srv._pendingMid[dp.mid] === msg.opId){ delete srv._pendingMid[dp.mid]; srvFlushMidQueue(dp.mid); }
     if (Date.now() - srv._deniedAt > 30000){ srv._deniedAt = Date.now(); srvToast(msg.reason === "admin only" ? "その操作は責任者のみ可能です（サーバーへは送信されませんでした）" : "サーバーへ送信できませんでした"); }
+    srvPersistQueue();
   }
 }
 // --- server account / binding actions (settings screen) ---
@@ -2843,7 +2982,8 @@ function srvLogout(){
   srvApi("/api/auth/sign-out", { method: "POST", body: {} }).then(function(){ srvUi.user = false; srvUi.list = []; render(); });
 }
 function srvBind(tid, name, role){
-  srv.tid = tid; srv.boundName = name || ""; srv.role = role || ""; srv.on = true; srv.rev = 0; srv.entityRevs = {}; srv.queue = [];
+  srv.tid = tid; srv.boundName = name || ""; srv.role = role || ""; srv.on = true; srv.rev = 0; srv.entityRevs = {}; srv.queue = []; srv._pending = {}; srv._midQueue = {}; srv._pendingMid = {}; srv._synced = false;
+  srvRestoreQueue(tid);
   srvStoreBinding();
   if (sync.client){ try{ sync.client.end(true); }catch(e){} sync.client = null; sync.connected = false; }
   if (srv.ws){ try{ srv.ws.close(); }catch(e){} srv.ws = null; }
@@ -2873,7 +3013,10 @@ function srvIssueViewerToken(){
 }
 function srvDetach(silent){
   var was = srv.on;
-  srv.on = false; srv.tid = ""; srv.vt = ""; srv.role = ""; srv.boundName = ""; srv.rev = 0; srv.entityRevs = {}; srv.queue = [];
+  var oldTid = srv.tid;
+  if (oldTid && srvQueueStore.byTid[oldTid]){ delete srvQueueStore.byTid[oldTid]; try{ localStorage.setItem(SRV_QUEUE_KEY, JSON.stringify(srvQueueStore)); }catch(e){} }
+  srvStopPing();
+  srv.on = false; srv.tid = ""; srv.vt = ""; srv.role = ""; srv.boundName = ""; srv.rev = 0; srv.entityRevs = {}; srv.queue = []; srv._pending = {}; srv._midQueue = {}; srv._pendingMid = {}; srv._synced = false;
   if (srv.ws){ try{ srv.ws.close(); }catch(e){} srv.ws = null; }
   if (typeof state !== "undefined" && state && state.tid) delete srvStore.byLocal[state.tid];
   srvSaveCfg();
@@ -2884,13 +3027,16 @@ function srvSuspend(){
   // Library switch: park the connection. The binding itself stays
   // in srvStore (keyed by the local tournament), so switching back
   // restores sharing without any setup.
-  srv.on = false; srvApplyBinding(null); srv.rev = 0; srv.entityRevs = {}; srv.queue = [];
+  srvPersistQueue(); // park unsent ops under the old tournament id
+  srvStopPing();
+  srv.on = false; srvApplyBinding(null); srv.rev = 0; srv.entityRevs = {}; srv.queue = []; srv._pending = {}; srv._midQueue = {}; srv._pendingMid = {}; srv._synced = false;
   if (srv.ws){ try{ srv.ws.close(); }catch(e){} srv.ws = null; }
 }
 function srvResumeForCurrent(){
   var b = srvBindingFor();
   if (b && !VIEWER){
-    srvApplyBinding(b); srv.on = true; srv.rev = 0; srv.entityRevs = {}; srv.queue = [];
+    srvApplyBinding(b); srv.on = true; srv.rev = 0; srv.entityRevs = {}; srv.queue = []; srv._pending = {}; srv._midQueue = {}; srv._pendingMid = {}; srv._synced = false;
+    srvRestoreQueue(b.tid);
     if (sync.client){ try{ sync.client.end(true); }catch(e){} sync.client = null; sync.connected = false; }
     srvConnect();
   } else if (!sync.client && !VIEWER){ connectBroker(0); }
@@ -3241,6 +3387,10 @@ function openScoreModal(evId, mid){
   }
 }
 function closeScoreModal(){
+  // Drop the not-yet-saved winner pick: reopening the modal must
+  // show the saved result, not a winner the user tapped and then
+  // cancelled (otherwise a later edit re-applies the wrong winner).
+  if (_modalMid) delete _pendingWinner[_modalMid];
   var ov = document.getElementById("modalOverlay");
   if (ov){ ov.style.display = "none"; ov.innerHTML = ""; }
   _modalMid = null;
@@ -4694,7 +4844,7 @@ function eventEntryCard(ev){
       var rec = playerRecord(ev, p.id);
       h += "<tr><td>" + (i+1) + "</td><td><strong>" + nameLinesHTML(p.name) + "</strong>" + (p.kana ? '<span class="mini" style="display:block">' + esc(p.kana) + '</span>' : "") + (gradeGenderLabel(p) ? '<span class="mini" style="display:block">' + esc(gradeGenderLabel(p)) + '</span>' : "") + (p.retired ? ' <span class="chip red">棄権</span>' : "") + "</td><td>" + esc(p.aff||"") + ((rec.w + rec.l) ? '<span class="mini" style="display:block;font-weight:700;color:var(--ink)">' + rec.w + "勝 " + rec.l + "敗</span>" : "") + "</td>" +
         '<td><button class="linkbtn" onclick="toggleSeed(\'' + ev.id + "','" + p.id + '\')">' + (p.seed ? "⭐" : "☆") + "</button></td>" +
-        '<td class="ops" style="white-space:nowrap"><button class="linkbtn" onclick="movePart(\'' + ev.id + "','" + p.id + ',-1)">↑</button><button class="linkbtn" onclick="movePart(\'' + ev.id + "','" + p.id + ',1)">↓</button><button class="linkbtn" onclick="renamePart(\'' + ev.id + "','" + p.id + '\')">名前</button><button class="linkbtn" onclick="editGradeGender(\'' + ev.id + '\',"' + p.id + '\')">学年・性別</button>' + (ev.format === "team" ? '<button class="linkbtn" onclick="toggleRoster(\'' + ev.id + "','" + p.id + '\')">メンバー</button>' : "") + '<button class="linkbtn" onclick="toggleRetire(\'' + ev.id + "','" + p.id + '\')">' + (p.retired ? "棄権を戻す" : "棄権") + '</button><button class="linkbtn" style="color:var(--bad)" onclick="delPart(\'' + ev.id + "','" + p.id + '\')">削除</button></td></tr>' +
+        '<td class="ops" style="white-space:nowrap"><button class="linkbtn" onclick="movePart(\'' + ev.id + "','" + p.id + '\',-1)">↑</button><button class="linkbtn" onclick="movePart(\'' + ev.id + "','" + p.id + '\',1)">↓</button><button class="linkbtn" onclick="renamePart(\'' + ev.id + "','" + p.id + '\')">名前</button><button class="linkbtn" onclick="editGradeGender(\'' + ev.id + '\',\'' + p.id + '\')">学年・性別</button>' + (ev.format === "team" ? '<button class="linkbtn" onclick="toggleRoster(\'' + ev.id + "','" + p.id + '\')">メンバー</button>' : "") + '<button class="linkbtn" onclick="toggleRetire(\'' + ev.id + "','" + p.id + '\')">' + (p.retired ? "棄権を戻す" : "棄権") + '</button><button class="linkbtn" style="color:var(--bad)" onclick="delPart(\'' + ev.id + "','" + p.id + '\')">削除</button></td></tr>' +
         (ev.format === "team" && uiRoster[ev.id] === p.id ? '<tr><td></td><td colspan="4"><textarea id="roster-' + ev.id + '" placeholder="メンバーを1行に1人で入力">' + esc((p.members || []).join("\n")) + '</textarea><div style="margin-top:6px"><button class="btn small" onclick="saveRoster(\'' + ev.id + "','" + p.id + '\')">メンバーを保存</button></div></td></tr>' : "");
     });
     h += "</table>";
@@ -4847,13 +4997,15 @@ function addParts(ev, lines){
 }
 function pasteAdd(id){
   var ev = evById(id); var ta = document.getElementById("paste-" + id);
+  var lines = (ta ? ta.value : "").split(/\n/).filter(function(l){ return l.trim(); });
+  if (!lines.length) return;
   if (!guardPartChange(ev)) return;
-  addParts(ev, ta.value.split(/\n/)); touchConfig(); render();
+  addParts(ev, lines); touchConfig(); render();
 }
 function oneAdd(id){
   var ev = evById(id);
-  if (!guardPartChange(ev)) return;
   var n = document.getElementById("one-name-" + id).value.trim(); if (!n) return;
+  if (!guardPartChange(ev)) return;
   var kn = document.getElementById("one-kana-" + id);
   var np2 = {id: uid("p"), name: n, aff: document.getElementById("one-aff-" + id).value.trim(), kana: kn ? kn.value.trim() : "", seed:false};
   var og = document.getElementById("one-grade-" + id), od = document.getElementById("one-gender-" + id);
